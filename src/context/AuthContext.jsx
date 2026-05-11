@@ -3,102 +3,128 @@ import {
   useContext,
   useEffect,
   useState,
-} from "react"
+} from "react";
 
-import { supabase } from "../lib/supabase"
+import { supabase } from "../lib/supabase";
 
-const AuthContext = createContext()
+const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
 
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(null);
+
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
 
     supabase.auth.getSession()
       .then(({ data }) => {
-        setUser(data.session?.user ?? null)
-        setLoading(false)
-      })
+
+        setUser(data.session?.user ?? null);
+
+        setLoading(false);
+
+      });
 
     const {
       data: listener
     } = supabase.auth.onAuthStateChange(
       (_, session) => {
-        setUser(session?.user ?? null)
+
+        setUser(session?.user ?? null);
+
       }
-    )
+    );
 
     return () => {
-      listener.subscription.unsubscribe()
+
+      listener.subscription.unsubscribe();
+
+    };
+
+  }, []);
+
+  async function signUp(email, password, username) {
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+
+      console.log(error);
+
+      return {
+        error,
+      };
+
     }
 
-  }, [])
+    // cria perfil inicial
+    if (data?.user) {
 
-  async function signUp(email, password) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .insert([
+          {
+            id: data.user.id,
 
-  const {
-    data,
-    error,
-  } = await supabase.auth.signUp({
-    email,
-    password,
-  })
+            username,
 
-  if (error) {
+            xp: 0,
 
-    console.log(error)
+            streak: 0,
 
-    return
+            current_workout: "Push Day",
+
+            avatar_url: "",
+
+            bio: "",
+          },
+        ]);
+
+      if (profileError) {
+
+        console.log(profileError);
+
+      }
+
+    }
+
+    return {
+      data,
+    };
 
   }
-
-  const user = data.user
-
-  if (user) {
-
-    await supabase
-      .from("profiles")
-      .insert([
-        {
-          id: user.id,
-          username: email.split("@")[0],
-          xp: 1480,
-          streak: 12,
-          current_workout: "Push Day",
-        }
-      ])
-
-  }
-
-}
 
   async function signIn(email, password) {
 
-  const {
-    data,
-    error,
-  } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
+    const {
+      data,
+      error,
+    } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
+    if (error) {
 
-    console.log(error.message)
+      console.log(error.message);
 
-    return
+      return;
+
+    }
+
+    return {
+  data,
+};
 
   }
 
-  console.log("LOGIN SUCCESS", data)
-
-}
-
   async function signOut() {
 
-    await supabase.auth.signOut()
+    await supabase.auth.signOut();
 
   }
 
@@ -114,9 +140,12 @@ export function AuthProvider({ children }) {
     >
       {children}
     </AuthContext.Provider>
-  )
+  );
+
 }
 
 export function useAuth() {
-  return useContext(AuthContext)
+
+  return useContext(AuthContext);
+
 }

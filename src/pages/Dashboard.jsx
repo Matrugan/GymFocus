@@ -14,24 +14,48 @@ import CreatePost from "../components/CreatePost";
 
 import Feed from "../components/Feed";
 
-import ProfileSettings from "../components/ProfileSettings"
+import ProfileSettings from "../components/ProfileSettings";
+
+import WorkoutCalendar from "../components/WorkoutCalendar";
+
+import NotificationBell from "../components/NotificationBell";
+
+import SearchUsers from "../components/SearchUsers";
+
+import {
+  getLevel,
+  getXPForNextLevel,
+  getLevelProgress,
+} from "../utils/levelSystem";
+
+import { Link } from "react-router-dom";
+
+import { MessageCircle } from "lucide-react";
 
 function Dashboard() {
   const { user, signOut } = useAuth();
 
+  const [loadingWorkout, setLoadingWorkout] = useState(false);
+
   const [profile, setProfile] = useState(null);
 
-  useEffect(() => {
-    async function getProfile() {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+  async function getProfile() {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
 
-      setProfile(data);
+    if (error) {
+      console.log(error);
+
+      return;
     }
 
+    setProfile(data);
+  }
+
+  useEffect(() => {
     if (user) {
       getProfile();
     }
@@ -40,11 +64,48 @@ function Dashboard() {
   async function completeWorkout() {
     if (!profile) return;
 
-    const newXP = profile.xp + 120;
+    setLoadingWorkout(true);
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // verifica se já treinou hoje
+    const { data: existingWorkout } = await supabase
+      .from("workout_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("workout_date", today)
+      .single();
+
+    if (existingWorkout) {
+      alert("Workout already completed today.");
+
+      setLoadingWorkout(false);
+
+      return;
+    }
+
+    // salva treino
+    const { error: workoutError } = await supabase.from("workout_logs").insert([
+      {
+        user_id: user.id,
+        workout_date: today,
+      },
+    ]);
+
+    if (workoutError) {
+      console.log(workoutError);
+
+      setLoadingWorkout(false);
+
+      return;
+    }
+
+    // atualiza profile
+    const newXP = profile.xp + 100;
 
     const newStreak = profile.streak + 1;
 
-    const { error } = await supabase
+    const { error: profileError } = await supabase
       .from("profiles")
       .update({
         xp: newXP,
@@ -52,8 +113,10 @@ function Dashboard() {
       })
       .eq("id", user.id);
 
-    if (error) {
-      console.log(error);
+    if (profileError) {
+      console.log(profileError);
+
+      setLoadingWorkout(false);
 
       return;
     }
@@ -63,7 +126,17 @@ function Dashboard() {
       xp: newXP,
       streak: newStreak,
     });
+
+    setLoadingWorkout(false);
+
+    alert("Workout completed successfully!");
   }
+
+  const level = getLevel(profile?.xp || 0);
+
+  const nextLevelXP = getXPForNextLevel(level);
+
+  const progress = getLevelProgress(profile?.xp || 0);
 
   const stats = [
     {
@@ -131,25 +204,55 @@ function Dashboard() {
             </h1>
           </div>
 
-          <button
-            onClick={signOut}
-            className="
-              flex
-              items-center
-              gap-3
-              bg-white/5
-              border
-              border-white/10
-              px-6
-              py-3
-              rounded-2xl
-              hover:border-purple-500
-              transition
-            "
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
+          <div className="flex items-center gap-4">
+            <NotificationBell user={user} />
+
+            <button
+              onClick={signOut}
+              className="
+      flex
+      items-center
+      gap-3
+      bg-white/5
+      border
+      border-white/10
+      px-6
+      py-3
+      rounded-2xl
+      hover:border-purple-500
+      transition
+    "
+            >
+              <LogOut size={18} />
+              Logout
+            </button>
+
+            <Link to="/inbox">
+
+  <button
+    className="
+      flex
+      items-center
+      gap-3
+      bg-white/5
+      border
+      border-white/10
+      px-6
+      py-3
+      rounded-2xl
+      hover:border-purple-500
+      transition
+    "
+  >
+
+    <MessageCircle size={18} />
+
+    Inbox
+
+  </button>
+
+</Link>
+          </div>
         </div>
 
         {/* Stats */}
@@ -286,16 +389,16 @@ function Dashboard() {
           "
           >
             <div>
-              <p className="text-zinc-400">Progress to Level 09</p>
+              <p className="text-zinc-400">Progress to Level {level + 1}</p>
 
               <h3
                 className="
-                text-3xl
-                font-black
-                mt-2
-              "
+    text-3xl
+    font-black
+    mt-2
+  "
               >
-                74%
+                {Math.floor(progress)}%
               </h3>
             </div>
 
@@ -305,7 +408,7 @@ function Dashboard() {
               font-bold
             "
             >
-              +240 XP
+              {profile?.xp || 0} / {nextLevelXP} XP
             </div>
           </div>
 
@@ -323,7 +426,7 @@ function Dashboard() {
                 width: 0,
               }}
               animate={{
-                width: "74%",
+                width: `${progress}%`,
               }}
               transition={{
                 duration: 1.5,
@@ -346,12 +449,73 @@ function Dashboard() {
         onPostCreated={() => window.location.reload()}
       />
 
+      <div
+        className="
+    mt-10
+    bg-gradient-to-r
+    from-purple-600
+    to-fuchsia-600
+    p-8
+    rounded-3xl
+    flex
+    justify-between
+    items-center
+    flex-wrap
+    gap-5
+  "
+      >
+        <div>
+          <p className="text-sm opacity-70">Today's Workout</p>
+
+          <h2 className="text-3xl font-bold">{profile?.current_workout}</h2>
+        </div>
+
+        <button
+          onClick={completeWorkout}
+          disabled={loadingWorkout}
+          className="
+      px-8
+      py-4
+      rounded-2xl
+      bg-white
+      text-black
+      font-bold
+      hover:scale-105
+      transition
+    "
+        >
+          {loadingWorkout ? "Loading..." : "Complete Workout"}
+        </button>
+      </div>
+
+      <WorkoutCalendar user={user} />
+
+      <SearchUsers />
+
       <Feed user={user} profile={profile} />
 
-      <ProfileSettings
-        profile={profile}
-        user={user}
-    />
+      <ProfileSettings profile={profile} user={user} />
+
+      <Link
+  to="/chat"
+  className="
+    fixed
+    bottom-8
+    right-8
+    bg-gradient-to-r
+    from-purple-500
+    to-fuchsia-500
+    px-6
+    py-4
+    rounded-2xl
+    font-bold
+    shadow-xl
+    hover:scale-105
+    transition
+  "
+>
+  Open Chat
+</Link>
     </section>
   );
 }

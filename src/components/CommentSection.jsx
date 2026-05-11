@@ -12,9 +12,28 @@ function CommentSection({ postId, user, profile }) {
 
   useEffect(() => {
 
-    getComments()
+  getComments();
 
-  }, [])
+  const commentsChannel = supabase
+    .channel(`comments-${postId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "comments",
+      },
+      () => {
+        getComments();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(commentsChannel);
+  };
+
+}, []);
 
   async function getComments() {
 

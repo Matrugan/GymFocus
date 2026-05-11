@@ -1,45 +1,39 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react";
 
-import { Crown } from "lucide-react"
+import { Crown } from "lucide-react";
 
-import { supabase } from "../lib/supabase"
+import { supabase } from "../lib/supabase";
 
-import { motion } from "framer-motion"
+import { motion } from "framer-motion";
+
+import { Link } from "react-router-dom";
 
 function Leaderboard() {
-
-  const [users, setUsers] = useState([])
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
-
-    getRanking()
-
-  }, [])
+    getRanking();
+  }, []);
 
   async function getRanking() {
-
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .order("xp", {
         ascending: false,
       })
-      .limit(5)
+      .limit(5);
 
     if (error) {
+      console.log(error);
 
-      console.log(error)
-
-      return
-
+      return;
     }
 
-    setUsers(data)
-
+    setUsers(data);
   }
 
   return (
-
     <motion.div
       initial={{
         opacity: 0,
@@ -62,29 +56,28 @@ function Leaderboard() {
         p-8
       "
     >
-
-      <div className="
+      <div
+        className="
         flex
         items-center
         gap-3
         mb-8
-      ">
-
+      "
+      >
         <Crown className="text-yellow-400" />
 
-        <h2 className="
+        <h2
+          className="
           text-3xl
           font-black
-        ">
+        "
+        >
           Global Ranking
         </h2>
-
       </div>
 
       <div className="space-y-4">
-
         {users.map((user, index) => (
-
           <div
             key={user.id}
             className="
@@ -99,14 +92,15 @@ function Leaderboard() {
               py-5
             "
           >
-
-            <div className="
+            <div
+              className="
               flex
               items-center
               gap-5
-            ">
-
-              <div className="
+            "
+            >
+              <div
+                className="
                 w-12
                 h-12
                 rounded-xl
@@ -117,59 +111,46 @@ function Leaderboard() {
                 items-center
                 justify-center
                 font-bold
-              ">
-
+              "
+              >
                 #{index + 1}
-
               </div>
 
               <div>
-
                 <h3 className="font-bold text-lg">
-
-                  {user.username}
-
+                  <Link
+                    to={`/profile/${user.username}`}
+                    className="
+    hover:text-purple-400
+    transition
+  "
+                  >
+                    {user.username}
+                  </Link>
                 </h3>
 
-                <p className="text-zinc-400 text-sm">
-
-                  {user.current_workout}
-
-                </p>
-
+                <p className="text-zinc-400 text-sm">{user.current_workout}</p>
               </div>
-
             </div>
 
             <div className="text-right">
-
-              <h2 className="
+              <h2
+                className="
                 text-2xl
                 font-black
                 text-purple-400
-              ">
-
+              "
+              >
                 {user.xp} XP
-
               </h2>
 
-              <p className="text-zinc-500 text-sm">
-
-                🔥 {user.streak} streak
-
-              </p>
-
+              <p className="text-zinc-500 text-sm">🔥 {user.streak} streak</p>
             </div>
-
           </div>
-
         ))}
-
       </div>
-
     </motion.div>
-
-  )
+  );
 }
 
-export default Leaderboard
+export default Leaderboard;

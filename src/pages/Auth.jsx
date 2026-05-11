@@ -1,71 +1,119 @@
-import { useState } from "react"
-import { motion } from "framer-motion"
-import { Dumbbell } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { useState } from "react";
 
-import { useAuth } from "../context/AuthContext"
+import { motion } from "framer-motion";
+
+import { Dumbbell } from "lucide-react";
+
+import { useNavigate } from "react-router-dom";
+
+import { useAuth } from "../context/AuthContext";
 
 function Auth() {
 
-    
+  const navigate = useNavigate();
 
   const {
     signIn,
     signUp,
-  } = useAuth()
+  } = useAuth();
 
-  const [isLogin, setIsLogin] = useState(true)
+  const [isLogin, setIsLogin] = useState(true);
 
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const navigate = useNavigate()
+  const [email, setEmail] = useState("");
+
+  const [password, setPassword] = useState("");
+
+  const [username, setUsername] = useState("");
 
   async function handleSubmit(e) {
 
-  e.preventDefault()
+    e.preventDefault();
 
-  if (isLogin) {
+    // LOGIN
+    if (isLogin) {
 
-    await signIn(email, password)
+      const result = await signIn(email, password);
 
-    navigate("/dashboard")
+      if (result?.data) {
 
-  } else {
+        navigate("/dashboard");
 
-    await signUp(email, password)
+      } else {
+
+        alert(
+          result?.error?.message ||
+          "Erro ao fazer login"
+        );
+
+      }
+
+    }
+
+    // REGISTER
+    else {
+
+      const result = await signUp(
+        email,
+        password,
+        username
+      );
+
+      if (result?.data) {
+
+        navigate("/dashboard");
+
+      } else {
+
+        alert(
+          result?.error?.message ||
+          "Erro ao criar conta"
+        );
+
+      }
+
+    }
 
   }
 
-}
-
   return (
-    <section className="
-      min-h-screen
-      flex
-      items-center
-      justify-center
-      bg-black
-      overflow-hidden
-      relative
-      px-6
-    ">
+    <section
+      className="
+        min-h-screen
+        flex
+        items-center
+        justify-center
+        bg-black
+        overflow-hidden
+        relative
+        px-6
+      "
+    >
 
       {/* Glow */}
-      <div className="
-        absolute
-        w-[500px]
-        h-[500px]
-        bg-purple-500/20
-        blur-[140px]
-        rounded-full
-      ">
-      </div>
+      <div
+        className="
+          absolute
+          w-[500px]
+          h-[500px]
+          bg-purple-500/20
+          blur-[140px]
+          rounded-full
+        "
+      />
 
       {/* Card */}
       <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1 }}
+        initial={{
+          opacity: 0,
+          y: 40,
+        }}
+        animate={{
+          opacity: 1,
+          y: 0,
+        }}
+        transition={{
+          duration: 1,
+        }}
         className="
           relative
           z-10
@@ -85,19 +133,21 @@ function Auth() {
         {/* Logo */}
         <div className="flex flex-col items-center">
 
-          <div className="
-            w-16
-            h-16
-            rounded-3xl
-            bg-gradient-to-r
-            from-purple-500
-            to-fuchsia-500
-            flex
-            items-center
-            justify-center
-            shadow-lg
-            shadow-purple-500/30
-          ">
+          <div
+            className="
+              w-16
+              h-16
+              rounded-3xl
+              bg-gradient-to-r
+              from-purple-500
+              to-fuchsia-500
+              flex
+              items-center
+              justify-center
+              shadow-lg
+              shadow-purple-500/30
+            "
+          >
 
             <Dumbbell size={30} />
 
@@ -111,9 +161,11 @@ function Auth() {
           </h1>
 
           <p className="text-zinc-400 mt-3">
+
             {isLogin
               ? "Entre na sua conta"
               : "Crie sua conta"}
+
           </p>
 
         </div>
@@ -124,6 +176,34 @@ function Auth() {
           className="mt-10 space-y-5"
         >
 
+          {/* Username */}
+          {!isLogin && (
+
+            <input
+              type="text"
+              placeholder="Username"
+              required
+              value={username}
+              onChange={(e) =>
+                setUsername(e.target.value)
+              }
+              className="
+                w-full
+                bg-white/5
+                border
+                border-white/10
+                rounded-2xl
+                px-5
+                py-4
+                outline-none
+                focus:border-purple-500
+                transition
+              "
+            />
+
+          )}
+
+          {/* Email */}
           <input
             type="email"
             placeholder="Email"
@@ -146,6 +226,7 @@ function Auth() {
             "
           />
 
+          {/* Password */}
           <input
             type="password"
             placeholder="Password"
@@ -168,6 +249,7 @@ function Auth() {
             "
           />
 
+          {/* Button */}
           <button
             type="submit"
             className="
@@ -216,7 +298,8 @@ function Auth() {
       </motion.div>
 
     </section>
-  )
+  );
+
 }
 
-export default Auth
+export default Auth;

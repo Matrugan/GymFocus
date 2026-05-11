@@ -1,24 +1,63 @@
 import { useEffect, useState } from "react";
-
 import { supabase } from "../lib/supabase";
-
 import { motion } from "framer-motion";
-
-import { Pencil, Trash2, Save, X } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Save,
+  X,
+  Heart,
+} from "lucide-react";
 
 import CommentSection from "./CommentSection";
+import { Link } from "react-router-dom";
 
 function Feed({ user, profile }) {
 
   const [posts, setPosts] = useState([]);
-
   const [editingPostId, setEditingPostId] = useState(null);
-
   const [editedContent, setEditedContent] = useState("");
+  const [likes, setLikes] = useState([]);
 
   useEffect(() => {
 
     getPosts();
+    getLikes();
+
+    const postsChannel = supabase
+      .channel("posts-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "posts",
+        },
+        () => {
+          getPosts();
+        }
+      )
+      .subscribe();
+
+    const likesChannel = supabase
+      .channel("likes-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "likes",
+        },
+        () => {
+          getLikes();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(likesChannel);
+    };
 
   }, []);
 
@@ -32,20 +71,72 @@ function Feed({ user, profile }) {
       });
 
     if (error) {
-
       console.log(error);
-
       return;
-
     }
 
     setPosts(data);
+  }
 
+  async function getLikes() {
+
+    const { data, error } = await supabase
+      .from("likes")
+      .select("*");
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    setLikes(data);
+  }
+
+  async function toggleLike(postId) {
+
+    const existingLike = likes.find(
+      (like) =>
+        like.post_id === postId &&
+        like.user_id === user.id
+    );
+
+    if (existingLike) {
+
+      const { error } = await supabase
+        .from("likes")
+        .delete()
+        .eq("id", existingLike.id);
+
+      if (error) {
+        console.log(error);
+        return;
+      }
+
+    } else {
+
+      const { error } = await supabase
+        .from("likes")
+        .insert([
+          {
+            post_id: postId,
+            user_id: user.id,
+          },
+        ]);
+
+      if (error) {
+        console.log(error);
+        return;
+      }
+    }
+
+    getLikes();
   }
 
   async function deletePost(postId) {
 
-    const confirmDelete = confirm("Delete this post?");
+    const confirmDelete = confirm(
+      "Delete this post?"
+    );
 
     if (!confirmDelete) return;
 
@@ -55,15 +146,11 @@ function Feed({ user, profile }) {
       .eq("id", postId);
 
     if (error) {
-
       console.log(error);
-
       return;
-
     }
 
     getPosts();
-
   }
 
   async function updatePost(postId) {
@@ -76,17 +163,13 @@ function Feed({ user, profile }) {
       .eq("id", postId);
 
     if (error) {
-
       console.log(error);
-
       return;
-
     }
 
     setEditingPostId(null);
 
     getPosts();
-
   }
 
   return (
@@ -119,29 +202,36 @@ function Feed({ user, profile }) {
         >
 
           {/* HEADER */}
-          <div
-            className="
-              flex
-              justify-between
-              items-center
-              mb-5
-            "
-          >
+          <div className="
+            flex
+            justify-between
+            items-center
+            mb-5
+          ">
 
             <div className="flex items-center gap-4">
 
               <div>
 
-                <h3
-                  className="
+                <Link
+                  to={`/profile/${post.username}`}
+                >
+
+                  <h3 className="
                     text-xl
                     font-bold
-                  "
-                >
-                  {post.username}
-                </h3>
+                    hover:text-purple-400
+                    transition
+                  ">
+                    {post.username}
+                  </h3>
 
-                <p className="text-zinc-500 text-sm">
+                </Link>
+
+                <p className="
+                  text-zinc-500
+                  text-sm
+                ">
                   GymFocus Athlete
                 </p>
 
@@ -155,11 +245,8 @@ function Feed({ user, profile }) {
 
                 <button
                   onClick={() => {
-
                     setEditingPostId(post.id);
-
                     setEditedContent(post.content);
-
                   }}
                   className="
                     p-3
@@ -169,9 +256,7 @@ function Feed({ user, profile }) {
                     transition
                   "
                 >
-
                   <Pencil size={18} />
-
                 </button>
 
                 <button
@@ -184,9 +269,7 @@ function Feed({ user, profile }) {
                     transition
                   "
                 >
-
                   <Trash2 size={18} />
-
                 </button>
 
               </div>
@@ -202,7 +285,9 @@ function Feed({ user, profile }) {
 
               <textarea
                 value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
+                onChange={(e) =>
+                  setEditedContent(e.target.value)
+                }
                 className="
                   w-full
                   h-32
@@ -218,7 +303,9 @@ function Feed({ user, profile }) {
               <div className="flex gap-3 mt-4">
 
                 <button
-                  onClick={() => updatePost(post.id)}
+                  onClick={() =>
+                    updatePost(post.id)
+                  }
                   className="
                     px-5
                     py-3
@@ -229,15 +316,14 @@ function Feed({ user, profile }) {
                     gap-2
                   "
                 >
-
                   <Save size={18} />
-
                   Save
-
                 </button>
 
                 <button
-                  onClick={() => setEditingPostId(null)}
+                  onClick={() =>
+                    setEditingPostId(null)
+                  }
                   className="
                     px-5
                     py-3
@@ -248,11 +334,8 @@ function Feed({ user, profile }) {
                     gap-2
                   "
                 >
-
                   <X size={18} />
-
                   Cancel
-
                 </button>
 
               </div>
@@ -261,13 +344,11 @@ function Feed({ user, profile }) {
 
           ) : (
 
-            <p
-              className="
-                text-lg
-                text-zinc-200
-                leading-relaxed
-              "
-            >
+            <p className="
+              text-lg
+              text-zinc-200
+              leading-relaxed
+            ">
               {post.content}
             </p>
 
@@ -290,6 +371,52 @@ function Feed({ user, profile }) {
 
           )}
 
+          {/* LIKES */}
+          <div className="
+            flex
+            items-center
+            gap-4
+            mt-6
+          ">
+
+            <button
+              onClick={() =>
+                toggleLike(post.id)
+              }
+              className="
+                flex
+                items-center
+                gap-2
+                text-zinc-400
+                hover:text-pink-500
+                transition
+              "
+            >
+
+              <Heart
+                size={20}
+                fill={
+                  likes.find(
+                    (like) =>
+                      like.post_id === post.id &&
+                      like.user_id === user.id
+                  )
+                    ? "currentColor"
+                    : "none"
+                }
+              />
+
+              {
+                likes.filter(
+                  (like) =>
+                    like.post_id === post.id
+                ).length
+              }
+
+            </button>
+
+          </div>
+
           {/* COMMENTS */}
           <CommentSection
             postId={post.id}
@@ -302,9 +429,7 @@ function Feed({ user, profile }) {
       ))}
 
     </div>
-
   );
-
 }
 
 export default Feed;
