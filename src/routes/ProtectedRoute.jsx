@@ -1,62 +1,23 @@
-import { Navigate } from "react-router-dom"
+import { Navigate } from "react-router-dom";
 
-import { useAuth } from "../context/AuthContext"
+import { useAuth } from "../context/AuthContext";
 
 function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
 
-  const {
-    user,
-    loading,
-  } = useAuth()
-
-  // Loading
   if (loading) {
-
     return (
-
-      <section className="
-        min-h-screen
-        bg-black
-        flex
-        items-center
-        justify-center
-      ">
-
-        <div className="text-center">
-
-          <div className="
-            w-16
-            h-16
-            border-4
-            border-purple-500
-            border-t-transparent
-            rounded-full
-            animate-spin
-            mx-auto
-          ">
-          </div>
-
-          <p className="mt-6 text-zinc-400">
-            Loading GymFocus...
-          </p>
-
-        </div>
-
-      </section>
-
-    )
-
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        Loading...
+      </div>
+    );
   }
 
-  // User not logged
   if (!user) {
-
-    return <Navigate to="/auth" />
-
+    return <Navigate to="/auth" replace />;
   }
 
-  // User logged
-  return children
+  return children;
 }
 
-export default ProtectedRoute
+export default ProtectedRoute;

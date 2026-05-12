@@ -1,154 +1,849 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { supabase } from "../lib/supabase";
 
 import { useAuth } from "../context/AuthContext";
 
-import { Link } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
+
+import {
+  ArrowLeft,
+  Send,
+  Smile,
+  Phone,
+  Video,
+  Info,
+  UserRound,
+  ImagePlus,
+  X,
+  MessageCircle,
+} from "lucide-react";
+
+import EmojiPicker from "emoji-picker-react";
+
+import { motion, AnimatePresence } from "framer-motion";
+
+import ThemeToggle from "../components/ThemeToggle";
+
+import toast from "react-hot-toast";
 
 function Chat() {
   const { user } = useAuth();
+
+  const navigate = useNavigate();
+
+  const { id } = useParams();
+
+  const messagesEndRef = useRef(null);
+
+  const imageInputRef = useRef(null);
 
   const [messages, setMessages] = useState([]);
 
   const [newMessage, setNewMessage] = useState("");
 
-  useEffect(() => {
-    getMessages();
-  }, []);
+  const [showEmoji, setShowEmoji] = useState(false);
 
-  async function getMessages() {
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*")
-      .order("created_at", {
-        ascending: true,
-      });
+  const [selectedUser, setSelectedUser] = useState(null);
 
-    if (error) {
-      console.log(error);
+  const [image, setImage] = useState(null);
 
-      return;
-    }
+  const [sending, setSending] = useState(false);
 
-    setMessages(data);
-  }
-
-  async function sendMessage() {
-    if (!newMessage.trim()) return;
-
-    const { error } = await supabase.from("messages").insert([
-      {
-        user_id: user.id,
-        username: user.email,
-        content: newMessage,
-      },
-    ]);
-
-    if (error) {
-      console.log(error);
-
-      return;
-    }
-
-    setNewMessage("");
-  }
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (user && id) {
+      getSelectedUser();
+      getMessages();
+      markMessagesAsRead();
+    }
+  }, [user, id]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    if (!id) return;
+
     const channel = supabase
-      .channel("messages-realtime")
-
+      .channel(`chat-messages-${id}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "messages",
+          filter: `conversation_id=eq.${id}`,
         },
-
         (payload) => {
-          setMessages((prev) => [...prev, payload.new]);
-        },
-      )
+          setMessages((prev) => {
+            const exists = prev.some(
+              (message) => message.id === payload.new.id
+            );
 
+            if (exists) return prev;
+
+            return [...prev, payload.new];
+          });
+
+          if (payload.new.user_id !== user?.id) {
+            markMessagesAsRead();
+          }
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [id, user?.id]);
+
+  async function getSelectedUser() {
+    const { data: participants, error } = await supabase
+      .from("conversation_participants")
+      .select("*")
+      .eq("conversation_id", id)
+      .neq("user_id", user.id);
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    const otherParticipant = participants?.[0];
+
+    if (!otherParticipant) return;
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", otherParticipant.user_id)
+      .single();
+
+    if (profileError) {
+      console.log(profileError);
+      return;
+    }
+
+    setSelectedUser(profile);
+  }
+
+  async function getMessages() {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("conversation_id", id)
+      .order("created_at", {
+        ascending: true,
+      });
+
+    if (error) {
+      console.log(error);
+      setLoading(false);
+      return;
+    }
+
+    setMessages(data || []);
+
+    setLoading(false);
+  }
+
+  async function markMessagesAsRead() {
+    if (!user?.id || !id) return;
+
+    await supabase
+      .from("messages")
+      .update({
+        is_read: true,
+      })
+      .eq("conversation_id", id)
+      .neq("user_id", user.id);
+  }
+
+  async function uploadChatImage() {
+    if (!image) return null;
+
+    const fileExt = image.name.split(".").pop();
+
+    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+
+    const filePath = fileName;
+
+    const { error: uploadError } = await supabase.storage
+      .from("chat-images")
+      .upload(filePath, image, {
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.log(uploadError);
+      toast.error("Erro ao enviar imagem.");
+      return null;
+    }
+
+    const { data } = supabase.storage
+      .from("chat-images")
+      .getPublicUrl(filePath);
+
+    if (!data?.publicUrl) {
+      toast.error("Não foi possível gerar o link da imagem.");
+      return null;
+    }
+
+    return data.publicUrl;
+  }
+
+  async function sendMessage() {
+    if (!newMessage.trim() && !image) return;
+
+    if (!user?.id || !id) return;
+
+    setSending(true);
+
+    let image_url = null;
+
+    if (image) {
+      image_url = await uploadChatImage();
+
+      if (!image_url) {
+        setSending(false);
+        return;
+      }
+    }
+
+    const { error } = await supabase.from("messages").insert([
+      {
+        conversation_id: id,
+        user_id: user.id,
+        username: user.email,
+        content: newMessage.trim(),
+        image_url,
+        is_read: false,
+      },
+    ]);
+
+    if (error) {
+      console.log(error);
+      toast.error("Erro ao enviar mensagem.");
+      setSending(false);
+      return;
+    }
+
+    setNewMessage("");
+
+    setImage(null);
+
+    setShowEmoji(false);
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+
+    setSending(false);
+  }
+
+  function scrollToBottom() {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }
+
+  function formatTime(date) {
+    if (!date) return "";
+
+    return new Date(date).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function removeSelectedImage() {
+    setImage(null);
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  }
 
   return (
-    <section className="min-h-screen bg-black text-white p-10">
-      <h1 className="text-5xl font-black mb-10">Messages</h1>
+    <section
+      className="
+        h-screen
+        bg-zinc-50
+        text-zinc-950
+        flex
+        flex-col
+        overflow-hidden
+        transition-colors
 
-      <div
+        dark:bg-black
+        dark:text-white
+      "
+    >
+      {/* HEADER */}
+      <header
         className="
-    mb-10
-    flex
-    gap-4
-  "
-      >
-        <input
-          type="text"
-          placeholder="Type your message..."
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          className="
-      flex-1
-      bg-white/5
-      border
-      border-white/10
-      rounded-2xl
-      px-5
-      py-4
-      outline-none
-    "
-        />
+          h-[84px]
+          border-b
+          border-zinc-200
+          px-5
+          flex
+          items-center
+          justify-between
+          bg-white/90
+          backdrop-blur-xl
+          sticky
+          top-0
+          z-50
+          transition-colors
 
-        <button
-          onClick={sendMessage}
-          className="
-      px-8
-      rounded-2xl
-      bg-gradient-to-r
-      from-purple-500
-      to-fuchsia-500
-      font-bold
-    "
-        >
-          Send
-        </button>
-      </div>
-      <div className="space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
+          dark:bg-black/80
+          dark:border-white/10
+        "
+      >
+        <div className="flex items-center gap-4 min-w-0">
+          <button
+            onClick={() => navigate("/inbox")}
             className="
-              bg-white/5
-              border
-              border-white/10
+              hover:bg-zinc-100
+              transition
+              p-3
               rounded-2xl
-              p-5
+              border
+              border-zinc-200
+
+              dark:hover:bg-white/10
+              dark:border-white/10
             "
           >
-            <h3 className="font-bold text-purple-400">
-              <Link
-                to={`/profile/${message.username}`}
-                className="
-    font-bold
-    hover:text-purple-400
-  "
-              >
-                {message.username}
-              </Link>
-            </h3>
+            <ArrowLeft size={22} />
+          </button>
 
-            <p className="mt-2 text-zinc-300">{message.content}</p>
+          <div className="relative shrink-0">
+            {selectedUser?.avatar_url ? (
+              <img
+                src={selectedUser.avatar_url}
+                alt=""
+                className="
+                  w-12
+                  h-12
+                  rounded-full
+                  object-cover
+                  border
+                  border-purple-500/40
+                "
+              />
+            ) : (
+              <div
+                className="
+                  w-12
+                  h-12
+                  rounded-full
+                  bg-purple-500/10
+                  border
+                  border-purple-500/20
+                  text-purple-500
+                  flex
+                  items-center
+                  justify-center
+                "
+              >
+                <UserRound size={22} />
+              </div>
+            )}
+
+            <div
+              className={`
+                absolute
+                bottom-0
+                right-0
+                w-3.5
+                h-3.5
+                rounded-full
+                border-2
+                border-white
+
+                dark:border-black
+
+                ${
+                  selectedUser?.online
+                    ? "bg-green-500"
+                    : "bg-zinc-500"
+                }
+              `}
+            />
           </div>
-        ))}
-      </div>
+
+          <div className="min-w-0">
+            <Link
+              to={
+                selectedUser?.username
+                  ? `/profile/${selectedUser.username}`
+                  : "#"
+              }
+            >
+              <h2 className="font-bold truncate hover:text-purple-500 transition">
+                {selectedUser?.username || "Chat"}
+              </h2>
+            </Link>
+
+            <p
+              className={`
+                text-xs
+
+                ${
+                  selectedUser?.online
+                    ? "text-green-500"
+                    : "text-zinc-500"
+                }
+              `}
+            >
+              {selectedUser?.online ? "Active now" : "Offline"}
+            </p>
+          </div>
+        </div>
+
+        {/* ACTIONS */}
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+
+          <HeaderIcon>
+            <Phone size={21} />
+          </HeaderIcon>
+
+          <HeaderIcon>
+            <Video size={23} />
+          </HeaderIcon>
+
+          <HeaderIcon>
+            <Info size={23} />
+          </HeaderIcon>
+        </div>
+      </header>
+
+      {/* MESSAGES */}
+      <main
+        className="
+          flex-1
+          overflow-y-auto
+          px-4
+          md:px-8
+          py-6
+        "
+      >
+        <div className="max-w-4xl mx-auto space-y-4">
+          {loading && (
+            <div className="space-y-4">
+              {[1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="
+                    h-16
+                    w-2/3
+                    rounded-3xl
+                    bg-white
+                    border
+                    border-zinc-200
+                    animate-pulse
+
+                    dark:bg-white/5
+                    dark:border-white/10
+                  "
+                />
+              ))}
+            </div>
+          )}
+
+          {!loading && messages.length === 0 && (
+            <div
+              className="
+                mt-20
+                text-center
+                text-zinc-500
+              "
+            >
+              <div
+                className="
+                  w-20
+                  h-20
+                  mx-auto
+                  rounded-full
+                  bg-purple-500/10
+                  border
+                  border-purple-500/20
+                  text-purple-500
+                  flex
+                  items-center
+                  justify-center
+                  mb-6
+                "
+              >
+                <MessageCircle size={34} />
+              </div>
+
+              <h2 className="text-2xl font-black text-zinc-950 dark:text-white">
+                Start the conversation
+              </h2>
+
+              <p className="mt-2">
+                Send your first message to this athlete.
+              </p>
+            </div>
+          )}
+
+          <AnimatePresence>
+            {messages.map((message) => {
+              const isMine = message.user_id === user.id;
+
+              return (
+                <motion.div
+                  key={message.id}
+                  initial={{
+                    opacity: 0,
+                    y: 15,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                  }}
+                  transition={{
+                    duration: 0.2,
+                  }}
+                  className={`
+                    flex
+
+                    ${isMine ? "justify-end" : "justify-start"}
+                  `}
+                >
+                  <div
+                    className={`
+                      max-w-[78%]
+                      rounded-[28px]
+                      px-5
+                      py-3
+                      relative
+                      shadow-sm
+                      border
+
+                      ${
+                        isMine
+                          ? `
+                            bg-gradient-to-r
+                            from-purple-500
+                            to-fuchsia-500
+                            text-white
+                            border-transparent
+                          `
+                          : `
+                            bg-white
+                            text-zinc-950
+                            border-zinc-200
+
+                            dark:bg-zinc-900
+                            dark:text-white
+                            dark:border-white/10
+                          `
+                      }
+                    `}
+                  >
+                    {!isMine && (
+                      <p
+                        className="
+                          text-xs
+                          text-purple-500
+                          font-bold
+                          mb-2
+                        "
+                      >
+                        {selectedUser?.username || message.username}
+                      </p>
+                    )}
+
+                    {message.content && (
+                      <p
+                        className="
+                          text-[15px]
+                          leading-relaxed
+                          break-words
+                          whitespace-pre-wrap
+                        "
+                      >
+                        {message.content}
+                      </p>
+                    )}
+
+                    {message.image_url && (
+                      <img
+                        src={message.image_url}
+                        alt="Imagem enviada"
+                        className="
+                          mt-3
+                          rounded-2xl
+                          max-h-[350px]
+                          max-w-full
+                          object-cover
+                          border
+                          border-white/20
+                        "
+                      />
+                    )}
+
+                    <div
+                      className="
+                        flex
+                        justify-end
+                        items-center
+                        gap-2
+                        mt-2
+                      "
+                    >
+                      <span
+                        className={`
+                          text-[10px]
+
+                          ${
+                            isMine
+                              ? "text-white/70"
+                              : "text-zinc-500"
+                          }
+                        `}
+                      >
+                        {formatTime(message.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+
+          <div ref={messagesEndRef} />
+        </div>
+      </main>
+
+      {/* INPUT */}
+      <footer
+        className="
+          border-t
+          border-zinc-200
+          bg-white/90
+          backdrop-blur-xl
+          p-4
+          transition-colors
+
+          dark:bg-black/90
+          dark:border-white/10
+        "
+      >
+        <div className="max-w-4xl mx-auto relative">
+          {/* IMAGE PREVIEW */}
+          {image && (
+            <div
+              className="
+                mb-3
+                relative
+                w-fit
+                max-w-xs
+                rounded-2xl
+                overflow-hidden
+                border
+                border-zinc-200
+                bg-zinc-100
+
+                dark:border-white/10
+                dark:bg-zinc-900
+              "
+            >
+              <img
+                src={URL.createObjectURL(image)}
+                alt=""
+                className="
+                  max-h-40
+                  object-cover
+                "
+              />
+
+              <button
+                type="button"
+                onClick={removeSelectedImage}
+                className="
+                  absolute
+                  top-2
+                  right-2
+                  w-8
+                  h-8
+                  rounded-full
+                  bg-black/60
+                  text-white
+                  flex
+                  items-center
+                  justify-center
+                  hover:bg-red-500
+                  transition
+                "
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* EMOJI PICKER */}
+          {showEmoji && (
+            <div
+              className="
+                absolute
+                bottom-20
+                left-0
+                z-50
+              "
+            >
+              <EmojiPicker
+                theme={
+                  document.documentElement.classList.contains("dark")
+                    ? "dark"
+                    : "light"
+                }
+                onEmojiClick={(emojiData) =>
+                  setNewMessage((prev) => prev + emojiData.emoji)
+                }
+              />
+            </div>
+          )}
+
+          <div
+            className="
+              flex
+              items-center
+              gap-3
+              bg-zinc-100
+              border
+              border-zinc-200
+              rounded-full
+              px-4
+              py-3
+              transition-colors
+
+              dark:bg-zinc-900
+              dark:border-white/10
+            "
+          >
+            <button
+              type="button"
+              onClick={() => setShowEmoji(!showEmoji)}
+              className="
+                text-zinc-500
+                hover:text-yellow-500
+                transition
+                shrink-0
+              "
+            >
+              <Smile size={24} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              className="
+                text-zinc-500
+                hover:text-purple-500
+                transition
+                shrink-0
+              "
+            >
+              <ImagePlus size={24} />
+            </button>
+
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImage(e.target.files[0])}
+              className="hidden"
+            />
+
+            <input
+              type="text"
+              placeholder="Message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  sendMessage();
+                }
+              }}
+              className="
+                flex-1
+                bg-transparent
+                outline-none
+                text-zinc-950
+                placeholder:text-zinc-500
+
+                dark:text-white
+              "
+            />
+
+            <button
+              type="button"
+              onClick={sendMessage}
+              disabled={sending || (!newMessage.trim() && !image)}
+              className="
+                w-11
+                h-11
+                rounded-full
+                bg-gradient-to-r
+                from-purple-500
+                to-fuchsia-500
+                text-white
+                flex
+                items-center
+                justify-center
+                hover:scale-110
+                transition
+                disabled:opacity-40
+                disabled:hover:scale-100
+                shrink-0
+              "
+            >
+              <Send size={18} />
+            </button>
+          </div>
+        </div>
+      </footer>
     </section>
+  );
+}
+
+function HeaderIcon({ children }) {
+  return (
+    <button
+      type="button"
+      className="
+        hidden
+        sm:flex
+        w-11
+        h-11
+        rounded-2xl
+        bg-zinc-100
+        border
+        border-zinc-200
+        items-center
+        justify-center
+        text-zinc-700
+        hover:text-purple-500
+        hover:border-purple-500
+        transition
+
+        dark:bg-white/5
+        dark:border-white/10
+        dark:text-zinc-300
+      "
+    >
+      {children}
+    </button>
   );
 }
 

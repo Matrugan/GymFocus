@@ -6,70 +6,59 @@ import { supabase } from "../lib/supabase";
 
 import { useAuth } from "../context/AuthContext";
 
-function PrivateChat() {
+import { ArrowLeft } from "lucide-react";
 
+import { useNavigate } from "react-router-dom";
+
+function PrivateChat() {
   const { id } = useParams();
 
   const { user } = useAuth();
+
+  const navigate = useNavigate();
 
   const [messages, setMessages] = useState([]);
 
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    getMessages();
+    markMessagesAsRead();
 
-  getMessages();
-  markMessagesAsRead();
+    const channel = supabase
 
-  const channel = supabase
+      .channel(`chat-${id}`)
 
-    .channel(`chat-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${id}`,
+        },
 
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-        filter: `conversation_id=eq.${id}`,
-      },
+        (payload) => {
+          setMessages((prev) => {
+            const exists = prev.find((msg) => msg.id === payload.new.id);
 
-      (payload) => {
+            if (exists) return prev;
 
-        setMessages((prev) => {
+            return [...prev, payload.new];
+          });
+        },
+      )
 
-          const exists = prev.find(
-            (msg) => msg.id === payload.new.id
-          );
+      .subscribe((status) => {
+        console.log("Realtime status:", status);
+      });
 
-          if (exists) return prev;
-
-          return [
-            ...prev,
-            payload.new,
-          ];
-
-        });
-
-      }
-    )
-
-    .subscribe((status) => {
-
-      console.log("Realtime status:", status);
-
-    });
-
-  return () => {
-
-    supabase.removeChannel(channel);
-
-  };
-
-}, [id]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
 
   async function getMessages() {
-
     const { data, error } = await supabase
       .from("messages")
       .select("*")
@@ -79,64 +68,52 @@ function PrivateChat() {
       });
 
     if (error) {
-
       console.log(error);
 
       return;
-
     }
 
     setMessages(data);
-
   }
 
   async function sendMessage(e) {
-
     e.preventDefault();
 
     if (!message.trim()) return;
 
-    const { error } = await supabase
-      .from("messages")
-      .insert([
-        {
-          conversation_id: id,
+    const { error } = await supabase.from("messages").insert([
+      {
+        conversation_id: id,
 
-          user_id: user.id,
+        user_id: user.id,
 
-          username: user.email.split("@")[0],
+        username: user.email.split("@")[0],
 
-          content: message,
-        },
-      ]);
+        content: message,
+      },
+    ]);
 
     if (error) {
-
       console.log(error);
 
       return;
-
     }
 
     setMessage("");
-
   }
 
   async function markMessagesAsRead() {
-
-  await supabase
-    .from("messages")
-    .update({
-      is_read: true,
-    })
-    .eq("conversation_id", id)
-    .neq("user_id", user.id)
-    .eq("is_read", false);
-
-}
+    await supabase
+      .from("messages")
+      .update({
+        is_read: true,
+      })
+      .eq("conversation_id", id)
+      .neq("user_id", user.id)
+      .eq("is_read", false);
+  }
 
   return (
-
     <section
       className="
         min-h-screen
@@ -145,6 +122,39 @@ function PrivateChat() {
         p-10
       "
     >
+      <div
+        className="
+    flex
+    items-center
+    gap-4
+    mb-8
+  "
+      >
+        <button
+          onClick={() => navigate("/inbox")}
+          className="
+      w-12
+      h-12
+      rounded-2xl
+      bg-white/5
+      border
+      border-white/10
+      flex
+      items-center
+      justify-center
+      hover:border-purple-500
+      transition
+    "
+        >
+          <ArrowLeft size={22} />
+        </button>
+
+        <div>
+          <h1 className="text-3xl font-black">Chat</h1>
+
+          <p className="text-zinc-400">Private conversation</p>
+        </div>
+      </div>
 
       <div
         className="
@@ -155,12 +165,7 @@ function PrivateChat() {
           h-[85vh]
         "
       >
-
-        <h1 className="text-5xl font-black mb-10">
-
-          Private Chat
-
-        </h1>
+        <h1 className="text-5xl font-black mb-10">Private Chat</h1>
 
         {/* MESSAGES */}
         <div
@@ -175,9 +180,7 @@ function PrivateChat() {
             p-6
           "
         >
-
           {messages.map((msg) => (
-
             <div
               key={msg.id}
               className={`
@@ -191,23 +194,11 @@ function PrivateChat() {
                 }
               `}
             >
+              <p className="text-sm text-zinc-300 mb-1">{msg.username}</p>
 
-              <p className="text-sm text-zinc-300 mb-1">
-
-                {msg.username}
-
-              </p>
-
-              <p className="text-lg">
-
-                {msg.content}
-
-              </p>
-
+              <p className="text-lg">{msg.content}</p>
             </div>
-
           ))}
-
         </div>
 
         {/* INPUT */}
@@ -219,14 +210,11 @@ function PrivateChat() {
             mt-6
           "
         >
-
           <input
             type="text"
             placeholder="Type your message..."
             value={message}
-            onChange={(e) =>
-              setMessage(e.target.value)
-            }
+            onChange={(e) => setMessage(e.target.value)}
             className="
               flex-1
               bg-white/5
@@ -250,15 +238,10 @@ function PrivateChat() {
               font-bold
             "
           >
-
             Send
-
           </button>
-
         </form>
-
       </div>
-
     </section>
   );
 }
