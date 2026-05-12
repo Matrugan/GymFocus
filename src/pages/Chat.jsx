@@ -273,15 +273,12 @@ function Chat() {
     <section
       className="
         h-screen
-        bg-zinc-50
-        text-zinc-950
+        bg-[var(--app-bg)]
+        text-[var(--app-text)]
         flex
         flex-col
         overflow-hidden
         transition-colors
-
-        dark:bg-black
-        dark:text-white
       "
     >
       {/* HEADER */}
