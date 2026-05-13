@@ -35,13 +35,12 @@ function Challenges({ user, profile, onProfileUpdated }) {
   async function getData() {
     setLoading(true);
 
-    const { data: challengesData, error: challengesError } =
-      await supabase
-        .from("challenges")
-        .select("*")
-        .order("created_at", {
-          ascending: true,
-        });
+    const { data: challengesData, error: challengesError } = await supabase
+      .from("challenges")
+      .select("*")
+      .order("created_at", {
+        ascending: true,
+      });
 
     if (challengesError) {
       console.log(challengesError);
@@ -61,11 +60,10 @@ function Challenges({ user, profile, onProfileUpdated }) {
       return;
     }
 
-    const { data: workoutLogs, error: workoutError } =
-      await supabase
-        .from("workout_logs")
-        .select("*")
-        .eq("user_id", user.id);
+    const { data: workoutLogs, error: workoutError } = await supabase
+      .from("workout_logs")
+      .select("*")
+      .eq("user_id", user.id);
 
     if (workoutError) {
       console.log(workoutError);
@@ -104,20 +102,16 @@ function Challenges({ user, profile, onProfileUpdated }) {
   }
 
   function getUserChallenge(challengeId) {
-    return userChallenges.find(
-      (item) => item.challenge_id === challengeId
-    );
+    return userChallenges.find((item) => item.challenge_id === challengeId);
   }
 
   async function joinChallenge(challengeId) {
-    const { error } = await supabase
-      .from("user_challenges")
-      .insert([
-        {
-          user_id: user.id,
-          challenge_id: challengeId,
-        },
-      ]);
+    const { error } = await supabase.from("user_challenges").insert([
+      {
+        user_id: user.id,
+        challenge_id: challengeId,
+      },
+    ]);
 
     if (error) {
       console.log(error);
@@ -183,15 +177,9 @@ function Challenges({ user, profile, onProfileUpdated }) {
       await unlockAchievement(user.id, challenge.badge);
     }
 
-    await logXP(
-      user.id,
-      challenge.xp_reward,
-      `challenge: ${challenge.title}`
-    );
+    await logXP(user.id, challenge.xp_reward, `challenge: ${challenge.title}`);
 
-    toast.success(
-      `Challenge completed! +${challenge.xp_reward} XP`
-    );
+    toast.success(`Challenge completed! +${challenge.xp_reward} XP`);
 
     onProfileUpdated?.({
       ...profile,
@@ -206,16 +194,20 @@ function Challenges({ user, profile, onProfileUpdated }) {
       <div
         className="
           grid
+          grid-cols-1
           md:grid-cols-2
-          gap-6
+          gap-4
+          sm:gap-6
         "
       >
         {[1, 2, 3, 4].map((item) => (
           <div
             key={item}
             className="
-              h-64
-              rounded-3xl
+              h-56
+              sm:h-64
+              rounded-2xl
+              sm:rounded-3xl
               bg-white
               border
               border-zinc-200
@@ -234,15 +226,19 @@ function Challenges({ user, profile, onProfileUpdated }) {
   return (
     <div
       className="
+        w-full
         bg-white
         text-zinc-950
         border
         border-zinc-200
-        rounded-3xl
-        p-6
+        rounded-2xl
+        sm:rounded-3xl
+        p-4
+        sm:p-6
         md:p-8
         shadow-sm
         transition-colors
+        min-w-0
 
         dark:bg-white/5
         dark:text-white
@@ -255,14 +251,19 @@ function Challenges({ user, profile, onProfileUpdated }) {
         className="
           flex
           items-center
-          gap-4
-          mb-8
+          gap-3
+          sm:gap-4
+          mb-6
+          sm:mb-8
+          min-w-0
         "
       >
         <div
           className="
-            w-14
-            h-14
+            w-12
+            h-12
+            sm:w-14
+            sm:h-14
             rounded-2xl
             bg-gradient-to-r
             from-purple-500
@@ -274,11 +275,18 @@ function Challenges({ user, profile, onProfileUpdated }) {
             shrink-0
           "
         >
-          <Trophy size={26} />
+          <Trophy size={24} />
         </div>
 
-        <div>
-          <h2 className="text-3xl font-black">
+        <div className="min-w-0">
+          <h2
+            className="
+              text-2xl
+              sm:text-3xl
+              font-black
+              break-words
+            "
+          >
             Fitness Challenges
           </h2>
 
@@ -286,6 +294,8 @@ function Challenges({ user, profile, onProfileUpdated }) {
             className="
               text-zinc-600
               mt-1
+              text-sm
+              sm:text-base
 
               dark:text-zinc-500
             "
@@ -299,8 +309,10 @@ function Challenges({ user, profile, onProfileUpdated }) {
       <div
         className="
           grid
+          grid-cols-1
           md:grid-cols-2
-          gap-6
+          gap-4
+          sm:gap-6
         "
       >
         {challenges.map((challenge, index) => {
@@ -337,12 +349,15 @@ function Challenges({ user, profile, onProfileUpdated }) {
                 bg-zinc-50
                 border
                 border-zinc-200
-                rounded-3xl
-                p-6
+                rounded-2xl
+                sm:rounded-3xl
+                p-4
+                sm:p-6
                 shadow-sm
                 hover:border-purple-500/40
                 hover:shadow-[0_0_35px_rgba(168,85,247,0.12)]
                 transition-all
+                min-w-0
 
                 dark:bg-zinc-950
                 dark:border-white/10
@@ -354,14 +369,26 @@ function Challenges({ user, profile, onProfileUpdated }) {
                   flex
                   items-start
                   justify-between
-                  gap-4
+                  gap-3
+                  sm:gap-4
+                  min-w-0
                 "
               >
-                <div className="flex items-center gap-4">
+                <div
+                  className="
+                    flex
+                    items-start
+                    gap-3
+                    sm:gap-4
+                    min-w-0
+                  "
+                >
                   <div
                     className="
-                      w-16
-                      h-16
+                      w-14
+                      h-14
+                      sm:w-16
+                      sm:h-16
                       rounded-2xl
                       bg-white
                       border
@@ -369,7 +396,8 @@ function Challenges({ user, profile, onProfileUpdated }) {
                       flex
                       items-center
                       justify-center
-                      text-3xl
+                      text-2xl
+                      sm:text-3xl
                       shadow-sm
                       shrink-0
 
@@ -380,8 +408,15 @@ function Challenges({ user, profile, onProfileUpdated }) {
                     {challenge.icon || "🏆"}
                   </div>
 
-                  <div>
-                    <h3 className="text-xl font-black">
+                  <div className="min-w-0">
+                    <h3
+                      className="
+                        text-lg
+                        sm:text-xl
+                        font-black
+                        break-words
+                      "
+                    >
                       {challenge.title}
                     </h3>
 
@@ -391,6 +426,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
                         text-sm
                         mt-1
                         leading-relaxed
+                        break-words
 
                         dark:text-zinc-500
                       "
@@ -403,8 +439,10 @@ function Challenges({ user, profile, onProfileUpdated }) {
                 {claimed && (
                   <div
                     className="
-                      w-10
-                      h-10
+                      w-9
+                      h-9
+                      sm:w-10
+                      sm:h-10
                       rounded-2xl
                       bg-green-500/10
                       text-green-500
@@ -416,13 +454,13 @@ function Challenges({ user, profile, onProfileUpdated }) {
                       shrink-0
                     "
                   >
-                    <CheckCircle size={22} />
+                    <CheckCircle size={21} />
                   </div>
                 )}
               </div>
 
               {/* PROGRESS */}
-              <div className="mt-6">
+              <div className="mt-5 sm:mt-6">
                 <div
                   className="
                     flex
@@ -437,16 +475,16 @@ function Challenges({ user, profile, onProfileUpdated }) {
                     Progress
                   </span>
 
-                  <span className="font-bold text-purple-500">
-                    {Math.min(progress, challenge.target)} /{" "}
-                    {challenge.target}
+                  <span className="font-bold text-purple-500 shrink-0">
+                    {Math.min(progress, challenge.target)} / {challenge.target}
                   </span>
                 </div>
 
                 <div
                   className="
                     w-full
-                    h-4
+                    h-3.5
+                    sm:h-4
                     rounded-full
                     bg-zinc-200
                     overflow-hidden
@@ -479,11 +517,13 @@ function Challenges({ user, profile, onProfileUpdated }) {
               <div
                 className="
                   flex
-                  items-center
-                  justify-between
-                  mt-6
+                  flex-col
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  mt-5
+                  sm:mt-6
                   gap-4
-                  flex-wrap
                 "
               >
                 <div>
@@ -500,6 +540,8 @@ function Challenges({ user, profile, onProfileUpdated }) {
                   <button
                     onClick={() => joinChallenge(challenge.id)}
                     className="
+                      w-full
+                      sm:w-auto
                       px-5
                       py-3
                       rounded-2xl
@@ -513,6 +555,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
                       transition
                       flex
                       items-center
+                      justify-center
                       gap-2
                       shadow-sm
 
@@ -532,6 +575,8 @@ function Challenges({ user, profile, onProfileUpdated }) {
                     onClick={() => claimChallenge(challenge)}
                     disabled={!completed}
                     className="
+                      w-full
+                      sm:w-auto
                       px-5
                       py-3
                       rounded-2xl
@@ -546,6 +591,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
                       disabled:hover:scale-100
                       flex
                       items-center
+                      justify-center
                       gap-2
                     "
                   >
@@ -558,6 +604,9 @@ function Challenges({ user, profile, onProfileUpdated }) {
                 {claimed && (
                   <span
                     className="
+                      w-full
+                      sm:w-auto
+                      text-center
                       px-5
                       py-3
                       rounded-2xl
@@ -584,10 +633,14 @@ function Challenges({ user, profile, onProfileUpdated }) {
             bg-zinc-50
             border
             border-zinc-200
-            rounded-3xl
-            p-10
+            rounded-2xl
+            sm:rounded-3xl
+            p-8
+            sm:p-10
             text-center
             text-zinc-500
+            text-sm
+            sm:text-base
 
             dark:bg-zinc-950
             dark:border-white/10

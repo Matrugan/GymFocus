@@ -64,6 +64,8 @@ function Sidebar() {
   return (
     <aside
       className="
+        hidden
+        lg:flex
         w-[280px]
         h-screen
         bg-white/70

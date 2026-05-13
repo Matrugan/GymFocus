@@ -27,10 +27,26 @@ function ProfileSettings({ profile, user }) {
     }
   }, [profile]);
 
+  function validateImage(file) {
+    if (!file) return false;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image.");
+      return false;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image is too large. Maximum size is 5MB.");
+      return false;
+    }
+
+    return true;
+  }
+
   async function uploadAvatar(e) {
     const file = e.target.files[0];
 
-    if (!file) return;
+    if (!validateImage(file)) return;
 
     setLoadingAvatar(true);
 
@@ -89,7 +105,7 @@ function ProfileSettings({ profile, user }) {
   async function uploadBanner(e) {
     const file = e.target.files[0];
 
-    if (!file) return;
+    if (!validateImage(file)) return;
 
     setLoadingBanner(true);
 
@@ -146,6 +162,13 @@ function ProfileSettings({ profile, user }) {
   }
 
   async function updateBio() {
+    if (!user?.id) return;
+
+    if (bio.length > 240) {
+      toast.error("Bio must have at most 240 characters.");
+      return;
+    }
+
     setLoadingBio(true);
 
     const { error } = await supabase
@@ -173,15 +196,19 @@ function ProfileSettings({ profile, user }) {
   return (
     <div
       className="
+        w-full
         bg-white
         text-zinc-950
         border
         border-zinc-200
-        rounded-3xl
-        p-6
+        rounded-2xl
+        sm:rounded-3xl
+        p-4
+        sm:p-6
         md:p-8
         shadow-sm
         transition-colors
+        min-w-0
 
         dark:bg-white/5
         dark:text-white
@@ -190,11 +217,23 @@ function ProfileSettings({ profile, user }) {
       "
     >
       {/* HEADER */}
-      <div className="flex items-center gap-4 mb-8">
+      <div
+        className="
+          flex
+          items-center
+          gap-3
+          sm:gap-4
+          mb-6
+          sm:mb-8
+          min-w-0
+        "
+      >
         <div
           className="
-            w-14
-            h-14
+            w-12
+            h-12
+            sm:w-14
+            sm:h-14
             rounded-2xl
             bg-gradient-to-r
             from-purple-500
@@ -206,11 +245,18 @@ function ProfileSettings({ profile, user }) {
             shrink-0
           "
         >
-          <User size={26} />
+          <User size={24} />
         </div>
 
-        <div>
-          <h2 className="text-3xl font-black">
+        <div className="min-w-0">
+          <h2
+            className="
+              text-2xl
+              sm:text-3xl
+              font-black
+              break-words
+            "
+          >
             Profile Settings
           </h2>
 
@@ -218,6 +264,8 @@ function ProfileSettings({ profile, user }) {
             className="
               text-zinc-600
               mt-1
+              text-sm
+              sm:text-base
 
               dark:text-zinc-400
             "
@@ -233,17 +281,31 @@ function ProfileSettings({ profile, user }) {
           bg-zinc-50
           border
           border-zinc-200
-          rounded-3xl
-          p-5
-          mb-8
+          rounded-2xl
+          sm:rounded-3xl
+          p-4
+          sm:p-5
+          mb-6
+          sm:mb-8
+          min-w-0
 
           dark:bg-black/30
           dark:border-white/10
         "
       >
-        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-          <div>
-            <h3 className="text-xl font-black">
+        <div
+          className="
+            flex
+            flex-col
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+            gap-4
+            mb-4
+          "
+        >
+          <div className="min-w-0">
+            <h3 className="text-lg sm:text-xl font-black">
               Profile Banner
             </h3>
 
@@ -254,8 +316,11 @@ function ProfileSettings({ profile, user }) {
 
           <label
             className="
+              w-full
+              sm:w-auto
               flex
               items-center
+              justify-center
               gap-3
               px-5
               py-3
@@ -269,6 +334,8 @@ function ProfileSettings({ profile, user }) {
               hover:text-purple-500
               transition
               shadow-sm
+              text-sm
+              sm:text-base
 
               dark:bg-white/5
               dark:text-zinc-300
@@ -298,8 +365,10 @@ function ProfileSettings({ profile, user }) {
         <div
           className="
             w-full
-            h-48
-            rounded-3xl
+            h-36
+            sm:h-48
+            rounded-2xl
+            sm:rounded-3xl
             overflow-hidden
             border
             border-zinc-200
@@ -330,6 +399,10 @@ function ProfileSettings({ profile, user }) {
                 justify-center
                 text-white/80
                 font-bold
+                text-sm
+                sm:text-base
+                text-center
+                px-4
               "
             >
               No banner selected
@@ -344,28 +417,54 @@ function ProfileSettings({ profile, user }) {
           bg-zinc-50
           border
           border-zinc-200
-          rounded-3xl
-          p-5
-          mb-8
+          rounded-2xl
+          sm:rounded-3xl
+          p-4
+          sm:p-5
+          mb-6
+          sm:mb-8
+          min-w-0
 
           dark:bg-black/30
           dark:border-white/10
         "
       >
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-5">
+        <div
+          className="
+            flex
+            flex-col
+            lg:flex-row
+            lg:items-center
+            lg:justify-between
+            gap-5
+          "
+        >
+          <div
+            className="
+              flex
+              flex-col
+              sm:flex-row
+              sm:items-center
+              gap-4
+              sm:gap-5
+              min-w-0
+            "
+          >
             {profile?.avatar_url ? (
               <img
                 src={profile.avatar_url}
                 alt=""
                 className="
-                  w-28
-                  h-28
+                  w-24
+                  h-24
+                  sm:w-28
+                  sm:h-28
                   rounded-full
                   object-cover
                   border-4
                   border-purple-500
                   bg-zinc-100
+                  shrink-0
 
                   dark:bg-zinc-900
                 "
@@ -373,8 +472,10 @@ function ProfileSettings({ profile, user }) {
             ) : (
               <div
                 className="
-                  w-28
-                  h-28
+                  w-24
+                  h-24
+                  sm:w-28
+                  sm:h-28
                   rounded-full
                   bg-zinc-200
                   border-4
@@ -382,16 +483,17 @@ function ProfileSettings({ profile, user }) {
                   flex
                   items-center
                   justify-center
+                  shrink-0
 
                   dark:bg-zinc-800
                 "
               >
-                <User size={38} className="text-zinc-500" />
+                <User size={36} className="text-zinc-500" />
               </div>
             )}
 
-            <div>
-              <h3 className="text-xl font-black">
+            <div className="min-w-0">
+              <h3 className="text-lg sm:text-xl font-black">
                 Profile Picture
               </h3>
 
@@ -403,8 +505,11 @@ function ProfileSettings({ profile, user }) {
 
           <label
             className="
+              w-full
+              lg:w-auto
               flex
               items-center
+              justify-center
               gap-3
               px-5
               py-3
@@ -418,6 +523,8 @@ function ProfileSettings({ profile, user }) {
               hover:text-purple-500
               transition
               shadow-sm
+              text-sm
+              sm:text-base
 
               dark:bg-white/5
               dark:text-zinc-300
@@ -451,15 +558,18 @@ function ProfileSettings({ profile, user }) {
           bg-zinc-50
           border
           border-zinc-200
-          rounded-3xl
-          p-5
+          rounded-2xl
+          sm:rounded-3xl
+          p-4
+          sm:p-5
+          min-w-0
 
           dark:bg-black/30
           dark:border-white/10
         "
       >
         <div className="mb-4">
-          <h3 className="text-xl font-black">
+          <h3 className="text-lg sm:text-xl font-black">
             Bio
           </h3>
 
@@ -472,20 +582,25 @@ function ProfileSettings({ profile, user }) {
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           placeholder="Write your bio..."
+          maxLength={240}
           className="
             w-full
-            h-36
+            h-32
+            sm:h-36
             resize-none
             rounded-2xl
             bg-white
             text-zinc-950
             border
             border-zinc-200
-            p-5
+            p-4
+            sm:p-5
             outline-none
             focus:border-purple-500
             transition
             placeholder:text-zinc-500
+            text-sm
+            sm:text-base
 
             dark:bg-black/30
             dark:text-white
@@ -493,41 +608,62 @@ function ProfileSettings({ profile, user }) {
           "
         />
 
-        <button
-          type="button"
-          onClick={updateBio}
-          disabled={loadingBio}
+        <div
           className="
-            mt-5
-            px-8
-            py-4
-            rounded-2xl
-            bg-gradient-to-r
-            from-purple-500
-            to-fuchsia-500
-            text-white
-            font-bold
             flex
-            items-center
-            gap-3
-            hover:scale-105
-            transition
-            disabled:opacity-50
-            disabled:hover:scale-100
+            flex-col
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+            gap-4
+            mt-4
+            sm:mt-5
           "
         >
-          {loadingBio ? (
-            <>
-              <Loader2 className="animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save size={20} />
-              Save Profile
-            </>
-          )}
-        </button>
+          <p className="text-xs sm:text-sm text-zinc-500">
+            {bio.length}/240 characters
+          </p>
+
+          <button
+            type="button"
+            onClick={updateBio}
+            disabled={loadingBio}
+            className="
+              w-full
+              sm:w-auto
+              px-8
+              py-4
+              rounded-2xl
+              bg-gradient-to-r
+              from-purple-500
+              to-fuchsia-500
+              text-white
+              font-bold
+              flex
+              items-center
+              justify-center
+              gap-3
+              hover:scale-105
+              transition
+              disabled:opacity-50
+              disabled:hover:scale-100
+              text-sm
+              sm:text-base
+            "
+          >
+            {loadingBio ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save size={20} />
+                Save Profile
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

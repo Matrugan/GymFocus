@@ -141,9 +141,7 @@ function Inbox() {
       const lastMessage = conversationMessages[0];
 
       const unreadCount = conversationMessages.filter(
-        (message) =>
-          message.user_id !== user.id &&
-          !message.is_read
+        (message) => message.user_id !== user.id && !message.is_read
       ).length;
 
       return {
@@ -184,8 +182,7 @@ function Inbox() {
 
     const today = new Date();
 
-    const isToday =
-      messageDate.toDateString() === today.toDateString();
+    const isToday = messageDate.toDateString() === today.toDateString();
 
     if (isToday) {
       return messageDate.toLocaleTimeString([], {
@@ -201,11 +198,15 @@ function Inbox() {
   }
 
   function getLastMessagePreview(item) {
-    if (!item.lastMessage?.content) {
+    if (!item.lastMessage?.content && !item.lastMessage?.image_url) {
       return "Start a conversation";
     }
 
-    const isMine = item.lastMessage.user_id === user.id;
+    const isMine = item.lastMessage?.user_id === user.id;
+
+    if (item.lastMessage?.image_url && !item.lastMessage?.content) {
+      return `${isMine ? "You: " : ""}Sent an image`;
+    }
 
     return `${isMine ? "You: " : ""}${item.lastMessage.content}`;
   }
@@ -216,8 +217,10 @@ function Inbox() {
         min-h-screen
         bg-zinc-50
         text-zinc-950
-        px-6
-        py-10
+        px-4
+        sm:px-6
+        py-6
+        sm:py-10
         relative
         overflow-hidden
         transition-colors
@@ -233,16 +236,28 @@ function Inbox() {
           top-0
           left-1/2
           -translate-x-1/2
-          w-[500px]
-          h-[500px]
+          w-[420px]
+          h-[420px]
+          sm:w-[500px]
+          sm:h-[500px]
           bg-purple-500/10
-          blur-[140px]
+          blur-[120px]
+          sm:blur-[140px]
           rounded-full
           pointer-events-none
         "
       />
 
-      <div className="relative z-10 max-w-4xl mx-auto">
+      <div
+        className="
+          relative
+          z-10
+          w-full
+          max-w-4xl
+          mx-auto
+          min-w-0
+        "
+      >
         {/* TOP BAR */}
         <div
           className="
@@ -250,7 +265,8 @@ function Inbox() {
             items-center
             justify-between
             gap-4
-            mb-10
+            mb-8
+            sm:mb-10
           "
         >
           <button
@@ -269,6 +285,8 @@ function Inbox() {
               py-3
               rounded-2xl
               shadow-sm
+              text-sm
+              sm:text-base
 
               dark:text-zinc-400
               dark:hover:text-white
@@ -287,19 +305,29 @@ function Inbox() {
         <div
           className="
             flex
-            items-center
+            items-start
+            sm:items-center
             justify-between
-            flex-wrap
+            flex-col
+            sm:flex-row
             gap-5
-            mb-10
+            mb-8
+            sm:mb-10
           "
         >
-          <div>
-            <h1 className="text-5xl font-black">
+          <div className="min-w-0">
+            <h1
+              className="
+                text-4xl
+                sm:text-5xl
+                font-black
+                break-words
+              "
+            >
               Inbox
             </h1>
 
-            <p className="text-zinc-600 dark:text-zinc-500 mt-2">
+            <p className="text-zinc-600 dark:text-zinc-500 mt-2 text-sm sm:text-base">
               Your conversations
             </p>
           </div>
@@ -314,10 +342,12 @@ function Inbox() {
               border
               border-zinc-200
               rounded-2xl
-              px-5
-              py-4
+              px-4
+              sm:px-5
+              py-3
+              sm:py-4
               w-full
-              md:w-[350px]
+              sm:w-[350px]
               shadow-sm
               transition-colors
 
@@ -326,7 +356,7 @@ function Inbox() {
               dark:backdrop-blur-xl
             "
           >
-            <Search size={20} className="text-zinc-500" />
+            <Search size={20} className="text-zinc-500 shrink-0" />
 
             <input
               type="text"
@@ -337,8 +367,11 @@ function Inbox() {
                 bg-transparent
                 outline-none
                 w-full
+                min-w-0
                 text-zinc-950
                 placeholder:text-zinc-500
+                text-sm
+                sm:text-base
 
                 dark:text-white
               "
@@ -348,13 +381,15 @@ function Inbox() {
 
         {/* LOADING */}
         {loading && (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
                 className="
-                  h-28
-                  rounded-3xl
+                  h-24
+                  sm:h-28
+                  rounded-2xl
+                  sm:rounded-3xl
                   bg-white
                   border
                   border-zinc-200
@@ -371,7 +406,7 @@ function Inbox() {
 
         {/* CONVERSATIONS */}
         {!loading && (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {filteredConversations.map((item, index) => (
               <motion.div
                 key={item.conversationId}
@@ -393,15 +428,19 @@ function Inbox() {
                       bg-white
                       border
                       border-zinc-200
-                      rounded-3xl
-                      p-5
+                      rounded-2xl
+                      sm:rounded-3xl
+                      p-4
+                      sm:p-5
                       flex
                       items-center
-                      gap-5
+                      gap-3
+                      sm:gap-5
                       hover:border-purple-500
                       hover:scale-[1.01]
                       transition
                       shadow-sm
+                      min-w-0
 
                       dark:bg-zinc-900/70
                       dark:border-white/10
@@ -416,8 +455,10 @@ function Inbox() {
                           src={item.profile.avatar_url}
                           alt=""
                           className="
-                            w-16
-                            h-16
+                            w-13
+                            h-13
+                            sm:w-16
+                            sm:h-16
                             rounded-full
                             object-cover
                             border
@@ -427,8 +468,10 @@ function Inbox() {
                       ) : (
                         <div
                           className="
-                            w-16
-                            h-16
+                            w-13
+                            h-13
+                            sm:w-16
+                            sm:h-16
                             rounded-full
                             bg-purple-500/10
                             border
@@ -439,7 +482,7 @@ function Inbox() {
                             justify-center
                           "
                         >
-                          <UserRound size={28} />
+                          <UserRound size={25} />
                         </div>
                       )}
 
@@ -448,8 +491,10 @@ function Inbox() {
                           absolute
                           bottom-1
                           right-1
-                          w-4
-                          h-4
+                          w-3.5
+                          h-3.5
+                          sm:w-4
+                          sm:h-4
                           rounded-full
                           border-2
                           border-white
@@ -473,13 +518,16 @@ function Inbox() {
                             bg-gradient-to-r
                             from-purple-500
                             to-fuchsia-500
-                            min-w-[28px]
-                            h-7
+                            min-w-[24px]
+                            sm:min-w-[28px]
+                            h-6
+                            sm:h-7
                             rounded-full
                             flex
                             items-center
                             justify-center
-                            text-xs
+                            text-[10px]
+                            sm:text-xs
                             font-bold
                             px-2
                             text-white
@@ -499,15 +547,16 @@ function Inbox() {
                       <div
                         className="
                           flex
-                          items-center
+                          items-start
                           justify-between
-                          gap-4
+                          gap-3
                         "
                       >
                         <div className="min-w-0">
                           <h2
                             className="
-                              text-xl
+                              text-base
+                              sm:text-xl
                               font-bold
                               truncate
                             "
@@ -517,7 +566,8 @@ function Inbox() {
 
                           <p
                             className={`
-                              text-xs
+                              text-[11px]
+                              sm:text-xs
                               mt-1
 
                               ${
@@ -533,9 +583,11 @@ function Inbox() {
 
                         <span
                           className="
-                            text-xs
+                            text-[11px]
+                            sm:text-xs
                             text-zinc-500
                             whitespace-nowrap
+                            shrink-0
                           "
                         >
                           {formatTime(item.lastMessage?.created_at)}
@@ -547,7 +599,8 @@ function Inbox() {
                           flex
                           items-center
                           gap-2
-                          mt-3
+                          mt-2
+                          sm:mt-3
                           text-zinc-600
 
                           dark:text-zinc-400
@@ -555,7 +608,13 @@ function Inbox() {
                       >
                         <MessageCircle size={15} className="shrink-0" />
 
-                        <p className="truncate">
+                        <p
+                          className="
+                            truncate
+                            text-sm
+                            sm:text-base
+                          "
+                        >
                           {getLastMessagePreview(item)}
                         </p>
                       </div>
@@ -573,7 +632,8 @@ function Inbox() {
                   border
                   border-zinc-200
                   rounded-3xl
-                  p-14
+                  p-8
+                  sm:p-14
                   text-center
                   shadow-sm
 
@@ -584,8 +644,10 @@ function Inbox() {
               >
                 <div
                   className="
-                    w-20
-                    h-20
+                    w-16
+                    h-16
+                    sm:w-20
+                    sm:h-20
                     mx-auto
                     rounded-full
                     bg-purple-500/10
@@ -595,17 +657,18 @@ function Inbox() {
                     flex
                     items-center
                     justify-center
-                    mb-6
+                    mb-5
+                    sm:mb-6
                   "
                 >
-                  <MessageCircle size={34} />
+                  <MessageCircle size={30} />
                 </div>
 
-                <h2 className="text-2xl font-bold">
+                <h2 className="text-xl sm:text-2xl font-bold">
                   No conversations found
                 </h2>
 
-                <p className="text-zinc-500 mt-3">
+                <p className="text-zinc-500 mt-3 text-sm sm:text-base">
                   Start chatting with other athletes.
                 </p>
               </div>

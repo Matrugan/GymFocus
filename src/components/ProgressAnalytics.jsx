@@ -61,9 +61,7 @@ function ProgressAnalytics({ user }) {
 
     if (error) {
       console.log(error);
-
       setLoading(false);
-
       return;
     }
 
@@ -86,9 +84,7 @@ function ProgressAnalytics({ user }) {
     });
 
     data?.forEach((log) => {
-      const logDate = new Date(log.created_at)
-        .toISOString()
-        .split("T")[0];
+      const logDate = new Date(log.created_at).toISOString().split("T")[0];
 
       const dayItem = last7Days.find((item) => item.date === logDate);
 
@@ -97,10 +93,7 @@ function ProgressAnalytics({ user }) {
       }
     });
 
-    const weeklyTotal = last7Days.reduce(
-      (sum, item) => sum + item.xp,
-      0
-    );
+    const weeklyTotal = last7Days.reduce((sum, item) => sum + item.xp, 0);
 
     const topDay = [...last7Days].sort((a, b) => b.xp - a.xp)[0];
 
@@ -130,8 +123,10 @@ function ProgressAnalytics({ user }) {
           bg-white
           border
           border-zinc-200
-          rounded-3xl
-          p-8
+          rounded-2xl
+          sm:rounded-3xl
+          p-4
+          sm:p-8
           shadow-sm
 
           dark:bg-white/5
@@ -141,12 +136,15 @@ function ProgressAnalytics({ user }) {
       >
         <div
           className="
-            h-8
-            w-60
+            h-7
+            sm:h-8
+            w-44
+            sm:w-60
             bg-zinc-200
             rounded-xl
             animate-pulse
-            mb-8
+            mb-6
+            sm:mb-8
 
             dark:bg-white/10
           "
@@ -154,9 +152,11 @@ function ProgressAnalytics({ user }) {
 
         <div
           className="
-            h-[320px]
+            h-[250px]
+            sm:h-[320px]
             bg-zinc-100
-            rounded-3xl
+            rounded-2xl
+            sm:rounded-3xl
             animate-pulse
 
             dark:bg-white/5
@@ -177,15 +177,20 @@ function ProgressAnalytics({ user }) {
         y: 0,
       }}
       className="
+        w-full
         bg-white
         text-zinc-950
         border
         border-zinc-200
-        rounded-3xl
-        p-6
+        rounded-2xl
+        sm:rounded-3xl
+        p-4
+        sm:p-6
         md:p-8
         shadow-sm
         transition-colors
+        min-w-0
+        overflow-hidden
 
         dark:bg-white/5
         dark:text-white
@@ -197,18 +202,32 @@ function ProgressAnalytics({ user }) {
       <div
         className="
           flex
-          items-center
+          items-start
+          sm:items-center
           justify-between
-          flex-wrap
-          gap-5
-          mb-8
+          flex-col
+          sm:flex-row
+          gap-4
+          sm:gap-5
+          mb-6
+          sm:mb-8
         "
       >
-        <div className="flex items-center gap-4">
+        <div
+          className="
+            flex
+            items-center
+            gap-3
+            sm:gap-4
+            min-w-0
+          "
+        >
           <div
             className="
-              w-14
-              h-14
+              w-12
+              h-12
+              sm:w-14
+              sm:h-14
               rounded-2xl
               bg-gradient-to-r
               from-purple-500
@@ -220,11 +239,18 @@ function ProgressAnalytics({ user }) {
               shrink-0
             "
           >
-            <Activity size={26} />
+            <Activity size={24} />
           </div>
 
-          <div>
-            <h2 className="text-3xl font-black">
+          <div className="min-w-0">
+            <h2
+              className="
+                text-2xl
+                sm:text-3xl
+                font-black
+                break-words
+              "
+            >
               Progress Analytics
             </h2>
 
@@ -232,6 +258,8 @@ function ProgressAnalytics({ user }) {
               className="
                 text-zinc-600
                 mt-1
+                text-sm
+                sm:text-base
 
                 dark:text-zinc-400
               "
@@ -251,7 +279,9 @@ function ProgressAnalytics({ user }) {
             border-purple-500/20
             text-purple-500
             font-bold
-            text-sm
+            text-xs
+            sm:text-sm
+            shrink-0
           "
         >
           Last 7 days
@@ -262,15 +292,18 @@ function ProgressAnalytics({ user }) {
       <div
         className="
           grid
-          md:grid-cols-3
-          gap-5
-          mb-8
+          grid-cols-1
+          sm:grid-cols-3
+          gap-3
+          sm:gap-5
+          mb-6
+          sm:mb-8
         "
       >
         <AnalyticsCard
           title="Weekly XP"
           value={totalXP}
-          icon={<TrendingUp size={22} />}
+          icon={<TrendingUp size={21} />}
         />
 
         <AnalyticsCard
@@ -280,13 +313,13 @@ function ProgressAnalytics({ user }) {
               ? `${bestDay.day} • ${bestDay.xp} XP`
               : "No XP yet"
           }
-          icon={<Trophy size={22} />}
+          icon={<Trophy size={21} />}
         />
 
         <AnalyticsCard
           title="Tracked Days"
           value="7 Days"
-          icon={<CalendarDays size={22} />}
+          icon={<CalendarDays size={21} />}
         />
       </div>
 
@@ -294,40 +327,38 @@ function ProgressAnalytics({ user }) {
       <div
         className="
           w-full
-          h-[320px]
+          h-[250px]
+          sm:h-[320px]
           min-w-0
           bg-zinc-50
           border
           border-zinc-200
-          rounded-3xl
-          p-5
+          rounded-2xl
+          sm:rounded-3xl
+          p-2
+          sm:p-5
           transition-colors
+          overflow-hidden
 
           dark:bg-black/30
           dark:border-white/10
         "
       >
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData}>
+          <AreaChart
+            data={chartData}
+            margin={{
+              top: 10,
+              right: 8,
+              left: -20,
+              bottom: 0,
+            }}
+          >
             <defs>
-              <linearGradient
-                id="xpGradient"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop
-                  offset="5%"
-                  stopColor="#a855f7"
-                  stopOpacity={0.8}
-                />
+              <linearGradient id="xpGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.8} />
 
-                <stop
-                  offset="95%"
-                  stopColor="#a855f7"
-                  stopOpacity={0}
-                />
+                <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
               </linearGradient>
             </defs>
 
@@ -337,8 +368,9 @@ function ProgressAnalytics({ user }) {
               tickLine={false}
               tick={{
                 fill: axisColor,
-                fontSize: 12,
+                fontSize: 11,
               }}
+              interval={0}
             />
 
             <YAxis
@@ -346,8 +378,9 @@ function ProgressAnalytics({ user }) {
               tickLine={false}
               tick={{
                 fill: axisColor,
-                fontSize: 12,
+                fontSize: 11,
               }}
+              width={36}
             />
 
             <Tooltip
@@ -359,6 +392,7 @@ function ProgressAnalytics({ user }) {
                 boxShadow: isDark
                   ? "0 20px 60px rgba(0,0,0,0.45)"
                   : "0 20px 60px rgba(15,23,42,0.12)",
+                fontSize: "13px",
               }}
               labelStyle={{
                 color: tooltipText,
@@ -385,14 +419,17 @@ function ProgressAnalytics({ user }) {
       {/* FOOTER */}
       <div
         className="
-          mt-6
+          mt-5
+          sm:mt-6
           bg-zinc-50
           border
           border-zinc-200
           rounded-2xl
-          p-5
+          p-4
+          sm:p-5
           flex
-          items-center
+          items-start
+          sm:items-center
           gap-3
           text-zinc-600
 
@@ -401,7 +438,7 @@ function ProgressAnalytics({ user }) {
           dark:text-zinc-400
         "
       >
-        <Activity size={20} className="text-purple-500 shrink-0" />
+        <Activity size={20} className="text-purple-500 shrink-0 mt-0.5 sm:mt-0" />
 
         <p className="text-sm">
           XP is logged from completed workouts and claimed challenge rewards.
@@ -419,22 +456,32 @@ function AnalyticsCard({ title, value, icon }) {
         border
         border-zinc-200
         rounded-2xl
-        p-5
+        p-4
+        sm:p-5
         shadow-sm
+        min-w-0
 
         dark:bg-black/30
         dark:border-white/10
       "
     >
-      <div className="text-purple-500 mb-3">
+      <div className="text-purple-500 mb-2 sm:mb-3">
         {icon}
       </div>
 
-      <h3 className="text-2xl font-black">
+      <h3
+        className="
+          text-xl
+          sm:text-2xl
+          font-black
+          break-words
+          leading-tight
+        "
+      >
         {value}
       </h3>
 
-      <p className="text-zinc-500 text-sm mt-1">
+      <p className="text-zinc-500 text-xs sm:text-sm mt-1">
         {title}
       </p>
     </div>

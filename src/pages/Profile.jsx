@@ -79,7 +79,6 @@ function Profile() {
 
     if (error) {
       console.log(error);
-
       return;
     }
 
@@ -122,7 +121,6 @@ function Profile() {
 
     if (error) {
       console.log(error);
-
       return;
     }
 
@@ -134,7 +132,6 @@ function Profile() {
 
     if (error) {
       console.log(error);
-
       return;
     }
 
@@ -156,7 +153,6 @@ function Profile() {
 
       if (error) {
         console.log(error);
-
         return;
       }
     } else {
@@ -169,7 +165,6 @@ function Profile() {
 
       if (error) {
         console.log(error);
-
         return;
       }
     }
@@ -219,33 +214,52 @@ function Profile() {
 
       if (otherParticipants?.length > 0) {
         navigate(`/chat/${otherParticipants[0].conversation_id}`);
-
         return;
       }
     }
 
     const { data: conversation, error } = await supabase
       .from("conversations")
-      .insert([{}])
+      .insert([
+        {
+          created_by: user.id,
+        },
+      ])
       .select()
       .single();
 
     if (error) {
       console.log(error);
-
       return;
     }
 
-    await supabase.from("conversation_participants").insert([
-      {
-        conversation_id: conversation.id,
-        user_id: user.id,
-      },
-      {
-        conversation_id: conversation.id,
-        user_id: profile.id,
-      },
-    ]);
+    const { error: selfParticipantError } = await supabase
+      .from("conversation_participants")
+      .insert([
+        {
+          conversation_id: conversation.id,
+          user_id: user.id,
+        },
+      ]);
+
+    if (selfParticipantError) {
+      console.log(selfParticipantError);
+      return;
+    }
+
+    const { error: otherParticipantError } = await supabase
+      .from("conversation_participants")
+      .insert([
+        {
+          conversation_id: conversation.id,
+          user_id: profile.id,
+        },
+      ]);
+
+    if (otherParticipantError) {
+      console.log(otherParticipantError);
+      return;
+    }
 
     navigate(`/chat/${conversation.id}`);
   }
@@ -288,8 +302,10 @@ function Profile() {
         min-h-screen
         bg-zinc-50
         text-zinc-950
-        px-6
-        py-10
+        px-4
+        sm:px-6
+        py-6
+        sm:py-10
         relative
         overflow-hidden
         transition-colors
@@ -305,16 +321,28 @@ function Profile() {
           top-0
           left-1/2
           -translate-x-1/2
-          w-[600px]
-          h-[600px]
+          w-[420px]
+          h-[420px]
+          sm:w-[600px]
+          sm:h-[600px]
           bg-purple-500/10
-          blur-[160px]
+          blur-[120px]
+          sm:blur-[160px]
           rounded-full
           pointer-events-none
         "
       />
 
-      <div className="relative z-10 max-w-6xl mx-auto">
+      <div
+        className="
+          relative
+          z-10
+          w-full
+          max-w-6xl
+          mx-auto
+          min-w-0
+        "
+      >
         {/* TOP BAR */}
         <div
           className="
@@ -322,7 +350,8 @@ function Profile() {
             items-center
             justify-between
             gap-4
-            mb-8
+            mb-6
+            sm:mb-8
           "
         >
           <button
@@ -341,6 +370,8 @@ function Profile() {
               py-3
               shadow-sm
               transition
+              text-sm
+              sm:text-base
 
               dark:text-zinc-400
               dark:hover:text-white
@@ -348,7 +379,7 @@ function Profile() {
               dark:border-white/10
             "
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={19} />
             Back
           </button>
 
@@ -369,10 +400,12 @@ function Profile() {
             bg-white
             border
             border-zinc-200
-            rounded-[36px]
+            rounded-[26px]
+            sm:rounded-[36px]
             overflow-hidden
             shadow-sm
             transition-colors
+            min-w-0
 
             dark:bg-white/5
             dark:border-white/10
@@ -382,7 +415,8 @@ function Profile() {
           {/* BANNER */}
           <div
             className="
-              h-48
+              h-40
+              sm:h-48
               md:h-64
               relative
               bg-gradient-to-r
@@ -406,13 +440,7 @@ function Profile() {
               />
             )}
 
-            <div
-              className="
-                absolute
-                inset-0
-                bg-black/25
-              "
-            />
+            <div className="absolute inset-0 bg-black/25" />
 
             <div
               className="
@@ -425,22 +453,29 @@ function Profile() {
             <div
               className="
                 absolute
-                bottom-6
-                left-8
+                bottom-4
+                left-4
+                sm:bottom-6
+                sm:left-8
                 flex
                 items-center
-                gap-3
+                gap-2
+                sm:gap-3
                 bg-black/30
                 border
                 border-white/10
                 rounded-2xl
-                px-5
-                py-3
+                px-4
+                sm:px-5
+                py-2.5
+                sm:py-3
                 backdrop-blur-xl
                 text-white
+                text-sm
+                sm:text-base
               "
             >
-              <Star size={18} />
+              <Star size={17} />
 
               <span className="font-bold">
                 Level {level} Athlete
@@ -451,9 +486,11 @@ function Profile() {
           {/* PROFILE CONTENT */}
           <div
             className="
-              p-6
+              p-4
+              sm:p-6
               md:p-10
-              -mt-20
+              -mt-14
+              sm:-mt-20
               relative
               z-10
             "
@@ -463,7 +500,8 @@ function Profile() {
                 flex
                 flex-col
                 lg:flex-row
-                gap-8
+                gap-6
+                sm:gap-8
                 lg:items-end
                 justify-between
               "
@@ -472,9 +510,11 @@ function Profile() {
                 className="
                   flex
                   flex-col
-                  md:flex-row
-                  gap-8
-                  md:items-end
+                  sm:flex-row
+                  gap-5
+                  sm:gap-8
+                  sm:items-end
+                  min-w-0
                 "
               >
                 {/* AVATAR */}
@@ -484,8 +524,12 @@ function Profile() {
                       src={profile.avatar_url}
                       alt=""
                       className="
-                        w-40
-                        h-40
+                        w-28
+                        h-28
+                        sm:w-36
+                        sm:h-36
+                        md:w-40
+                        md:h-40
                         rounded-full
                         object-cover
                         border-4
@@ -501,8 +545,12 @@ function Profile() {
                   ) : (
                     <div
                       className="
-                        w-40
-                        h-40
+                        w-28
+                        h-28
+                        sm:w-36
+                        sm:h-36
+                        md:w-40
+                        md:h-40
                         rounded-full
                         border-4
                         border-white
@@ -517,15 +565,17 @@ function Profile() {
                         dark:bg-zinc-900
                       "
                     >
-                      <UserRound size={56} className="text-zinc-500" />
+                      <UserRound size={46} className="text-zinc-500" />
                     </div>
                   )}
 
                   <div
                     className={`
                       absolute
-                      bottom-3
-                      right-3
+                      bottom-2
+                      right-2
+                      sm:bottom-3
+                      sm:right-3
                       w-5
                       h-5
                       rounded-full
@@ -540,12 +590,15 @@ function Profile() {
                 </div>
 
                 {/* INFO */}
-                <div>
+                <div className="min-w-0">
                   <h1
                     className="
-                      text-4xl
+                      text-3xl
+                      sm:text-4xl
                       md:text-6xl
                       font-black
+                      break-words
+                      leading-tight
                     "
                   >
                     {profile.username}
@@ -554,10 +607,13 @@ function Profile() {
                   <p
                     className="
                       text-zinc-600
-                      mt-4
-                      text-lg
+                      mt-3
+                      sm:mt-4
+                      text-base
+                      sm:text-lg
                       leading-relaxed
                       max-w-2xl
+                      break-words
 
                       dark:text-zinc-400
                     "
@@ -569,8 +625,10 @@ function Profile() {
                     className="
                       flex
                       flex-wrap
-                      gap-3
-                      mt-5
+                      gap-2
+                      sm:gap-3
+                      mt-4
+                      sm:mt-5
                     "
                   >
                     <span
@@ -582,7 +640,8 @@ function Profile() {
                         border
                         border-purple-500/20
                         text-purple-500
-                        text-sm
+                        text-xs
+                        sm:text-sm
                         font-bold
                       "
                     >
@@ -598,7 +657,8 @@ function Profile() {
                         border
                         border-zinc-200
                         text-zinc-700
-                        text-sm
+                        text-xs
+                        sm:text-sm
                         font-bold
 
                         dark:bg-white/5
@@ -617,18 +677,27 @@ function Profile() {
                 <div
                   className="
                     flex
-                    flex-wrap
-                    gap-4
+                    flex-col
+                    sm:flex-row
+                    gap-3
+                    sm:gap-4
+                    w-full
+                    lg:w-auto
                   "
                 >
                   <button
                     onClick={toggleFollow}
                     className={`
-                      h-14
+                      w-full
+                      sm:w-auto
+                      h-13
+                      sm:h-14
                       px-8
+                      py-4
                       rounded-2xl
                       font-bold
-                      text-lg
+                      text-base
+                      sm:text-lg
                       transition
                       hover:scale-105
 
@@ -661,17 +730,23 @@ function Profile() {
                   <button
                     onClick={startConversation}
                     className="
-                      h-14
+                      w-full
+                      sm:w-auto
+                      h-13
+                      sm:h-14
                       px-8
+                      py-4
                       rounded-2xl
                       bg-white
                       border
                       border-zinc-200
                       text-zinc-800
                       font-bold
-                      text-lg
+                      text-base
+                      sm:text-lg
                       flex
                       items-center
+                      justify-center
                       gap-3
                       hover:border-purple-500
                       hover:text-purple-500
@@ -697,8 +772,10 @@ function Profile() {
                 grid
                 grid-cols-2
                 md:grid-cols-4
-                gap-4
-                mt-10
+                gap-3
+                sm:gap-4
+                mt-8
+                sm:mt-10
               "
             >
               <StatCard
@@ -729,12 +806,14 @@ function Profile() {
             {/* LEVEL PROGRESS */}
             <div
               className="
-                mt-8
+                mt-6
+                sm:mt-8
                 bg-zinc-50
                 border
                 border-zinc-200
                 rounded-3xl
-                p-6
+                p-5
+                sm:p-6
 
                 dark:bg-black/30
                 dark:border-white/10
@@ -743,24 +822,26 @@ function Profile() {
               <div
                 className="
                   flex
-                  items-center
-                  justify-between
-                  gap-4
+                  flex-col
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  gap-3
+                  sm:gap-4
                   mb-4
-                  flex-wrap
                 "
               >
                 <div>
-                  <p className="text-zinc-600 dark:text-zinc-400">
+                  <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base">
                     Progress to Level {level + 1}
                   </p>
 
-                  <h3 className="text-3xl font-black mt-1">
+                  <h3 className="text-2xl sm:text-3xl font-black mt-1">
                     {Math.floor(progress)}%
                   </h3>
                 </div>
 
-                <div className="text-purple-500 font-bold">
+                <div className="text-purple-500 font-bold text-sm sm:text-base">
                   {profile.xp || 0} / {nextLevelXP} XP
                 </div>
               </div>
@@ -803,26 +884,34 @@ function Profile() {
         <div
           className="
             grid
+            grid-cols-1
             lg:grid-cols-[1fr_340px]
-            gap-8
-            mt-10
+            gap-6
+            sm:gap-8
+            mt-8
+            sm:mt-10
+            min-w-0
           "
         >
           {/* POSTS */}
-          <div className="space-y-6">
+          <div className="space-y-5 sm:space-y-6 min-w-0">
             <div
               className="
                 flex
-                items-center
+                items-start
+                sm:items-center
                 justify-between
+                gap-4
+                flex-col
+                sm:flex-row
               "
             >
               <div>
-                <h2 className="text-3xl font-black">
+                <h2 className="text-2xl sm:text-3xl font-black">
                   Posts
                 </h2>
 
-                <p className="text-zinc-600 dark:text-zinc-500 mt-1">
+                <p className="text-zinc-600 dark:text-zinc-500 mt-1 text-sm sm:text-base">
                   {posts.length} posts • {totalLikes} likes
                 </p>
               </div>
@@ -835,7 +924,8 @@ function Profile() {
                   border
                   border-zinc-200
                   rounded-3xl
-                  p-10
+                  p-8
+                  sm:p-10
                   text-zinc-500
                   text-center
                   shadow-sm
@@ -875,12 +965,15 @@ function Profile() {
                     bg-white
                     border
                     border-zinc-200
-                    rounded-3xl
-                    p-6
+                    rounded-2xl
+                    sm:rounded-3xl
+                    p-4
+                    sm:p-6
                     md:p-8
                     shadow-sm
                     hover:border-purple-500/40
                     transition
+                    min-w-0
 
                     dark:bg-white/5
                     dark:border-white/10
@@ -891,16 +984,20 @@ function Profile() {
                     className="
                       flex
                       items-center
-                      gap-4
-                      mb-5
+                      gap-3
+                      sm:gap-4
+                      mb-4
+                      sm:mb-5
                     "
                   >
                     <img
                       src={profile.avatar_url || "https://i.pravatar.cc/150"}
                       alt=""
                       className="
-                        w-12
-                        h-12
+                        w-11
+                        h-11
+                        sm:w-12
+                        sm:h-12
                         rounded-full
                         object-cover
                         border
@@ -909,12 +1006,12 @@ function Profile() {
                       "
                     />
 
-                    <div>
-                      <h3 className="font-bold">
+                    <div className="min-w-0">
+                      <h3 className="font-bold truncate">
                         {profile.username}
                       </h3>
 
-                      <p className="text-zinc-500 text-sm">
+                      <p className="text-zinc-500 text-xs sm:text-sm">
                         {new Date(post.created_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -922,10 +1019,12 @@ function Profile() {
 
                   <p
                     className="
-                      text-lg
+                      text-base
+                      sm:text-lg
                       text-zinc-800
                       leading-relaxed
                       whitespace-pre-wrap
+                      break-words
 
                       dark:text-zinc-200
                     "
@@ -938,10 +1037,12 @@ function Profile() {
                       src={post.image_url}
                       alt=""
                       className="
-                        mt-6
+                        mt-5
+                        sm:mt-6
                         rounded-2xl
                         w-full
-                        max-h-[500px]
+                        max-h-[360px]
+                        sm:max-h-[500px]
                         object-cover
                         border
                         border-zinc-200
@@ -956,7 +1057,8 @@ function Profile() {
                       flex
                       items-center
                       gap-5
-                      mt-6
+                      mt-5
+                      sm:mt-6
                     "
                   >
                     <button
@@ -985,14 +1087,24 @@ function Profile() {
                     </button>
                   </div>
 
-                  <CommentSection postId={post.id} user={user} profile={profile} />
+                  <CommentSection
+                    postId={post.id}
+                    user={user}
+                    profile={profile}
+                  />
                 </motion.div>
               );
             })}
           </div>
 
           {/* SIDEBAR */}
-          <div className="space-y-8">
+          <div
+            className="
+              space-y-6
+              sm:space-y-8
+              min-w-0
+            "
+          >
             <ProfileBadges profileId={profile.id} />
 
             <div
@@ -1001,7 +1113,8 @@ function Profile() {
                 border
                 border-zinc-200
                 rounded-3xl
-                p-8
+                p-6
+                sm:p-8
                 shadow-sm
 
                 dark:bg-white/5
@@ -1012,8 +1125,10 @@ function Profile() {
               <div className="flex items-center gap-3 mb-5">
                 <div
                   className="
-                    w-12
-                    h-12
+                    w-11
+                    h-11
+                    sm:w-12
+                    sm:h-12
                     rounded-2xl
                     bg-gradient-to-r
                     from-purple-500
@@ -1022,13 +1137,14 @@ function Profile() {
                     flex
                     items-center
                     justify-center
+                    shrink-0
                   "
                 >
                   <Dumbbell size={22} />
                 </div>
 
-                <div>
-                  <h2 className="text-2xl font-black">
+                <div className="min-w-0">
+                  <h2 className="text-xl sm:text-2xl font-black">
                     Athlete Info
                   </h2>
 
@@ -1072,22 +1188,31 @@ function StatCard({ label, value, icon }) {
         border
         border-zinc-200
         rounded-2xl
-        p-5
+        p-4
+        sm:p-5
         shadow-sm
+        min-w-0
 
         dark:bg-black/30
         dark:border-white/10
       "
     >
-      <div className="text-purple-500 mb-3">
+      <div className="text-purple-500 mb-2 sm:mb-3">
         {icon}
       </div>
 
-      <h3 className="text-2xl font-black">
+      <h3
+        className="
+          text-xl
+          sm:text-2xl
+          font-black
+          break-words
+        "
+      >
         {value}
       </h3>
 
-      <p className="text-zinc-500 text-sm mt-1">
+      <p className="text-zinc-500 text-xs sm:text-sm mt-1">
         {label}
       </p>
     </div>
@@ -1105,15 +1230,23 @@ function InfoRow({ label, value }) {
         border-b
         border-zinc-200
         pb-4
+        min-w-0
 
         dark:border-white/10
       "
     >
-      <span className="text-zinc-500">
+      <span className="text-zinc-500 text-sm">
         {label}
       </span>
 
-      <span className="font-bold text-right">
+      <span
+        className="
+          font-bold
+          text-right
+          text-sm
+          break-words
+        "
+      >
         {value}
       </span>
     </div>

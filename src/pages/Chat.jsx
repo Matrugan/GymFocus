@@ -164,6 +164,24 @@ function Chat() {
       .neq("user_id", user.id);
   }
 
+  function handleImageChange(e) {
+    const selectedFile = e.target.files[0];
+
+    if (!selectedFile) return;
+
+    if (!selectedFile.type.startsWith("image/")) {
+      toast.error("Please select a valid image.");
+      return;
+    }
+
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      toast.error("Image is too large. Maximum size is 5MB.");
+      return;
+    }
+
+    setImage(selectedFile);
+  }
+
   async function uploadChatImage() {
     if (!image) return null;
 
@@ -234,9 +252,7 @@ function Chat() {
     }
 
     setNewMessage("");
-
     setImage(null);
-
     setShowEmoji(false);
 
     if (imageInputRef.current) {
@@ -273,24 +289,30 @@ function Chat() {
     <section
       className="
         h-screen
-        bg-[var(--app-bg)]
-        text-[var(--app-text)]
+        bg-zinc-50
+        text-zinc-950
         flex
         flex-col
         overflow-hidden
         transition-colors
+
+        dark:bg-black
+        dark:text-white
       "
     >
       {/* HEADER */}
       <header
         className="
-          h-[84px]
+          min-h-[76px]
+          sm:min-h-[84px]
           border-b
           border-zinc-200
-          px-5
+          px-3
+          sm:px-5
           flex
           items-center
           justify-between
+          gap-3
           bg-white/90
           backdrop-blur-xl
           sticky
@@ -302,22 +324,24 @@ function Chat() {
           dark:border-white/10
         "
       >
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <button
             onClick={() => navigate("/inbox")}
             className="
               hover:bg-zinc-100
               transition
-              p-3
+              p-2.5
+              sm:p-3
               rounded-2xl
               border
               border-zinc-200
+              shrink-0
 
               dark:hover:bg-white/10
               dark:border-white/10
             "
           >
-            <ArrowLeft size={22} />
+            <ArrowLeft size={21} />
           </button>
 
           <div className="relative shrink-0">
@@ -326,8 +350,10 @@ function Chat() {
                 src={selectedUser.avatar_url}
                 alt=""
                 className="
-                  w-12
-                  h-12
+                  w-10
+                  h-10
+                  sm:w-12
+                  sm:h-12
                   rounded-full
                   object-cover
                   border
@@ -337,8 +363,10 @@ function Chat() {
             ) : (
               <div
                 className="
-                  w-12
-                  h-12
+                  w-10
+                  h-10
+                  sm:w-12
+                  sm:h-12
                   rounded-full
                   bg-purple-500/10
                   border
@@ -349,7 +377,7 @@ function Chat() {
                   justify-center
                 "
               >
-                <UserRound size={22} />
+                <UserRound size={21} />
               </div>
             )}
 
@@ -358,8 +386,10 @@ function Chat() {
                 absolute
                 bottom-0
                 right-0
-                w-3.5
-                h-3.5
+                w-3
+                h-3
+                sm:w-3.5
+                sm:h-3.5
                 rounded-full
                 border-2
                 border-white
@@ -383,14 +413,28 @@ function Chat() {
                   : "#"
               }
             >
-              <h2 className="font-bold truncate hover:text-purple-500 transition">
+              <h2
+                className="
+                  font-bold
+                  truncate
+                  hover:text-purple-500
+                  transition
+                  text-sm
+                  sm:text-base
+                  max-w-[130px]
+                  xs:max-w-[170px]
+                  sm:max-w-[260px]
+                "
+              >
                 {selectedUser?.username || "Chat"}
               </h2>
             </Link>
 
             <p
               className={`
-                text-xs
+                text-[11px]
+                sm:text-xs
+                truncate
 
                 ${
                   selectedUser?.online
@@ -405,7 +449,7 @@ function Chat() {
         </div>
 
         {/* ACTIONS */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <ThemeToggle />
 
           <HeaderIcon>
@@ -427,20 +471,33 @@ function Chat() {
         className="
           flex-1
           overflow-y-auto
-          px-4
+          px-3
+          sm:px-4
           md:px-8
-          py-6
+          py-4
+          sm:py-6
         "
       >
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div
+          className="
+            w-full
+            max-w-4xl
+            mx-auto
+            space-y-3
+            sm:space-y-4
+            min-w-0
+          "
+        >
           {loading && (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {[1, 2, 3].map((item) => (
                 <div
                   key={item}
                   className="
-                    h-16
-                    w-2/3
+                    h-14
+                    sm:h-16
+                    w-3/4
+                    sm:w-2/3
                     rounded-3xl
                     bg-white
                     border
@@ -458,15 +515,19 @@ function Chat() {
           {!loading && messages.length === 0 && (
             <div
               className="
-                mt-20
+                mt-16
+                sm:mt-20
                 text-center
                 text-zinc-500
+                px-4
               "
             >
               <div
                 className="
-                  w-20
-                  h-20
+                  w-16
+                  h-16
+                  sm:w-20
+                  sm:h-20
                   mx-auto
                   rounded-full
                   bg-purple-500/10
@@ -476,17 +537,27 @@ function Chat() {
                   flex
                   items-center
                   justify-center
-                  mb-6
+                  mb-5
+                  sm:mb-6
                 "
               >
-                <MessageCircle size={34} />
+                <MessageCircle size={32} />
               </div>
 
-              <h2 className="text-2xl font-black text-zinc-950 dark:text-white">
+              <h2
+                className="
+                  text-xl
+                  sm:text-2xl
+                  font-black
+                  text-zinc-950
+
+                  dark:text-white
+                "
+              >
                 Start the conversation
               </h2>
 
-              <p className="mt-2">
+              <p className="mt-2 text-sm sm:text-base">
                 Send your first message to this athlete.
               </p>
             </div>
@@ -518,13 +589,17 @@ function Chat() {
                 >
                   <div
                     className={`
-                      max-w-[78%]
-                      rounded-[28px]
-                      px-5
+                      max-w-[88%]
+                      sm:max-w-[78%]
+                      rounded-[22px]
+                      sm:rounded-[28px]
+                      px-4
+                      sm:px-5
                       py-3
                       relative
                       shadow-sm
                       border
+                      min-w-0
 
                       ${
                         isMine
@@ -554,6 +629,7 @@ function Chat() {
                           text-purple-500
                           font-bold
                           mb-2
+                          truncate
                         "
                       >
                         {selectedUser?.username || message.username}
@@ -563,7 +639,8 @@ function Chat() {
                     {message.content && (
                       <p
                         className="
-                          text-[15px]
+                          text-sm
+                          sm:text-[15px]
                           leading-relaxed
                           break-words
                           whitespace-pre-wrap
@@ -580,7 +657,8 @@ function Chat() {
                         className="
                           mt-3
                           rounded-2xl
-                          max-h-[350px]
+                          max-h-[260px]
+                          sm:max-h-[350px]
                           max-w-full
                           object-cover
                           border
@@ -629,14 +707,23 @@ function Chat() {
           border-zinc-200
           bg-white/90
           backdrop-blur-xl
-          p-4
+          p-3
+          sm:p-4
           transition-colors
 
           dark:bg-black/90
           dark:border-white/10
         "
       >
-        <div className="max-w-4xl mx-auto relative">
+        <div
+          className="
+            w-full
+            max-w-4xl
+            mx-auto
+            relative
+            min-w-0
+          "
+        >
           {/* IMAGE PREVIEW */}
           {image && (
             <div
@@ -644,7 +731,8 @@ function Chat() {
                 mb-3
                 relative
                 w-fit
-                max-w-xs
+                max-w-[220px]
+                sm:max-w-xs
                 rounded-2xl
                 overflow-hidden
                 border
@@ -659,7 +747,8 @@ function Chat() {
                 src={URL.createObjectURL(image)}
                 alt=""
                 className="
-                  max-h-40
+                  max-h-32
+                  sm:max-h-40
                   object-cover
                 "
               />
@@ -696,9 +785,14 @@ function Chat() {
                 bottom-20
                 left-0
                 z-50
+                max-w-[calc(100vw-1.5rem)]
+                overflow-hidden
+                rounded-2xl
               "
             >
               <EmojiPicker
+                width={320}
+                height={400}
                 theme={
                   document.documentElement.classList.contains("dark")
                     ? "dark"
@@ -715,14 +809,19 @@ function Chat() {
             className="
               flex
               items-center
-              gap-3
+              gap-2
+              sm:gap-3
               bg-zinc-100
               border
               border-zinc-200
-              rounded-full
-              px-4
-              py-3
+              rounded-3xl
+              sm:rounded-full
+              px-3
+              sm:px-4
+              py-2.5
+              sm:py-3
               transition-colors
+              min-w-0
 
               dark:bg-zinc-900
               dark:border-white/10
@@ -738,7 +837,7 @@ function Chat() {
                 shrink-0
               "
             >
-              <Smile size={24} />
+              <Smile size={22} />
             </button>
 
             <button
@@ -751,14 +850,14 @@ function Chat() {
                 shrink-0
               "
             >
-              <ImagePlus size={24} />
+              <ImagePlus size={22} />
             </button>
 
             <input
               ref={imageInputRef}
               type="file"
               accept="image/*"
-              onChange={(e) => setImage(e.target.files[0])}
+              onChange={handleImageChange}
               className="hidden"
             />
 
@@ -774,10 +873,13 @@ function Chat() {
               }}
               className="
                 flex-1
+                min-w-0
                 bg-transparent
                 outline-none
                 text-zinc-950
                 placeholder:text-zinc-500
+                text-sm
+                sm:text-base
 
                 dark:text-white
               "
@@ -788,8 +890,10 @@ function Chat() {
               onClick={sendMessage}
               disabled={sending || (!newMessage.trim() && !image)}
               className="
-                w-11
-                h-11
+                w-10
+                h-10
+                sm:w-11
+                sm:h-11
                 rounded-full
                 bg-gradient-to-r
                 from-purple-500
@@ -805,7 +909,7 @@ function Chat() {
                 shrink-0
               "
             >
-              <Send size={18} />
+              <Send size={17} />
             </button>
           </div>
         </div>

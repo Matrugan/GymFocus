@@ -85,17 +85,14 @@ function Feed({ user, profile, refreshKey }) {
     setLoading(true);
 
     if (activeFeed === "following") {
-      const { data: followingData, error: followingError } =
-        await supabase
-          .from("followers")
-          .select("following_id")
-          .eq("follower_id", user.id);
+      const { data: followingData, error: followingError } = await supabase
+        .from("followers")
+        .select("following_id")
+        .eq("follower_id", user.id);
 
       if (followingError) {
         console.log(followingError);
-
         setLoading(false);
-
         return;
       }
 
@@ -104,9 +101,7 @@ function Feed({ user, profile, refreshKey }) {
 
       if (followingIds.length === 0) {
         setPosts([]);
-
         setLoading(false);
-
         return;
       }
 
@@ -120,16 +115,12 @@ function Feed({ user, profile, refreshKey }) {
 
       if (error) {
         console.log(error);
-
         setLoading(false);
-
         return;
       }
 
       setPosts(data || []);
-
       setLoading(false);
-
       return;
     }
 
@@ -142,25 +133,19 @@ function Feed({ user, profile, refreshKey }) {
 
     if (error) {
       console.log(error);
-
       setLoading(false);
-
       return;
     }
 
     setPosts(data || []);
-
     setLoading(false);
   }
 
   async function getLikes() {
-    const { data, error } = await supabase
-      .from("likes")
-      .select("*");
+    const { data, error } = await supabase.from("likes").select("*");
 
     if (error) {
       console.log(error);
-
       return;
     }
 
@@ -171,9 +156,7 @@ function Feed({ user, profile, refreshKey }) {
     if (!user) return;
 
     const existingLike = likes.find(
-      (like) =>
-        like.post_id === postId &&
-        like.user_id === user.id
+      (like) => like.post_id === postId && like.user_id === user.id
     );
 
     if (existingLike) {
@@ -184,22 +167,18 @@ function Feed({ user, profile, refreshKey }) {
 
       if (error) {
         console.log(error);
-
         return;
       }
     } else {
-      const { error } = await supabase
-        .from("likes")
-        .insert([
-          {
-            post_id: postId,
-            user_id: user.id,
-          },
-        ]);
+      const { error } = await supabase.from("likes").insert([
+        {
+          post_id: postId,
+          user_id: user.id,
+        },
+      ]);
 
       if (error) {
         console.log(error);
-
         return;
       }
     }
@@ -212,14 +191,10 @@ function Feed({ user, profile, refreshKey }) {
 
     if (!confirmDelete) return;
 
-    const { error } = await supabase
-      .from("posts")
-      .delete()
-      .eq("id", postId);
+    const { error } = await supabase.from("posts").delete().eq("id", postId);
 
     if (error) {
       console.log(error);
-
       return;
     }
 
@@ -243,7 +218,6 @@ function Feed({ user, profile, refreshKey }) {
 
     if (error) {
       console.log(error);
-
       return;
     }
 
@@ -266,13 +240,23 @@ function Feed({ user, profile, refreshKey }) {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto space-y-8">
+      <div
+        className="
+          w-full
+          max-w-2xl
+          mx-auto
+          space-y-5
+          sm:space-y-8
+        "
+      >
         {[1, 2, 3].map((item) => (
           <div
             key={item}
             className="
-              h-[430px]
-              rounded-[30px]
+              h-[320px]
+              sm:h-[430px]
+              rounded-2xl
+              sm:rounded-[30px]
               bg-white
               border
               border-zinc-200
@@ -289,15 +273,24 @@ function Feed({ user, profile, refreshKey }) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div
+      className="
+        w-full
+        max-w-2xl
+        mx-auto
+        min-w-0
+      "
+    >
       {/* FEED TABS */}
       <div
         className="
-          mb-8
+          mb-5
+          sm:mb-8
           bg-white
           border
           border-zinc-200
-          rounded-3xl
+          rounded-2xl
+          sm:rounded-3xl
           p-2
           flex
           items-center
@@ -314,9 +307,13 @@ function Feed({ user, profile, refreshKey }) {
           onClick={() => setActiveFeed("forYou")}
           className={`
             flex-1
-            py-4
-            rounded-2xl
+            py-3
+            sm:py-4
+            rounded-xl
+            sm:rounded-2xl
             font-bold
+            text-sm
+            sm:text-base
             transition
 
             ${
@@ -341,9 +338,13 @@ function Feed({ user, profile, refreshKey }) {
           onClick={() => setActiveFeed("following")}
           className={`
             flex-1
-            py-4
-            rounded-2xl
+            py-3
+            sm:py-4
+            rounded-xl
+            sm:rounded-2xl
             font-bold
+            text-sm
+            sm:text-base
             transition
 
             ${
@@ -382,12 +383,10 @@ function Feed({ user, profile, refreshKey }) {
       )}
 
       {/* POSTS */}
-      <div className="space-y-10">
+      <div className="space-y-6 sm:space-y-10">
         {posts.map((post, index) => {
           const liked = likes.find(
-            (like) =>
-              like.post_id === post.id &&
-              like.user_id === user.id
+            (like) => like.post_id === post.id && like.user_id === user.id
           );
 
           const likesCount = likes.filter(
@@ -416,13 +415,15 @@ function Feed({ user, profile, refreshKey }) {
                 text-zinc-950
                 border
                 border-zinc-200
-                rounded-[30px]
+                rounded-2xl
+                sm:rounded-[30px]
                 overflow-hidden
                 shadow-sm
                 hover:border-purple-500/40
                 hover:shadow-[0_0_40px_rgba(168,85,247,0.12)]
                 transition-all
                 duration-300
+                min-w-0
 
                 dark:bg-zinc-950
                 dark:text-white
@@ -436,19 +437,20 @@ function Feed({ user, profile, refreshKey }) {
                   flex
                   items-center
                   justify-between
-                  p-5
+                  p-4
+                  sm:p-5
+                  gap-3
                 "
               >
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <img
-                    src={
-                      post.avatar_url ||
-                      "https://i.pravatar.cc/150"
-                    }
+                    src={post.avatar_url || "https://i.pravatar.cc/150"}
                     alt=""
                     className="
-                      w-14
-                      h-14
+                      w-11
+                      h-11
+                      sm:w-14
+                      sm:h-14
                       rounded-full
                       object-cover
                       border-2
@@ -462,7 +464,8 @@ function Feed({ user, profile, refreshKey }) {
                       <h3
                         className="
                           font-bold
-                          text-lg
+                          text-base
+                          sm:text-lg
                           truncate
                           hover:text-purple-500
                           transition
@@ -472,13 +475,10 @@ function Feed({ user, profile, refreshKey }) {
                       </h3>
                     </Link>
 
-                    <p className="text-zinc-500 text-sm">
-                      {formatDistanceToNow(
-                        new Date(post.created_at),
-                        {
-                          addSuffix: true,
-                        }
-                      )}
+                    <p className="text-zinc-500 text-xs sm:text-sm truncate">
+                      {formatDistanceToNow(new Date(post.created_at), {
+                        addSuffix: true,
+                      })}
                     </p>
                   </div>
                 </div>
@@ -491,7 +491,8 @@ function Feed({ user, profile, refreshKey }) {
                         setEditedContent(post.content);
                       }}
                       className="
-                        p-3
+                        p-2.5
+                        sm:p-3
                         rounded-xl
                         bg-zinc-100
                         text-zinc-700
@@ -504,13 +505,14 @@ function Feed({ user, profile, refreshKey }) {
                         dark:hover:bg-purple-500/20
                       "
                     >
-                      <Pencil size={18} />
+                      <Pencil size={17} />
                     </button>
 
                     <button
                       onClick={() => deletePost(post.id)}
                       className="
-                        p-3
+                        p-2.5
+                        sm:p-3
                         rounded-xl
                         bg-zinc-100
                         text-zinc-700
@@ -523,30 +525,30 @@ function Feed({ user, profile, refreshKey }) {
                         dark:hover:bg-red-500/20
                       "
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={17} />
                     </button>
                   </div>
                 )}
               </div>
 
               {/* CONTENT */}
-              <div className="px-5 pb-5">
+              <div className="px-4 sm:px-5 pb-4 sm:pb-5">
                 {editingPostId === post.id ? (
                   <div>
                     <textarea
                       value={editedContent}
-                      onChange={(e) =>
-                        setEditedContent(e.target.value)
-                      }
+                      onChange={(e) => setEditedContent(e.target.value)}
                       className="
                         w-full
-                        h-32
+                        h-28
+                        sm:h-32
                         rounded-2xl
                         bg-zinc-50
                         text-zinc-950
                         border
                         border-zinc-200
-                        p-5
+                        p-4
+                        sm:p-5
                         outline-none
                         focus:border-purple-500
                         transition
@@ -557,10 +559,21 @@ function Feed({ user, profile, refreshKey }) {
                       "
                     />
 
-                    <div className="flex gap-3 mt-4 flex-wrap">
+                    <div
+                      className="
+                        flex
+                        flex-col
+                        sm:flex-row
+                        gap-3
+                        mt-4
+                      "
+                    >
                       <button
                         onClick={() => updatePost(post.id)}
                         className="
+                          w-full
+                          sm:w-auto
+                          justify-center
                           px-5
                           py-3
                           rounded-xl
@@ -583,6 +596,9 @@ function Feed({ user, profile, refreshKey }) {
                           setEditedContent("");
                         }}
                         className="
+                          w-full
+                          sm:w-auto
+                          justify-center
                           px-5
                           py-3
                           rounded-xl
@@ -608,9 +624,11 @@ function Feed({ user, profile, refreshKey }) {
                   <p
                     className="
                       text-zinc-800
-                      text-lg
+                      text-base
+                      sm:text-lg
                       leading-relaxed
                       whitespace-pre-wrap
+                      break-words
 
                       dark:text-zinc-200
                     "
@@ -636,7 +654,8 @@ function Feed({ user, profile, refreshKey }) {
                     alt=""
                     className="
                       w-full
-                      max-h-[700px]
+                      max-h-[420px]
+                      sm:max-h-[700px]
                       object-cover
                       hover:scale-[1.01]
                       transition
@@ -647,17 +666,29 @@ function Feed({ user, profile, refreshKey }) {
               )}
 
               {/* ACTIONS */}
-              <div className="p-5">
-                <div className="flex items-center gap-6 flex-wrap">
+              <div className="p-4 sm:p-5">
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-between
+                    sm:justify-start
+                    gap-3
+                    sm:gap-6
+                    flex-wrap
+                  "
+                >
                   <motion.button
                     whileTap={{
-                      scale: 1.3,
+                      scale: 1.25,
                     }}
                     onClick={() => toggleLike(post.id)}
                     className={`
                       flex
                       items-center
                       gap-2
+                      text-sm
+                      sm:text-base
                       transition
 
                       ${
@@ -673,14 +704,9 @@ function Feed({ user, profile, refreshKey }) {
                       }
                     `}
                   >
-                    <Heart
-                      size={26}
-                      fill={liked ? "currentColor" : "none"}
-                    />
+                    <Heart size={23} fill={liked ? "currentColor" : "none"} />
 
-                    <span className="font-bold">
-                      {likesCount}
-                    </span>
+                    <span className="font-bold">{likesCount}</span>
                   </motion.button>
 
                   <div
@@ -689,11 +715,13 @@ function Feed({ user, profile, refreshKey }) {
                       items-center
                       gap-2
                       text-zinc-500
+                      text-sm
+                      sm:text-base
 
                       dark:text-zinc-400
                     "
                   >
-                    <MessageCircle size={24} />
+                    <MessageCircle size={22} />
 
                     <span className="font-bold">
                       Comments
@@ -708,13 +736,15 @@ function Feed({ user, profile, refreshKey }) {
                       gap-2
                       text-zinc-500
                       hover:text-purple-500
+                      text-sm
+                      sm:text-base
                       transition
 
                       dark:text-zinc-400
                       dark:hover:text-purple-400
                     "
                   >
-                    <Share2 size={24} />
+                    <Share2 size={22} />
 
                     <span className="font-bold">
                       Share
@@ -724,10 +754,12 @@ function Feed({ user, profile, refreshKey }) {
 
                 <div
                   className="
-                    mt-6
+                    mt-5
+                    sm:mt-6
                     border-t
                     border-zinc-200
-                    pt-6
+                    pt-5
+                    sm:pt-6
 
                     dark:border-white/10
                   "
@@ -754,21 +786,33 @@ function EmptyFeed({ title, description }) {
         bg-white
         border
         border-zinc-200
-        rounded-3xl
-        p-10
+        rounded-2xl
+        sm:rounded-3xl
+        p-6
+        sm:p-10
         text-center
-        mb-8
+        mb-6
+        sm:mb-8
         shadow-sm
 
         dark:bg-white/5
         dark:border-white/10
       "
     >
-      <h2 className="text-2xl font-bold text-zinc-950 dark:text-white">
+      <h2
+        className="
+          text-xl
+          sm:text-2xl
+          font-bold
+          text-zinc-950
+
+          dark:text-white
+        "
+      >
         {title}
       </h2>
 
-      <p className="mt-3 text-zinc-500">
+      <p className="mt-3 text-sm sm:text-base text-zinc-500">
         {description}
       </p>
     </div>

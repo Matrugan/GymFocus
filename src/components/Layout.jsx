@@ -17,9 +17,11 @@ function Layout({ children }) {
       {/* MAIN CONTENT */}
       <main
         className="
-          ml-[280px]
           min-h-screen
-          p-10
+          p-4
+          sm:p-6
+          lg:p-10
+          lg:ml-[280px]
         "
       >
 

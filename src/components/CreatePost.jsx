@@ -2,12 +2,7 @@ import { useRef, useState } from "react";
 
 import { supabase } from "../lib/supabase";
 
-import {
-  Send,
-  ImagePlus,
-  Loader2,
-  X,
-} from "lucide-react";
+import { Send, ImagePlus, Loader2, X } from "lucide-react";
 
 import toast from "react-hot-toast";
 
@@ -38,6 +33,18 @@ function CreatePost({ user, profile, onPostCreated }) {
     let image_url = null;
 
     if (image) {
+      if (!image.type.startsWith("image/")) {
+        toast.error("Please select a valid image.");
+        setLoading(false);
+        return;
+      }
+
+      if (image.size > 5 * 1024 * 1024) {
+        toast.error("Image is too large. Maximum size is 5MB.");
+        setLoading(false);
+        return;
+      }
+
       const fileExt = image.name.split(".").pop();
 
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
@@ -104,6 +111,24 @@ function CreatePost({ user, profile, onPostCreated }) {
     setLoading(false);
   }
 
+  function handleImageChange(e) {
+    const selectedFile = e.target.files[0];
+
+    if (!selectedFile) return;
+
+    if (!selectedFile.type.startsWith("image/")) {
+      toast.error("Please select a valid image.");
+      return;
+    }
+
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      toast.error("Image is too large. Maximum size is 5MB.");
+      return;
+    }
+
+    setImage(selectedFile);
+  }
+
   function removeImage() {
     setImage(null);
 
@@ -115,15 +140,19 @@ function CreatePost({ user, profile, onPostCreated }) {
   return (
     <div
       className="
+        w-full
         bg-white
         text-zinc-950
         border
         border-zinc-200
-        rounded-[30px]
-        p-6
+        rounded-2xl
+        sm:rounded-[30px]
+        p-4
+        sm:p-6
         md:p-8
         shadow-sm
         transition-colors
+        min-w-0
 
         dark:bg-zinc-950
         dark:text-white
@@ -132,16 +161,25 @@ function CreatePost({ user, profile, onPostCreated }) {
       "
     >
       {/* HEADER */}
-      <div className="flex items-center gap-4 mb-6">
+      <div
+        className="
+          flex
+          items-center
+          gap-3
+          sm:gap-4
+          mb-5
+          sm:mb-6
+          min-w-0
+        "
+      >
         <img
-          src={
-            profile?.avatar_url ||
-            "https://i.pravatar.cc/150"
-          }
+          src={profile?.avatar_url || "https://i.pravatar.cc/150"}
           alt=""
           className="
-            w-14
-            h-14
+            w-11
+            h-11
+            sm:w-14
+            sm:h-14
             rounded-full
             object-cover
             border-2
@@ -150,16 +188,25 @@ function CreatePost({ user, profile, onPostCreated }) {
           "
         />
 
-        <div>
-          <h2 className="text-2xl font-black">
+        <div className="min-w-0">
+          <h2
+            className="
+              text-xl
+              sm:text-2xl
+              font-black
+              truncate
+            "
+          >
             Share your progress
           </h2>
 
           <p
             className="
               text-zinc-600
-              text-sm
+              text-xs
+              sm:text-sm
               mt-1
+              truncate
 
               dark:text-zinc-400
             "
@@ -176,18 +223,22 @@ function CreatePost({ user, profile, onPostCreated }) {
         placeholder="Completed Push Day today 🔥"
         className="
           w-full
-          h-32
+          h-28
+          sm:h-32
           resize-none
           rounded-2xl
           bg-zinc-50
           text-zinc-950
           border
           border-zinc-200
-          p-5
+          p-4
+          sm:p-5
           outline-none
           focus:border-purple-500
           transition
           placeholder:text-zinc-500
+          text-sm
+          sm:text-base
 
           dark:bg-black/30
           dark:text-white
@@ -200,7 +251,8 @@ function CreatePost({ user, profile, onPostCreated }) {
       {image && (
         <div
           className="
-            mt-5
+            mt-4
+            sm:mt-5
             rounded-2xl
             overflow-hidden
             border
@@ -217,7 +269,8 @@ function CreatePost({ user, profile, onPostCreated }) {
             alt=""
             className="
               w-full
-              max-h-[350px]
+              max-h-[260px]
+              sm:max-h-[350px]
               object-cover
             "
           />
@@ -227,10 +280,14 @@ function CreatePost({ user, profile, onPostCreated }) {
             onClick={removeImage}
             className="
               absolute
-              top-4
-              right-4
-              w-10
-              h-10
+              top-3
+              right-3
+              sm:top-4
+              sm:right-4
+              w-9
+              h-9
+              sm:w-10
+              sm:h-10
               rounded-full
               bg-white
               text-zinc-950
@@ -259,17 +316,23 @@ function CreatePost({ user, profile, onPostCreated }) {
       <div
         className="
           flex
-          items-center
-          justify-between
-          gap-4
-          mt-5
-          flex-wrap
+          flex-col
+          sm:flex-row
+          sm:items-center
+          sm:justify-between
+          gap-3
+          sm:gap-4
+          mt-4
+          sm:mt-5
         "
       >
         <label
           className="
+            w-full
+            sm:w-auto
             flex
             items-center
+            justify-center
             gap-3
             px-5
             py-3
@@ -282,6 +345,8 @@ function CreatePost({ user, profile, onPostCreated }) {
             hover:border-purple-500
             hover:text-purple-500
             transition
+            text-sm
+            sm:text-base
 
             dark:bg-white/5
             dark:text-zinc-300
@@ -291,17 +356,13 @@ function CreatePost({ user, profile, onPostCreated }) {
         >
           <ImagePlus size={20} />
 
-          <span className="font-bold">
-            Add Image
-          </span>
+          <span className="font-bold">Add Image</span>
 
           <input
             ref={imageInputRef}
             type="file"
             accept="image/*"
-            onChange={(e) =>
-              setImage(e.target.files[0])
-            }
+            onChange={handleImageChange}
             className="hidden"
           />
         </label>
@@ -311,6 +372,8 @@ function CreatePost({ user, profile, onPostCreated }) {
           onClick={handlePost}
           disabled={loading}
           className="
+            w-full
+            sm:w-auto
             px-8
             py-4
             rounded-2xl
@@ -321,21 +384,24 @@ function CreatePost({ user, profile, onPostCreated }) {
             font-bold
             flex
             items-center
+            justify-center
             gap-3
             hover:scale-105
             transition
             disabled:opacity-50
             disabled:hover:scale-100
+            text-sm
+            sm:text-base
           "
         >
           {loading ? (
             <>
-              <Loader2 className="animate-spin" />
+              <Loader2 className="animate-spin" size={20} />
               Publishing...
             </>
           ) : (
             <>
-              <Send />
+              <Send size={20} />
               Publish Post
             </>
           )}

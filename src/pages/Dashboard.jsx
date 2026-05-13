@@ -185,12 +185,13 @@ function Dashboard() {
         text-zinc-950
         flex
         transition-colors
+        overflow-x-hidden
 
         dark:bg-black
         dark:text-white
       "
     >
-      {/* SIDEBAR */}
+      {/* SIDEBAR DESKTOP */}
       <aside
         className="
           w-[280px]
@@ -307,21 +308,69 @@ function Dashboard() {
       </aside>
 
       {/* CONTENT */}
-      <main className="flex-1 px-6 py-10 pb-32">
-        <div className="max-w-7xl mx-auto">
+      <main
+        className="
+          flex-1
+          w-full
+          min-w-0
+          px-4
+          sm:px-6
+          lg:px-8
+          py-6
+          sm:py-10
+          pb-32
+        "
+      >
+        <div
+          className="
+            w-full
+            max-w-7xl
+            mx-auto
+          "
+        >
           {/* HEADER */}
-          <div className="flex justify-between items-center flex-wrap gap-5">
-            <div>
+          <div
+            className="
+              flex
+              justify-between
+              items-start
+              sm:items-center
+              flex-col
+              sm:flex-row
+              gap-5
+            "
+          >
+            <div className="min-w-0 w-full">
               <p className="text-zinc-600 dark:text-zinc-400">
                 Welcome back
               </p>
 
-              <h1 className="text-5xl font-black mt-2">
+              <h1
+                className="
+                  text-3xl
+                  sm:text-4xl
+                  lg:text-5xl
+                  font-black
+                  mt-2
+                  break-words
+                  leading-tight
+                "
+              >
                 {user?.email?.split("@")[0]}
               </h1>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div
+              className="
+                flex
+                items-center
+                gap-3
+                sm:gap-4
+                w-full
+                sm:w-auto
+                justify-end
+              "
+            >
               <ThemeToggle />
 
               <NotificationBell user={user} />
@@ -342,6 +391,7 @@ function Dashboard() {
                   hover:border-purple-500
                   transition
                   shadow-sm
+                  shrink-0
 
                   dark:bg-white/5
                   dark:text-white
@@ -375,7 +425,8 @@ function Dashboard() {
                   flex
                   items-center
                   justify-center
-                  p-5
+                  p-4
+                  sm:p-5
 
                   dark:bg-black/70
                 "
@@ -396,12 +447,16 @@ function Dashboard() {
                   className="
                     w-full
                     max-w-2xl
+                    max-h-[90vh]
+                    overflow-y-auto
                     bg-white
                     text-zinc-950
                     border
                     border-zinc-200
-                    rounded-[35px]
-                    p-8
+                    rounded-[28px]
+                    sm:rounded-[35px]
+                    p-4
+                    sm:p-8
                     relative
                     shadow-2xl
 
@@ -414,14 +469,17 @@ function Dashboard() {
                     onClick={() => setShowSearch(false)}
                     className="
                       absolute
-                      top-5
-                      right-5
+                      top-4
+                      right-4
+                      sm:top-5
+                      sm:right-5
                       p-3
                       rounded-xl
                       bg-zinc-100
                       hover:bg-red-500/10
                       hover:text-red-500
                       transition
+                      z-10
 
                       dark:bg-white/5
                       dark:hover:bg-red-500/20
@@ -440,7 +498,18 @@ function Dashboard() {
           {activeTab === "home" && (
             <>
               {/* STATS */}
-              <div className="mt-14 grid md:grid-cols-3 gap-8">
+              <div
+                className="
+                  mt-8
+                  sm:mt-14
+                  grid
+                  grid-cols-1
+                  sm:grid-cols-2
+                  xl:grid-cols-3
+                  gap-4
+                  sm:gap-8
+                "
+              >
                 {stats.map((item, index) => {
                   const Icon = item.icon;
 
@@ -456,20 +525,22 @@ function Dashboard() {
                         y: 0,
                       }}
                       transition={{
-                        delay: index * 0.2,
+                        delay: index * 0.15,
                       }}
                       whileHover={{
-                        scale: 1.03,
-                        y: -5,
+                        scale: 1.02,
+                        y: -4,
                       }}
                       className="
                         bg-white
                         border
                         border-zinc-200
                         rounded-3xl
-                        p-8
+                        p-5
+                        sm:p-8
                         shadow-sm
                         transition-colors
+                        min-w-0
 
                         dark:bg-white/5
                         dark:border-white/10
@@ -478,8 +549,10 @@ function Dashboard() {
                     >
                       <div
                         className="
-                          w-14
-                          h-14
+                          w-12
+                          h-12
+                          sm:w-14
+                          sm:h-14
                           rounded-2xl
                           bg-gradient-to-r
                           from-purple-500
@@ -490,14 +563,22 @@ function Dashboard() {
                           justify-center
                         "
                       >
-                        <Icon size={26} />
+                        <Icon size={24} />
                       </div>
 
-                      <p className="text-zinc-600 dark:text-zinc-400 mt-6">
+                      <p className="text-zinc-600 dark:text-zinc-400 mt-5 sm:mt-6">
                         {item.title}
                       </p>
 
-                      <h2 className="text-4xl font-black mt-2">
+                      <h2
+                        className="
+                          text-3xl
+                          sm:text-4xl
+                          font-black
+                          mt-2
+                          break-words
+                        "
+                      >
                         {item.value}
                       </h2>
                     </motion.div>
@@ -508,19 +589,31 @@ function Dashboard() {
               {/* PROGRESS */}
               <div
                 className="
-                  mt-10
+                  mt-8
+                  sm:mt-10
                   bg-white
                   border
                   border-zinc-200
                   rounded-3xl
-                  p-8
+                  p-5
+                  sm:p-8
                   shadow-sm
+                  min-w-0
 
                   dark:bg-white/5
                   dark:border-white/10
                 "
               >
-                <div className="flex justify-between mb-4 gap-4">
+                <div
+                  className="
+                    flex
+                    flex-col
+                    sm:flex-row
+                    sm:justify-between
+                    mb-4
+                    gap-3
+                  "
+                >
                   <div>
                     <p className="text-zinc-600 dark:text-zinc-400">
                       Progress to Level {level + 1}
@@ -539,7 +632,8 @@ function Dashboard() {
                 <div
                   className="
                     w-full
-                    h-5
+                    h-4
+                    sm:h-5
                     bg-zinc-200
                     rounded-full
                     overflow-hidden
@@ -571,27 +665,39 @@ function Dashboard() {
               {/* WORKOUT */}
               <div
                 className="
-                  mt-10
+                  mt-8
+                  sm:mt-10
                   bg-gradient-to-r
                   from-purple-600
                   to-fuchsia-600
                   text-white
-                  p-8
+                  p-5
+                  sm:p-8
                   rounded-3xl
                   flex
-                  justify-between
-                  items-center
-                  flex-wrap
+                  flex-col
+                  sm:flex-row
+                  sm:justify-between
+                  sm:items-center
                   gap-5
                   shadow-lg
                   shadow-purple-500/20
                 "
               >
-                <div>
-                  <p className="text-sm opacity-80">Today's Workout</p>
+                <div className="min-w-0">
+                  <p className="text-sm opacity-80">
+                    Today's Workout
+                  </p>
 
-                  <h2 className="text-3xl font-bold">
-                    {profile?.current_workout}
+                  <h2
+                    className="
+                      text-2xl
+                      sm:text-3xl
+                      font-bold
+                      break-words
+                    "
+                  >
+                    {profile?.current_workout || "Workout"}
                   </h2>
                 </div>
 
@@ -599,6 +705,8 @@ function Dashboard() {
                   onClick={completeWorkout}
                   disabled={loadingWorkout}
                   className="
+                    w-full
+                    sm:w-auto
                     px-8
                     py-4
                     rounded-2xl
@@ -615,31 +723,40 @@ function Dashboard() {
                 </button>
               </div>
 
-              <div className="mt-10">
+              <DashboardBlock>
                 <ProgressAnalytics user={user} />
-              </div>
+              </DashboardBlock>
 
-              <div className="mt-10">
+              <DashboardBlock>
                 <WorkoutCalendar user={user} />
-              </div>
+              </DashboardBlock>
 
-              <div className="mt-10">
+              <DashboardBlock>
                 <Achievements user={user} />
-              </div>
+              </DashboardBlock>
 
-              <div className="mt-10">
+              <DashboardBlock>
                 <WeeklyRanking />
-              </div>
+              </DashboardBlock>
 
-              <div className="mt-10">
+              <DashboardBlock>
                 <Leaderboard />
-              </div>
+              </DashboardBlock>
             </>
           )}
 
           {/* FEED TAB */}
           {activeTab === "feed" && (
-            <div className="mt-10 space-y-10">
+            <div
+              className="
+                mt-8
+                sm:mt-10
+                space-y-8
+                sm:space-y-10
+                w-full
+                min-w-0
+              "
+            >
               <CreatePost
                 user={user}
                 profile={profile}
@@ -656,7 +773,7 @@ function Dashboard() {
 
           {/* CHALLENGES TAB */}
           {activeTab === "challenges" && (
-            <div className="mt-10">
+            <div className="mt-8 sm:mt-10">
               <Challenges
                 user={user}
                 profile={profile}
@@ -667,7 +784,7 @@ function Dashboard() {
 
           {/* SETTINGS TAB */}
           {activeTab === "settings" && (
-            <div className="mt-10">
+            <div className="mt-8 sm:mt-10">
               <ProfileSettings profile={profile} user={user} />
             </div>
           )}
@@ -686,8 +803,10 @@ function Dashboard() {
           backdrop-blur-xl
           border-t
           border-zinc-200
-          px-4
-          py-3
+          px-2
+          sm:px-4
+          py-2
+          sm:py-3
           flex
           items-center
           justify-around
@@ -702,21 +821,21 @@ function Dashboard() {
         <MobileNavButton
           active={activeTab === "home"}
           onClick={() => setActiveTab("home")}
-          icon={<Home size={22} />}
+          icon={<Home size={21} />}
           text="Home"
         />
 
         <MobileNavButton
           active={activeTab === "feed"}
           onClick={() => setActiveTab("feed")}
-          icon={<Users size={22} />}
+          icon={<Users size={21} />}
           text="Feed"
         />
 
         <MobileNavButton
           active={activeTab === "challenges"}
           onClick={() => setActiveTab("challenges")}
-          icon={<Target size={22} />}
+          icon={<Target size={21} />}
           text="Challenges"
         />
 
@@ -727,24 +846,41 @@ function Dashboard() {
             flex-col
             items-center
             gap-1
-            text-sm
+            text-[10px]
+            sm:text-sm
             text-zinc-500
             hover:text-purple-500
             transition
           "
         >
-          <MessageCircle size={22} />
-          Inbox
+          <MessageCircle size={21} />
+          <span>Inbox</span>
         </Link>
 
         <MobileNavButton
           active={activeTab === "settings"}
           onClick={() => setActiveTab("settings")}
-          icon={<Settings size={22} />}
+          icon={<Settings size={21} />}
           text="Settings"
         />
       </div>
     </section>
+  );
+}
+
+function DashboardBlock({ children }) {
+  return (
+    <div
+      className="
+        mt-8
+        sm:mt-10
+        w-full
+        min-w-0
+        overflow-hidden
+      "
+    >
+      {children}
+    </div>
   );
 }
 
@@ -792,8 +928,10 @@ function MobileNavButton({ active, onClick, icon, text }) {
         flex-col
         items-center
         gap-1
-        text-sm
+        text-[10px]
+        sm:text-sm
         transition
+        max-w-[72px]
 
         ${
           active
@@ -803,7 +941,10 @@ function MobileNavButton({ active, onClick, icon, text }) {
       `}
     >
       {icon}
-      {text}
+
+      <span className="truncate">
+        {text}
+      </span>
     </button>
   );
 }

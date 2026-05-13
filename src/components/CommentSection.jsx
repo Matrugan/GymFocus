@@ -101,9 +101,28 @@ function CommentSection({ postId, user, profile }) {
   }
 
   return (
-    <div className="mt-6">
+    <div
+      className="
+        mt-5
+        sm:mt-6
+        w-full
+        min-w-0
+      "
+    >
       {/* TITLE */}
-      <div className="flex items-center gap-2 mb-4 text-zinc-600 dark:text-zinc-400">
+      <div
+        className="
+          flex
+          items-center
+          gap-2
+          mb-4
+          text-zinc-600
+          text-sm
+          sm:text-base
+
+          dark:text-zinc-400
+        "
+      >
         <MessageCircle size={18} />
 
         <span className="font-bold">
@@ -113,7 +132,7 @@ function CommentSection({ postId, user, profile }) {
       </div>
 
       {/* COMMENTS LIST */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {comments.map((item) => (
           <div
             key={item.id}
@@ -125,8 +144,10 @@ function CommentSection({ postId, user, profile }) {
               border
               border-zinc-200
               rounded-2xl
-              p-4
+              p-3
+              sm:p-4
               transition-colors
+              min-w-0
 
               dark:bg-black/30
               dark:border-white/10
@@ -136,8 +157,10 @@ function CommentSection({ postId, user, profile }) {
               src={item.avatar_url || "https://i.pravatar.cc/150"}
               alt=""
               className="
-                w-10
-                h-10
+                w-9
+                h-9
+                sm:w-10
+                sm:h-10
                 rounded-full
                 object-cover
                 border
@@ -150,9 +173,10 @@ function CommentSection({ postId, user, profile }) {
               <div
                 className="
                   flex
-                  items-center
+                  items-start
                   justify-between
-                  gap-3
+                  gap-2
+                  sm:gap-3
                 "
               >
                 <div className="min-w-0">
@@ -169,7 +193,7 @@ function CommentSection({ postId, user, profile }) {
                     {item.username || "User"}
                   </h4>
 
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-[11px] sm:text-xs text-zinc-500">
                     {formatTime(item.created_at)}
                   </p>
                 </div>
@@ -185,9 +209,10 @@ function CommentSection({ postId, user, profile }) {
                       hover:bg-red-500/10
                       hover:text-red-500
                       transition
+                      shrink-0
                     "
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={15} />
                   </button>
                 )}
               </div>
@@ -216,9 +241,12 @@ function CommentSection({ postId, user, profile }) {
               border
               border-zinc-200
               rounded-2xl
-              p-5
+              p-4
+              sm:p-5
               text-center
               text-zinc-500
+              text-sm
+              sm:text-base
 
               dark:bg-black/30
               dark:border-white/10
@@ -232,15 +260,19 @@ function CommentSection({ postId, user, profile }) {
       {/* INPUT */}
       <div
         className="
-          mt-5
+          mt-4
+          sm:mt-5
           flex
           items-center
-          gap-3
+          gap-2
+          sm:gap-3
           bg-zinc-50
           border
           border-zinc-200
           rounded-2xl
-          p-3
+          p-2
+          sm:p-3
+          min-w-0
 
           dark:bg-black/30
           dark:border-white/10
@@ -250,8 +282,10 @@ function CommentSection({ postId, user, profile }) {
           src={profile?.avatar_url || "https://i.pravatar.cc/150"}
           alt=""
           className="
-            w-10
-            h-10
+            w-9
+            h-9
+            sm:w-10
+            sm:h-10
             rounded-full
             object-cover
             border
@@ -272,10 +306,13 @@ function CommentSection({ postId, user, profile }) {
           }}
           className="
             flex-1
+            min-w-0
             bg-transparent
             outline-none
             text-zinc-950
             placeholder:text-zinc-500
+            text-sm
+            sm:text-base
 
             dark:text-white
           "
@@ -286,8 +323,10 @@ function CommentSection({ postId, user, profile }) {
           onClick={addComment}
           disabled={loading || !comment.trim()}
           className="
-            w-11
-            h-11
+            w-10
+            h-10
+            sm:w-11
+            sm:h-11
             rounded-xl
             bg-gradient-to-r
             from-purple-500
@@ -303,7 +342,7 @@ function CommentSection({ postId, user, profile }) {
             shrink-0
           "
         >
-          <Send size={18} />
+          <Send size={17} />
         </button>
       </div>
     </div>

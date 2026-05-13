@@ -79,3 +79,23 @@ a {
 ::-webkit-scrollbar-thumb:hover {
   background: #a855f7;
 }
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+button,
+input,
+textarea {
+  max-width: 100%;
+}

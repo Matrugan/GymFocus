@@ -72,7 +72,7 @@ function WeeklyRanking() {
 
     const formatted = userIds
       .map((userId) => {
-        const profile = profiles.find((profile) => profile.id === userId);
+        const profile = profiles?.find((profile) => profile.id === userId);
 
         return {
           userId,
@@ -96,8 +96,10 @@ function WeeklyRanking() {
           bg-white
           border
           border-zinc-200
-          rounded-3xl
-          p-8
+          rounded-2xl
+          sm:rounded-3xl
+          p-4
+          sm:p-8
           shadow-sm
 
           dark:bg-white/5
@@ -107,23 +109,27 @@ function WeeklyRanking() {
       >
         <div
           className="
-            h-8
-            w-60
+            h-7
+            sm:h-8
+            w-44
+            sm:w-60
             bg-zinc-200
             rounded-xl
             animate-pulse
-            mb-8
+            mb-6
+            sm:mb-8
 
             dark:bg-white/10
           "
         />
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {[1, 2, 3].map((item) => (
             <div
               key={item}
               className="
-                h-24
+                h-20
+                sm:h-24
                 rounded-2xl
                 bg-zinc-100
                 animate-pulse
@@ -148,15 +154,19 @@ function WeeklyRanking() {
         y: 0,
       }}
       className="
+        w-full
         bg-white
         text-zinc-950
         border
         border-zinc-200
-        rounded-3xl
-        p-6
+        rounded-2xl
+        sm:rounded-3xl
+        p-4
+        sm:p-6
         md:p-8
         shadow-sm
         transition-colors
+        min-w-0
 
         dark:bg-white/5
         dark:text-white
@@ -168,18 +178,31 @@ function WeeklyRanking() {
       <div
         className="
           flex
-          items-center
+          items-start
+          sm:items-center
           justify-between
           gap-4
-          flex-wrap
-          mb-8
+          flex-col
+          sm:flex-row
+          mb-6
+          sm:mb-8
         "
       >
-        <div className="flex items-center gap-4">
+        <div
+          className="
+            flex
+            items-center
+            gap-3
+            sm:gap-4
+            min-w-0
+          "
+        >
           <div
             className="
-              w-14
-              h-14
+              w-12
+              h-12
+              sm:w-14
+              sm:h-14
               rounded-2xl
               bg-gradient-to-r
               from-purple-500
@@ -191,11 +214,18 @@ function WeeklyRanking() {
               shrink-0
             "
           >
-            <Trophy size={26} />
+            <Trophy size={24} />
           </div>
 
-          <div>
-            <h2 className="text-3xl font-black">
+          <div className="min-w-0">
+            <h2
+              className="
+                text-2xl
+                sm:text-3xl
+                font-black
+                break-words
+              "
+            >
               Weekly Ranking
             </h2>
 
@@ -203,6 +233,8 @@ function WeeklyRanking() {
               className="
                 text-zinc-600
                 mt-1
+                text-sm
+                sm:text-base
 
                 dark:text-zinc-400
               "
@@ -222,7 +254,9 @@ function WeeklyRanking() {
             border-purple-500/20
             text-purple-500
             font-bold
-            text-sm
+            text-xs
+            sm:text-sm
+            shrink-0
           "
         >
           Last 7 days
@@ -237,9 +271,12 @@ function WeeklyRanking() {
             border
             border-zinc-200
             rounded-2xl
-            p-8
+            p-6
+            sm:p-8
             text-center
             text-zinc-500
+            text-sm
+            sm:text-base
 
             dark:bg-black/30
             dark:border-white/10
@@ -251,7 +288,7 @@ function WeeklyRanking() {
 
       {/* LIST */}
       {ranking.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {ranking.map((item, index) => {
             const position = index + 1;
 
@@ -276,13 +313,17 @@ function WeeklyRanking() {
                   flex
                   items-center
                   justify-between
-                  gap-4
+                  gap-3
+                  sm:gap-4
                   rounded-2xl
-                  px-5
-                  py-5
+                  px-3
+                  sm:px-5
+                  py-4
+                  sm:py-5
                   border
                   transition-all
                   shadow-sm
+                  min-w-0
 
                   ${
                     position === 1
@@ -299,21 +340,27 @@ function WeeklyRanking() {
                   className="
                     flex
                     items-center
-                    gap-4
+                    gap-3
+                    sm:gap-4
                     min-w-0
+                    flex-1
                   "
                 >
                   {/* POSITION */}
                   <div
                     className={`
-                      w-12
-                      h-12
+                      w-10
+                      h-10
+                      sm:w-12
+                      sm:h-12
                       rounded-2xl
                       flex
                       items-center
                       justify-center
                       font-black
                       shrink-0
+                      text-sm
+                      sm:text-base
 
                       ${
                         position === 1
@@ -327,9 +374,9 @@ function WeeklyRanking() {
                     `}
                   >
                     {position === 1 ? (
-                      <Crown size={22} />
+                      <Crown size={20} />
                     ) : position <= 3 ? (
-                      <Medal size={22} />
+                      <Medal size={20} />
                     ) : (
                       `#${position}`
                     )}
@@ -340,8 +387,10 @@ function WeeklyRanking() {
                     src={item.profile?.avatar_url || "https://i.pravatar.cc/150"}
                     alt=""
                     className="
-                      w-14
-                      h-14
+                      w-11
+                      h-11
+                      sm:w-14
+                      sm:h-14
                       rounded-full
                       object-cover
                       border
@@ -351,12 +400,13 @@ function WeeklyRanking() {
                   />
 
                   {/* USER INFO */}
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <Link to={`/profile/${item.profile.username}`}>
                       <h3
                         className="
                           font-bold
-                          text-lg
+                          text-base
+                          sm:text-lg
                           truncate
                           hover:text-purple-500
                           transition
@@ -366,25 +416,48 @@ function WeeklyRanking() {
                       </h3>
                     </Link>
 
-                    <p className="text-zinc-500 text-sm">
+                    <p
+                      className="
+                        text-zinc-500
+                        text-xs
+                        sm:text-sm
+                        truncate
+                      "
+                    >
                       🔥 {item.profile.streak || 0} streak
                     </p>
                   </div>
                 </div>
 
                 {/* WEEKLY XP */}
-                <div className="text-right shrink-0">
+                <div
+                  className="
+                    text-right
+                    shrink-0
+                    min-w-[76px]
+                    sm:min-w-[110px]
+                  "
+                >
                   <h3
                     className="
-                      text-2xl
+                      text-base
+                      sm:text-2xl
                       font-black
                       text-purple-500
+                      leading-tight
                     "
                   >
                     {item.weeklyXP} XP
                   </h3>
 
-                  <p className="text-zinc-500 text-sm">
+                  <p
+                    className="
+                      text-zinc-500
+                      text-[11px]
+                      sm:text-sm
+                      whitespace-nowrap
+                    "
+                  >
                     this week
                   </p>
                 </div>
@@ -397,14 +470,17 @@ function WeeklyRanking() {
       {/* FOOTER */}
       <div
         className="
-          mt-6
+          mt-5
+          sm:mt-6
           bg-zinc-50
           border
           border-zinc-200
           rounded-2xl
-          p-5
+          p-4
+          sm:p-5
           flex
-          items-center
+          items-start
+          sm:items-center
           gap-3
           text-zinc-600
 
@@ -413,7 +489,7 @@ function WeeklyRanking() {
           dark:text-zinc-400
         "
       >
-        <Trophy size={20} className="text-purple-500 shrink-0" />
+        <Trophy size={20} className="text-purple-500 shrink-0 mt-0.5 sm:mt-0" />
 
         <p className="text-sm">
           Weekly XP is calculated from workouts and completed challenges in the

@@ -73,8 +73,10 @@ function WorkoutCalendar({ user }) {
           bg-white
           border
           border-zinc-200
-          rounded-3xl
-          p-8
+          rounded-2xl
+          sm:rounded-3xl
+          p-4
+          sm:p-8
           shadow-sm
 
           dark:bg-white/5
@@ -84,23 +86,36 @@ function WorkoutCalendar({ user }) {
       >
         <div
           className="
-            h-8
-            w-60
+            h-7
+            sm:h-8
+            w-44
+            sm:w-60
             bg-zinc-200
             rounded-xl
             animate-pulse
-            mb-8
+            mb-6
+            sm:mb-8
 
             dark:bg-white/10
           "
         />
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div
+          className="
+            grid
+            grid-cols-2
+            sm:grid-cols-4
+            lg:grid-cols-7
+            gap-3
+            sm:gap-4
+          "
+        >
           {[1, 2, 3, 4, 5, 6, 7].map((item) => (
             <div
               key={item}
               className="
-                h-32
+                h-24
+                sm:h-32
                 rounded-2xl
                 bg-zinc-100
                 animate-pulse
@@ -125,15 +140,20 @@ function WorkoutCalendar({ user }) {
         y: 0,
       }}
       className="
+        w-full
         bg-white
         text-zinc-950
         border
         border-zinc-200
-        rounded-3xl
-        p-6
+        rounded-2xl
+        sm:rounded-3xl
+        p-4
+        sm:p-6
         md:p-8
         shadow-sm
         transition-colors
+        min-w-0
+        overflow-hidden
 
         dark:bg-white/5
         dark:text-white
@@ -145,18 +165,31 @@ function WorkoutCalendar({ user }) {
       <div
         className="
           flex
-          items-center
+          items-start
+          sm:items-center
           justify-between
           gap-4
-          flex-wrap
-          mb-8
+          flex-col
+          sm:flex-row
+          mb-6
+          sm:mb-8
         "
       >
-        <div className="flex items-center gap-4">
+        <div
+          className="
+            flex
+            items-center
+            gap-3
+            sm:gap-4
+            min-w-0
+          "
+        >
           <div
             className="
-              w-14
-              h-14
+              w-12
+              h-12
+              sm:w-14
+              sm:h-14
               rounded-2xl
               bg-gradient-to-r
               from-purple-500
@@ -168,11 +201,18 @@ function WorkoutCalendar({ user }) {
               shrink-0
             "
           >
-            <CalendarDays size={26} />
+            <CalendarDays size={24} />
           </div>
 
-          <div>
-            <h2 className="text-3xl font-black">
+          <div className="min-w-0">
+            <h2
+              className="
+                text-2xl
+                sm:text-3xl
+                font-black
+                break-words
+              "
+            >
               Weekly Consistency
             </h2>
 
@@ -180,6 +220,8 @@ function WorkoutCalendar({ user }) {
               className="
                 text-zinc-600
                 mt-1
+                text-sm
+                sm:text-base
 
                 dark:text-zinc-400
               "
@@ -199,7 +241,9 @@ function WorkoutCalendar({ user }) {
             border-purple-500/20
             text-purple-500
             font-bold
-            text-sm
+            text-xs
+            sm:text-sm
+            shrink-0
           "
         >
           {completedDays}/7 days
@@ -213,7 +257,8 @@ function WorkoutCalendar({ user }) {
           grid-cols-2
           sm:grid-cols-4
           lg:grid-cols-7
-          gap-4
+          gap-3
+          sm:gap-4
         "
       >
         {last7Days.map((day, index) => {
@@ -237,11 +282,14 @@ function WorkoutCalendar({ user }) {
                 y: -4,
               }}
               className={`
-                rounded-3xl
-                p-5
+                rounded-2xl
+                sm:rounded-3xl
+                p-4
+                sm:p-5
                 border
                 transition-all
                 shadow-sm
+                min-w-0
 
                 ${
                   completed
@@ -264,14 +312,18 @@ function WorkoutCalendar({ user }) {
                   flex
                   items-center
                   justify-between
-                  mb-5
+                  mb-4
+                  sm:mb-5
+                  gap-2
                 "
               >
                 <span
                   className="
-                    text-sm
+                    text-xs
+                    sm:text-sm
                     font-bold
                     text-zinc-600
+                    truncate
 
                     dark:text-zinc-400
                   "
@@ -281,28 +333,32 @@ function WorkoutCalendar({ user }) {
 
                 {completed ? (
                   <CheckCircle
-                    size={20}
-                    className="text-purple-500"
+                    size={18}
+                    className="text-purple-500 shrink-0"
                   />
                 ) : (
                   <XCircle
-                    size={20}
-                    className="text-zinc-400"
+                    size={18}
+                    className="text-zinc-400 shrink-0"
                   />
                 )}
               </div>
 
               <div
                 className={`
-                  w-16
-                  h-16
+                  w-12
+                  h-12
+                  sm:w-16
+                  sm:h-16
                   rounded-2xl
                   flex
                   items-center
                   justify-center
                   font-black
-                  text-2xl
-                  mb-4
+                  text-xl
+                  sm:text-2xl
+                  mb-3
+                  sm:mb-4
 
                   ${
                     completed
@@ -327,8 +383,10 @@ function WorkoutCalendar({ user }) {
 
               <p
                 className={`
-                  text-sm
+                  text-xs
+                  sm:text-sm
                   font-bold
+                  leading-tight
 
                   ${
                     completed
@@ -344,17 +402,73 @@ function WorkoutCalendar({ user }) {
         })}
       </div>
 
+      {/* MOBILE SUMMARY */}
+      <div
+        className="
+          mt-5
+          sm:hidden
+          grid
+          grid-cols-2
+          gap-3
+        "
+      >
+        <div
+          className="
+            bg-zinc-50
+            border
+            border-zinc-200
+            rounded-2xl
+            p-4
+
+            dark:bg-black/30
+            dark:border-white/10
+          "
+        >
+          <p className="text-zinc-500 text-xs">
+            Completed
+          </p>
+
+          <h3 className="text-2xl font-black text-purple-500 mt-1">
+            {completedDays}
+          </h3>
+        </div>
+
+        <div
+          className="
+            bg-zinc-50
+            border
+            border-zinc-200
+            rounded-2xl
+            p-4
+
+            dark:bg-black/30
+            dark:border-white/10
+          "
+        >
+          <p className="text-zinc-500 text-xs">
+            Missed / Rest
+          </p>
+
+          <h3 className="text-2xl font-black text-zinc-500 mt-1">
+            {7 - completedDays}
+          </h3>
+        </div>
+      </div>
+
       {/* FOOTER */}
       <div
         className="
-          mt-6
+          mt-5
+          sm:mt-6
           bg-zinc-50
           border
           border-zinc-200
           rounded-2xl
-          p-5
+          p-4
+          sm:p-5
           flex
-          items-center
+          items-start
+          sm:items-center
           gap-3
           text-zinc-600
 
@@ -363,7 +477,10 @@ function WorkoutCalendar({ user }) {
           dark:text-zinc-400
         "
       >
-        <CheckCircle size={20} className="text-purple-500 shrink-0" />
+        <CheckCircle
+          size={20}
+          className="text-purple-500 shrink-0 mt-0.5 sm:mt-0"
+        />
 
         <p className="text-sm">
           Complete your daily workout to keep your streak alive and increase
