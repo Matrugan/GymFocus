@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../lib/supabase";
+import { supabase } from "../../lib/supabase";
 
 import { Send, Trash2, MessageCircle } from "lucide-react";
 
 import toast from "react-hot-toast";
+
+import { createNotification } from "../../utils/notificationSystem";
 
 function CommentSection({ postId, user, profile }) {
   const [comments, setComments] = useState([]);
@@ -64,6 +66,22 @@ function CommentSection({ postId, user, profile }) {
       toast.error("Error adding comment.");
       setLoading(false);
       return;
+    }
+
+    const { data: postData } = await supabase
+      .from("posts")
+      .select("user_id")
+      .eq("id", postId)
+      .single();
+
+    if (postData) {
+      await createNotification({
+        userId: postData.user_id,
+        actorId: user.id,
+        type: "comment",
+        message: "commented on your post.",
+        postId,
+      });
     }
 
     setComment("");
@@ -126,8 +144,7 @@ function CommentSection({ postId, user, profile }) {
         <MessageCircle size={18} />
 
         <span className="font-bold">
-          {comments.length}{" "}
-          {comments.length === 1 ? "Comment" : "Comments"}
+          {comments.length} {comments.length === 1 ? "Comment" : "Comments"}
         </span>
       </div>
 

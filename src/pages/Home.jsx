@@ -15,7 +15,7 @@ import {
   Star,
 } from "lucide-react";
 
-import ThemeToggle from "../components/ThemeToggle";
+import ThemeToggle from "../components/layout/ThemeToggle";
 
 function Home() {
   const features = [

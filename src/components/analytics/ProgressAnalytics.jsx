@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../lib/supabase";
+import { supabase } from "../../lib/supabase";
 
 import {
   ResponsiveContainer,
@@ -20,7 +20,7 @@ import {
 
 import { motion } from "framer-motion";
 
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../../context/ThemeContext";
 
 function ProgressAnalytics({ user }) {
   const { theme } = useTheme();

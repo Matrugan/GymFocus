@@ -15,7 +15,7 @@ import {
 
 import { motion } from "framer-motion";
 
-import ThemeToggle from "../components/ThemeToggle";
+import ThemeToggle from "../components/layout/ThemeToggle";
 
 function Inbox() {
   const { user } = useAuth();

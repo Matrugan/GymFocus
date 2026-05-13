@@ -23,9 +23,11 @@ import EmojiPicker from "emoji-picker-react";
 
 import { motion, AnimatePresence } from "framer-motion";
 
-import ThemeToggle from "../components/ThemeToggle";
+import ThemeToggle from "../components/layout/ThemeToggle";
 
 import toast from "react-hot-toast";
+
+import { createNotification } from "../utils/notificationSystem";
 
 function Chat() {
   const { user } = useAuth();
@@ -80,7 +82,7 @@ function Chat() {
         (payload) => {
           setMessages((prev) => {
             const exists = prev.some(
-              (message) => message.id === payload.new.id
+              (message) => message.id === payload.new.id,
             );
 
             if (exists) return prev;
@@ -91,7 +93,7 @@ function Chat() {
           if (payload.new.user_id !== user?.id) {
             markMessagesAsRead();
           }
-        }
+        },
       )
       .subscribe();
 
@@ -251,6 +253,16 @@ function Chat() {
       return;
     }
 
+    if (selectedUser?.id) {
+      await createNotification({
+        userId: selectedUser.id,
+        actorId: user.id,
+        type: "message",
+        message: "sent you a message.",
+        conversationId: Number(id),
+      });
+    }
+
     setNewMessage("");
     setImage(null);
     setShowEmoji(false);
@@ -396,11 +408,7 @@ function Chat() {
 
                 dark:border-black
 
-                ${
-                  selectedUser?.online
-                    ? "bg-green-500"
-                    : "bg-zinc-500"
-                }
+                ${selectedUser?.online ? "bg-green-500" : "bg-zinc-500"}
               `}
             />
           </div>
@@ -436,11 +444,7 @@ function Chat() {
                 sm:text-xs
                 truncate
 
-                ${
-                  selectedUser?.online
-                    ? "text-green-500"
-                    : "text-zinc-500"
-                }
+                ${selectedUser?.online ? "text-green-500" : "text-zinc-500"}
               `}
             >
               {selectedUser?.online ? "Active now" : "Offline"}
@@ -680,11 +684,7 @@ function Chat() {
                         className={`
                           text-[10px]
 
-                          ${
-                            isMine
-                              ? "text-white/70"
-                              : "text-zinc-500"
-                          }
+                          ${isMine ? "text-white/70" : "text-zinc-500"}
                         `}
                       >
                         {formatTime(message.created_at)}

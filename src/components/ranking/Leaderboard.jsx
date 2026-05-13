@@ -1,90 +1,42 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../lib/supabase";
+import { Crown, Trophy, Medal } from "lucide-react";
+
+import { supabase } from "../../lib/supabase";
 
 import { motion } from "framer-motion";
 
-import { Crown, Medal, Trophy } from "lucide-react";
-
 import { Link } from "react-router-dom";
 
-function WeeklyRanking() {
-  const [ranking, setRanking] = useState([]);
+function Leaderboard() {
+  const [users, setUsers] = useState([]);
 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getWeeklyRanking();
+    getRanking();
   }, []);
 
-  async function getWeeklyRanking() {
+  async function getRanking() {
     setLoading(true);
 
-    const sevenDaysAgo = new Date();
-
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const { data: logs, error: logsError } = await supabase
-      .from("xp_logs")
-      .select("*")
-      .gte("created_at", sevenDaysAgo.toISOString());
-
-    if (logsError) {
-      console.log(logsError);
-
-      setLoading(false);
-
-      return;
-    }
-
-    if (!logs?.length) {
-      setRanking([]);
-
-      setLoading(false);
-
-      return;
-    }
-
-    const grouped = logs.reduce((acc, log) => {
-      if (!acc[log.user_id]) {
-        acc[log.user_id] = 0;
-      }
-
-      acc[log.user_id] += log.amount;
-
-      return acc;
-    }, {});
-
-    const userIds = Object.keys(grouped);
-
-    const { data: profiles, error: profilesError } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
-      .in("id", userIds);
+      .order("xp", {
+        ascending: false,
+      })
+      .limit(5);
 
-    if (profilesError) {
-      console.log(profilesError);
+    if (error) {
+      console.log(error);
 
       setLoading(false);
 
       return;
     }
 
-    const formatted = userIds
-      .map((userId) => {
-        const profile = profiles?.find((profile) => profile.id === userId);
-
-        return {
-          userId,
-          weeklyXP: grouped[userId],
-          profile,
-        };
-      })
-      .filter((item) => item.profile)
-      .sort((a, b) => b.weeklyXP - a.weeklyXP)
-      .slice(0, 10);
-
-    setRanking(formatted);
+    setUsers(data || []);
 
     setLoading(false);
   }
@@ -114,17 +66,16 @@ function WeeklyRanking() {
             w-44
             sm:w-60
             bg-zinc-200
+            dark:bg-white/10
             rounded-xl
             animate-pulse
             mb-6
             sm:mb-8
-
-            dark:bg-white/10
           "
         />
 
         <div className="space-y-3 sm:space-y-4">
-          {[1, 2, 3].map((item) => (
+          {[1, 2, 3, 4, 5].map((item) => (
             <div
               key={item}
               className="
@@ -152,6 +103,9 @@ function WeeklyRanking() {
       animate={{
         opacity: 1,
         y: 0,
+      }}
+      transition={{
+        delay: 0.2,
       }}
       className="
         w-full
@@ -214,7 +168,7 @@ function WeeklyRanking() {
               shrink-0
             "
           >
-            <Trophy size={24} />
+            <Crown size={24} />
           </div>
 
           <div className="min-w-0">
@@ -226,7 +180,7 @@ function WeeklyRanking() {
                 break-words
               "
             >
-              Weekly Ranking
+              Global Ranking
             </h2>
 
             <p
@@ -239,7 +193,7 @@ function WeeklyRanking() {
                 dark:text-zinc-400
               "
             >
-              XP earned in the last 7 days
+              Top athletes by total XP
             </p>
           </div>
         </div>
@@ -256,15 +210,14 @@ function WeeklyRanking() {
             font-bold
             text-xs
             sm:text-sm
-            shrink-0
           "
         >
-          Last 7 days
+          Top 5
         </div>
       </div>
 
       {/* EMPTY */}
-      {ranking.length === 0 && (
+      {users.length === 0 && (
         <div
           className="
             bg-zinc-50
@@ -282,19 +235,19 @@ function WeeklyRanking() {
             dark:border-white/10
           "
         >
-          No weekly XP yet. Complete workouts or challenges to appear here.
+          No athletes ranked yet.
         </div>
       )}
 
       {/* LIST */}
-      {ranking.length > 0 && (
+      {users.length > 0 && (
         <div className="space-y-3 sm:space-y-4">
-          {ranking.map((item, index) => {
+          {users.map((rankingUser, index) => {
             const position = index + 1;
 
             return (
               <motion.div
-                key={item.userId}
+                key={rankingUser.id}
                 initial={{
                   opacity: 0,
                   x: -20,
@@ -384,7 +337,7 @@ function WeeklyRanking() {
 
                   {/* AVATAR */}
                   <img
-                    src={item.profile?.avatar_url || "https://i.pravatar.cc/150"}
+                    src={rankingUser.avatar_url || "https://i.pravatar.cc/150"}
                     alt=""
                     className="
                       w-11
@@ -401,7 +354,7 @@ function WeeklyRanking() {
 
                   {/* USER INFO */}
                   <div className="min-w-0 flex-1">
-                    <Link to={`/profile/${item.profile.username}`}>
+                    <Link to={`/profile/${rankingUser.username}`}>
                       <h3
                         className="
                           font-bold
@@ -412,7 +365,7 @@ function WeeklyRanking() {
                           transition
                         "
                       >
-                        {item.profile.username}
+                        {rankingUser.username}
                       </h3>
                     </Link>
 
@@ -424,12 +377,12 @@ function WeeklyRanking() {
                         truncate
                       "
                     >
-                      🔥 {item.profile.streak || 0} streak
+                      {rankingUser.current_workout || "GymFocus Athlete"}
                     </p>
                   </div>
                 </div>
 
-                {/* WEEKLY XP */}
+                {/* XP */}
                 <div
                   className="
                     text-right
@@ -438,7 +391,7 @@ function WeeklyRanking() {
                     sm:min-w-[110px]
                   "
                 >
-                  <h3
+                  <h2
                     className="
                       text-base
                       sm:text-2xl
@@ -447,8 +400,8 @@ function WeeklyRanking() {
                       leading-tight
                     "
                   >
-                    {item.weeklyXP} XP
-                  </h3>
+                    {rankingUser.xp || 0} XP
+                  </h2>
 
                   <p
                     className="
@@ -458,7 +411,7 @@ function WeeklyRanking() {
                       whitespace-nowrap
                     "
                   >
-                    this week
+                    🔥 {rankingUser.streak || 0}
                   </p>
                 </div>
               </motion.div>
@@ -492,12 +445,12 @@ function WeeklyRanking() {
         <Trophy size={20} className="text-purple-500 shrink-0 mt-0.5 sm:mt-0" />
 
         <p className="text-sm">
-          Weekly XP is calculated from workouts and completed challenges in the
-          last 7 days.
+          Earn XP by completing workouts, finishing challenges and staying
+          consistent.
         </p>
       </div>
     </motion.div>
   );
 }
 
-export default WeeklyRanking;
+export default Leaderboard;

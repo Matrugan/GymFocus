@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../lib/supabase";
+import { supabase } from "../../lib/supabase";
 
 import { motion } from "framer-motion";
 
@@ -21,6 +21,8 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import { formatDistanceToNow } from "date-fns";
+
+import { createNotification } from "../../utils/notificationSystem";
 
 function Feed({ user, profile, refreshKey }) {
   const [posts, setPosts] = useState([]);
@@ -56,7 +58,7 @@ function Feed({ user, profile, refreshKey }) {
         },
         () => {
           getPosts();
-        }
+        },
       )
       .subscribe();
 
@@ -71,7 +73,7 @@ function Feed({ user, profile, refreshKey }) {
         },
         () => {
           getLikes();
-        }
+        },
       )
       .subscribe();
 
@@ -156,7 +158,7 @@ function Feed({ user, profile, refreshKey }) {
     if (!user) return;
 
     const existingLike = likes.find(
-      (like) => like.post_id === postId && like.user_id === user.id
+      (like) => like.post_id === postId && like.user_id === user.id,
     );
 
     if (existingLike) {
@@ -176,6 +178,23 @@ function Feed({ user, profile, refreshKey }) {
           user_id: user.id,
         },
       ]);
+
+      if (error) {
+        console.log(error);
+        return;
+      }
+
+      const likedPost = posts.find((post) => post.id === postId);
+
+      if (likedPost) {
+        await createNotification({
+          userId: likedPost.user_id,
+          actorId: user.id,
+          type: "like",
+          message: "liked your post.",
+          postId,
+        });
+      }
 
       if (error) {
         console.log(error);
@@ -232,7 +251,7 @@ function Feed({ user, profile, refreshKey }) {
 
   async function sharePost(post) {
     await navigator.clipboard.writeText(
-      `${window.location.origin}/profile/${post.username}`
+      `${window.location.origin}/profile/${post.username}`,
     );
 
     toast.success("Profile link copied!");
@@ -386,11 +405,11 @@ function Feed({ user, profile, refreshKey }) {
       <div className="space-y-6 sm:space-y-10">
         {posts.map((post, index) => {
           const liked = likes.find(
-            (like) => like.post_id === post.id && like.user_id === user.id
+            (like) => like.post_id === post.id && like.user_id === user.id,
           );
 
           const likesCount = likes.filter(
-            (like) => like.post_id === post.id
+            (like) => like.post_id === post.id,
           ).length;
 
           return (
@@ -723,9 +742,7 @@ function Feed({ user, profile, refreshKey }) {
                   >
                     <MessageCircle size={22} />
 
-                    <span className="font-bold">
-                      Comments
-                    </span>
+                    <span className="font-bold">Comments</span>
                   </div>
 
                   <button
@@ -746,9 +763,7 @@ function Feed({ user, profile, refreshKey }) {
                   >
                     <Share2 size={22} />
 
-                    <span className="font-bold">
-                      Share
-                    </span>
+                    <span className="font-bold">Share</span>
                   </button>
                 </div>
 
@@ -812,9 +827,7 @@ function EmptyFeed({ title, description }) {
         {title}
       </h2>
 
-      <p className="mt-3 text-sm sm:text-base text-zinc-500">
-        {description}
-      </p>
+      <p className="mt-3 text-sm sm:text-base text-zinc-500">{description}</p>
     </div>
   );
 }

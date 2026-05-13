@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../lib/supabase";
+import { supabase } from "../../lib/supabase";
 
 import { motion } from "framer-motion";
 
@@ -13,9 +13,9 @@ import {
 
 import toast from "react-hot-toast";
 
-import { unlockAchievement } from "../utils/achievementSystem";
+import { unlockAchievement } from "../../utils/achievementSystem";
 
-import { logXP } from "../utils/xpSystem";
+import { logXP } from "../../utils/xpSystem";
 
 function Challenges({ user, profile, onProfileUpdated }) {
   const [challenges, setChallenges] = useState([]);

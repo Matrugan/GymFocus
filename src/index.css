@@ -11,6 +11,24 @@
   --app-text: #09090b;
   --app-muted: #52525b;
   --app-border: rgba(9, 9, 11, 0.1);
+
+  /* Visual polish */
+  --radius-soft: 22px;
+  --radius-soft-sm: 16px;
+  --border-soft: color-mix(in oklab, var(--app-border) 65%, transparent);
+
+  --glass-bg: color-mix(in oklab, var(--app-surface) 70%, transparent);
+  --glass-border: color-mix(in oklab, var(--app-border) 75%, transparent);
+
+  --shadow-purple: 168 85 247; /* #a855f7 */
+  --shadow-fuchsia: 217 70 239; /* #d946ef */
+
+  --shadow-color: 0 10px 35px rgba(var(--shadow-purple), 0.14),
+    0 4px 14px rgba(var(--shadow-fuchsia), 0.08);
+
+  --motion-quick: 180ms;
+  --motion-smooth: 320ms;
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dark {
@@ -20,12 +38,71 @@
   --app-text: #ffffff;
   --app-muted: #a1a1aa;
   --app-border: rgba(255, 255, 255, 0.1);
+
+  --border-soft: color-mix(in oklab, var(--app-border) 70%, transparent);
+
+  --glass-bg: color-mix(in oklab, rgba(17, 17, 23, 0.55) 70%, transparent);
+  --glass-border: color-mix(in oklab, var(--app-border) 85%, transparent);
+
+  --shadow-color: 0 14px 45px rgba(var(--shadow-purple), 0.22),
+    0 6px 18px rgba(var(--shadow-fuchsia), 0.14);
 }
 
 html {
   background: var(--app-bg);
   scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
+
+/* Glassmorphism helpers (global) */
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-soft);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.glass-card--strong {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-color);
+}
+
+.soft-border {
+  border-radius: var(--radius-soft);
+  border: 1px solid var(--border-soft);
+}
+
+.shadow-color {
+  box-shadow: var(--shadow-color);
+}
+
+/* Consistent, smooth motion */
+.smooth-motion {
+  transition:
+    background-color var(--motion-smooth) var(--ease-soft),
+    border-color var(--motion-smooth) var(--ease-soft),
+    box-shadow var(--motion-smooth) var(--ease-soft),
+    transform var(--motion-quick) var(--ease-soft),
+    opacity var(--motion-quick) var(--ease-soft);
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 
 body {
   min-width: 320px;

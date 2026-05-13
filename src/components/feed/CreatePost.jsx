@@ -1,12 +1,14 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 
-import { supabase } from "../lib/supabase";
+import { supabase } from "../../lib/supabase";
 
-import { Send, ImagePlus, Loader2, X } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 
 import toast from "react-hot-toast";
 
-import { unlockAchievement } from "../utils/achievementSystem";
+import { unlockAchievement } from "../../utils/achievementSystem";
+
+import ImageUploader from "../upload/ImageUploader";
 
 function CreatePost({ user, profile, onPostCreated }) {
   const [content, setContent] = useState("");
@@ -15,7 +17,7 @@ function CreatePost({ user, profile, onPostCreated }) {
 
   const [loading, setLoading] = useState(false);
 
-  const imageInputRef = useRef(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   async function handlePost() {
     if (!content.trim()) {
@@ -29,6 +31,7 @@ function CreatePost({ user, profile, onPostCreated }) {
     }
 
     setLoading(true);
+    setUploadProgress(0);
 
     let image_url = null;
 
@@ -36,14 +39,18 @@ function CreatePost({ user, profile, onPostCreated }) {
       if (!image.type.startsWith("image/")) {
         toast.error("Please select a valid image.");
         setLoading(false);
+        setUploadProgress(0);
         return;
       }
 
       if (image.size > 5 * 1024 * 1024) {
         toast.error("Image is too large. Maximum size is 5MB.");
         setLoading(false);
+        setUploadProgress(0);
         return;
       }
+
+      setUploadProgress(20);
 
       const fileExt = image.name.split(".").pop();
 
@@ -63,9 +70,12 @@ function CreatePost({ user, profile, onPostCreated }) {
         toast.error("Error uploading image.");
 
         setLoading(false);
+        setUploadProgress(0);
 
         return;
       }
+
+      setUploadProgress(70);
 
       const { data } = supabase.storage
         .from("post-images")
@@ -90,74 +100,45 @@ function CreatePost({ user, profile, onPostCreated }) {
       toast.error("Error publishing post.");
 
       setLoading(false);
+      setUploadProgress(0);
 
       return;
     }
 
+    setUploadProgress(100);
+
     await unlockAchievement(user.id, "📸 First Post");
 
     setContent("");
-
     setImage(null);
-
-    if (imageInputRef.current) {
-      imageInputRef.current.value = "";
-    }
 
     onPostCreated?.();
 
     toast.success("Post published!");
 
+    setTimeout(() => {
+      setUploadProgress(0);
+    }, 500);
+
     setLoading(false);
-  }
-
-  function handleImageChange(e) {
-    const selectedFile = e.target.files[0];
-
-    if (!selectedFile) return;
-
-    if (!selectedFile.type.startsWith("image/")) {
-      toast.error("Please select a valid image.");
-      return;
-    }
-
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      toast.error("Image is too large. Maximum size is 5MB.");
-      return;
-    }
-
-    setImage(selectedFile);
-  }
-
-  function removeImage() {
-    setImage(null);
-
-    if (imageInputRef.current) {
-      imageInputRef.current.value = "";
-    }
   }
 
   return (
     <div
       className="
         w-full
-        bg-white
         text-zinc-950
-        border
-        border-zinc-200
-        rounded-2xl
-        sm:rounded-[30px]
+        border-0
+        rounded-[var(--radius-soft)]
         p-4
         sm:p-6
         md:p-8
-        shadow-sm
-        transition-colors
         min-w-0
 
-        dark:bg-zinc-950
+        glass-card
+        smooth-motion
+
         dark:text-white
-        dark:border-white/10
-        dark:backdrop-blur-xl
       "
     >
       {/* HEADER */}
@@ -247,68 +228,53 @@ function CreatePost({ user, profile, onPostCreated }) {
         "
       />
 
-      {/* IMAGE PREVIEW */}
-      {image && (
-        <div
-          className="
-            mt-4
-            sm:mt-5
-            rounded-2xl
-            overflow-hidden
-            border
-            border-zinc-200
-            relative
-            bg-zinc-100
+      {/* IMAGE UPLOADER */}
+      <div className="mt-4 sm:mt-5">
+        <ImageUploader
+          image={image}
+          setImage={setImage}
+          label="Add image to your post"
+          maxSizeMB={5}
+          previewHeight="max-h-[260px] sm:max-h-[350px]"
+        />
+      </div>
 
-            dark:border-white/10
-            dark:bg-black/30
-          "
-        >
-          <img
-            src={URL.createObjectURL(image)}
-            alt=""
+      {/* UPLOAD PROGRESS */}
+      {uploadProgress > 0 && (
+        <div className="mt-4">
+          <div className="flex justify-between text-xs text-zinc-500 mb-2">
+            <span>
+              {uploadProgress < 100 ? "Uploading..." : "Upload complete"}
+            </span>
+
+            <span>{uploadProgress}%</span>
+          </div>
+
+          <div
             className="
               w-full
-              max-h-[260px]
-              sm:max-h-[350px]
-              object-cover
-            "
-          />
-
-          <button
-            type="button"
-            onClick={removeImage}
-            className="
-              absolute
-              top-3
-              right-3
-              sm:top-4
-              sm:right-4
-              w-9
-              h-9
-              sm:w-10
-              sm:h-10
+              h-2
+              bg-zinc-200
+              dark:bg-zinc-800
               rounded-full
-              bg-white
-              text-zinc-950
-              border
-              border-zinc-200
-              flex
-              items-center
-              justify-center
-              hover:bg-red-500
-              hover:text-white
-              transition
-              shadow-lg
-
-              dark:bg-zinc-900
-              dark:text-white
-              dark:border-white/10
-              dark:hover:bg-red-500
+              overflow-hidden
             "
           >
-            <X size={18} />
-          </button>
+            <div
+              className="
+                h-full
+                bg-gradient-to-r
+                from-purple-500
+                to-fuchsia-500
+                transition-[width,opacity]
+                duration-300
+                ease-[cubic-bezier(0.22,1,0.36,1)]
+              "
+              style={{
+                width: `${uploadProgress}%`,
+              }}
+            />
+          </div>
         </div>
       )}
 
@@ -319,54 +285,13 @@ function CreatePost({ user, profile, onPostCreated }) {
           flex-col
           sm:flex-row
           sm:items-center
-          sm:justify-between
+          sm:justify-end
           gap-3
           sm:gap-4
           mt-4
           sm:mt-5
         "
       >
-        <label
-          className="
-            w-full
-            sm:w-auto
-            flex
-            items-center
-            justify-center
-            gap-3
-            px-5
-            py-3
-            rounded-2xl
-            bg-zinc-100
-            text-zinc-700
-            border
-            border-zinc-200
-            cursor-pointer
-            hover:border-purple-500
-            hover:text-purple-500
-            transition
-            text-sm
-            sm:text-base
-
-            dark:bg-white/5
-            dark:text-zinc-300
-            dark:border-white/10
-            dark:hover:text-purple-400
-          "
-        >
-          <ImagePlus size={20} />
-
-          <span className="font-bold">Add Image</span>
-
-          <input
-            ref={imageInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="hidden"
-          />
-        </label>
-
         <button
           type="button"
           onClick={handlePost}
@@ -376,7 +301,7 @@ function CreatePost({ user, profile, onPostCreated }) {
             sm:w-auto
             px-8
             py-4
-            rounded-2xl
+            rounded-[var(--radius-soft-sm)]
             bg-gradient-to-r
             from-purple-500
             to-fuchsia-500
@@ -386,10 +311,14 @@ function CreatePost({ user, profile, onPostCreated }) {
             items-center
             justify-center
             gap-3
-            hover:scale-105
+            shadow-color
+            hover:-translate-y-[1px]
+            hover:shadow-[0_18px_60px_rgba(168,85,247,0.25)]
             transition
+            duration-300
+            ease-[cubic-bezier(0.22,1,0.36,1)]
             disabled:opacity-50
-            disabled:hover:scale-100
+            disabled:hover:translate-y-0
             text-sm
             sm:text-base
           "

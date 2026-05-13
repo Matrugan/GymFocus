@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
 
 import toast from "react-hot-toast";
 
-import ThemeToggle from "../components/ThemeToggle";
+import ThemeToggle from "../components/layout/ThemeToggle";
 
 function Auth() {
   const navigate = useNavigate();

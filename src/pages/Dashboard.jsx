@@ -23,18 +23,24 @@ import toast from "react-hot-toast";
 
 import { useAuth } from "../context/AuthContext";
 
-import Leaderboard from "../components/Leaderboard";
-import CreatePost from "../components/CreatePost";
-import Feed from "../components/Feed";
-import ProfileSettings from "../components/ProfileSettings";
+import Leaderboard from "../components/ranking/Leaderboard";
+import WeeklyRanking from "../components/ranking/WeeklyRanking";
+
+import CreatePost from "../components/feed/CreatePost";
+import Feed from "../components/feed/Feed";
+
+import ProfileSettings from "../components/profile/ProfileSettings";
+import SearchUsers from "../components/profile/SearchUsers";
+
 import WorkoutCalendar from "../components/WorkoutCalendar";
-import NotificationBell from "../components/NotificationBell";
-import SearchUsers from "../components/SearchUsers";
-import Achievements from "../components/Achievements";
-import Challenges from "../components/Challenges";
-import WeeklyRanking from "../components/WeeklyRanking";
-import ProgressAnalytics from "../components/ProgressAnalytics";
-import ThemeToggle from "../components/ThemeToggle";
+import ProgressAnalytics from "../components/analytics/ProgressAnalytics";
+
+import NotificationBell from "../components/notifications/NotificationBell";
+
+import Achievements from "../components/achievements/Achievements";
+import Challenges from "../components/challenges/Challenges";
+
+import ThemeToggle from "../components/layout/ThemeToggle";
 
 import {
   getLevel,

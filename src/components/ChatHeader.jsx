@@ -9,17 +9,17 @@ function ChatHeader({
     <div
       className="
         h-20
-        border-b
-        border-white/10
-        bg-zinc-950/80
-        backdrop-blur-xl
+        sticky
+        top-0
+        z-50
         px-6
         flex
         items-center
         justify-between
-        sticky
-        top-0
-        z-50
+        glass-card
+        glass-card--strong
+        border-0
+        smooth-motion
       "
     >
       <div className="flex items-center gap-4">
@@ -32,7 +32,7 @@ function ChatHeader({
             rounded-xl
             bg-white/5
             hover:bg-white/10
-            transition
+            smooth-motion
           "
         >
           <ArrowLeft size={20} />

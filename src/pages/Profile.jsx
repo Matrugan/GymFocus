@@ -19,9 +19,9 @@ import {
 
 import { motion } from "framer-motion";
 
-import CommentSection from "../components/CommentSection";
+import CommentSection from "../components/feed/CommentSection";
 
-import ProfileBadges from "../components/ProfileBadges";
+import ProfileBadges from "../components/achievements/ProfileBadges";
 
 import {
   getLevel,
@@ -29,7 +29,9 @@ import {
   getLevelProgress,
 } from "../utils/levelSystem";
 
-import ThemeToggle from "../components/ThemeToggle";
+import ThemeToggle from "../components/layout/ThemeToggle";
+
+import { createNotification } from "../utils/notificationSystem";
 
 function Profile() {
   const { username } = useParams();
@@ -173,25 +175,42 @@ function Profile() {
   }
 
   async function toggleFollow() {
-    if (!user || !profile) return;
+  if (!user || !profile) return;
 
-    if (isFollowing) {
-      await supabase
-        .from("followers")
-        .delete()
-        .eq("follower_id", user.id)
-        .eq("following_id", profile.id);
-    } else {
-      await supabase.from("followers").insert([
-        {
-          follower_id: user.id,
-          following_id: profile.id,
-        },
-      ]);
+  if (isFollowing) {
+    const { error } = await supabase
+      .from("followers")
+      .delete()
+      .eq("follower_id", user.id)
+      .eq("following_id", profile.id);
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+  } else {
+    const { error } = await supabase.from("followers").insert([
+      {
+        follower_id: user.id,
+        following_id: profile.id,
+      },
+    ]);
+
+    if (error) {
+      console.log(error);
+      return;
     }
 
-    getFollowers();
+    await createNotification({
+      userId: profile.id,
+      actorId: user.id,
+      type: "follow",
+      message: "started following you.",
+    });
   }
+
+  getFollowers();
+}
 
   async function startConversation() {
     if (!user || !profile) return;
