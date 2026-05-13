@@ -249,13 +249,6 @@ function Dashboard() {
               text="Challenges"
             />
 
-            <SidebarButton
-              active={activeTab === "settings"}
-              onClick={() => setActiveTab("settings")}
-              icon={<Settings size={20} />}
-              text="Settings"
-            />
-
             <Link to="/inbox">
               <button
                 className="
@@ -280,6 +273,15 @@ function Dashboard() {
                 Inbox
               </button>
             </Link>
+
+            <div className="pt-2">
+              <SidebarButton
+                active={activeTab === "settings"}
+                onClick={() => setActiveTab("settings")}
+                icon={<Settings size={20} />}
+                text="Settings"
+              />
+            </div>
           </div>
         </div>
 
