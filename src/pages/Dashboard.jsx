@@ -19,8 +19,6 @@ import {
 
 import { Link } from "react-router-dom";
 
-import toast from "react-hot-toast";
-
 import { useAuth } from "../context/AuthContext";
 
 import Leaderboard from "../components/ranking/Leaderboard";
@@ -33,6 +31,7 @@ import ProfileSettings from "../components/profile/ProfileSettings";
 import SearchUsers from "../components/profile/SearchUsers";
 
 import WorkoutCalendar from "../components/WorkoutCalendar";
+import WorkoutManager from "../workout/WorkoutManager";
 import ProgressAnalytics from "../components/analytics/ProgressAnalytics";
 
 import NotificationBell from "../components/notifications/NotificationBell";
@@ -48,14 +47,9 @@ import {
   getLevelProgress,
 } from "../utils/levelSystem";
 
-import { unlockAchievement } from "../utils/achievementSystem";
-
-import { logXP } from "../utils/xpSystem";
-
 function Dashboard() {
   const { user, signOut } = useAuth();
 
-  const [loadingWorkout, setLoadingWorkout] = useState(false);
   const [profile, setProfile] = useState(null);
   const [activeTab, setActiveTab] = useState("home");
   const [showSearch, setShowSearch] = useState(false);
@@ -80,85 +74,6 @@ function Dashboard() {
     }
 
     setProfile(data);
-  }
-
-  async function completeWorkout() {
-    if (!profile) return;
-
-    setLoadingWorkout(true);
-
-    const today = new Date().toISOString().split("T")[0];
-
-    const { data: existingWorkout } = await supabase
-      .from("workout_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_date", today)
-      .maybeSingle();
-
-    if (existingWorkout) {
-      toast.error("Workout already completed today.");
-      setLoadingWorkout(false);
-      return;
-    }
-
-    const { error: workoutError } = await supabase.from("workout_logs").insert([
-      {
-        user_id: user.id,
-        workout_date: today,
-      },
-    ]);
-
-    if (workoutError) {
-      console.log(workoutError);
-      setLoadingWorkout(false);
-      return;
-    }
-
-    const newXP = (profile.xp || 0) + 100;
-    const newStreak = (profile.streak || 0) + 1;
-
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        xp: newXP,
-        streak: newStreak,
-      })
-      .eq("id", user.id);
-
-    if (profileError) {
-      console.log(profileError);
-      setLoadingWorkout(false);
-      return;
-    }
-
-    const updatedProfile = {
-      ...profile,
-      xp: newXP,
-      streak: newStreak,
-    };
-
-    setProfile(updatedProfile);
-
-    await logXP(user.id, 100, "workout");
-
-    await unlockAchievement(user.id, "💪 First Workout");
-
-    if (newStreak >= 7) {
-      await unlockAchievement(user.id, "🔥 7 Day Streak");
-    }
-
-    if (newXP >= 1000) {
-      await unlockAchievement(user.id, "🏆 1000 XP");
-    }
-
-    if (newXP >= 10000) {
-      await unlockAchievement(user.id, "👑 10K XP");
-    }
-
-    setLoadingWorkout(false);
-
-    toast.success("Workout completed successfully!");
   }
 
   const level = getLevel(profile?.xp || 0);
@@ -670,66 +585,14 @@ function Dashboard() {
                 </div>
               </div>
 
-              {/* WORKOUT */}
-              <div
-                className="
-                  mt-8
-                  sm:mt-10
-                  bg-gradient-to-r
-                  from-purple-600
-                  to-fuchsia-600
-                  text-white
-                  p-5
-                  sm:p-8
-                  rounded-3xl
-                  flex
-                  flex-col
-                  sm:flex-row
-                  sm:justify-between
-                  sm:items-center
-                  gap-5
-                  shadow-lg
-                  shadow-purple-500/20
-                "
-              >
-                <div className="min-w-0">
-                  <p className="text-sm opacity-80">
-                    Today's Workout
-                  </p>
-
-                  <h2
-                    className="
-                      text-2xl
-                      sm:text-3xl
-                      font-bold
-                      break-words
-                    "
-                  >
-                    {profile?.current_workout || "Workout"}
-                  </h2>
-                </div>
-
-                <button
-                  onClick={completeWorkout}
-                  disabled={loadingWorkout}
-                  className="
-                    w-full
-                    sm:w-auto
-                    px-8
-                    py-4
-                    rounded-2xl
-                    bg-white
-                    !text-black
-                    font-bold
-                    hover:scale-105
-                    transition
-                    disabled:opacity-60
-                    disabled:hover:scale-100
-                  "
-                >
-                  {loadingWorkout ? "Loading..." : "Complete Workout"}
-                </button>
-              </div>
+              {/* REAL WORKOUT SYSTEM */}
+              <DashboardBlock>
+                <WorkoutManager
+                  user={user}
+                  profile={profile}
+                  onProfileUpdated={setProfile}
+                />
+              </DashboardBlock>
 
               <DashboardBlock>
                 <ProgressAnalytics user={user} />
