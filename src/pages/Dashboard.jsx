@@ -15,6 +15,9 @@ import {
   MessageCircle,
   X,
   Target,
+  Activity,
+  Medal,
+  MoreHorizontal,
 } from "lucide-react";
 
 import { Link } from "react-router-dom";
@@ -53,6 +56,7 @@ function Dashboard() {
   const [profile, setProfile] = useState(null);
   const [activeTab, setActiveTab] = useState("home");
   const [showSearch, setShowSearch] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [feedRefreshKey, setFeedRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -76,24 +80,40 @@ function Dashboard() {
     setProfile(data);
   }
 
+  function handleMobileMenuTab(tab) {
+    setActiveTab(tab);
+    setShowMobileMenu(false);
+  }
+
   const level = getLevel(profile?.xp || 0);
   const nextLevelXP = getXPForNextLevel(level);
   const progress = getLevelProgress(profile?.xp || 0);
 
+  const isMoreActive =
+    activeTab === "rankings" ||
+    activeTab === "challenges" ||
+    activeTab === "settings";
+
   const stats = [
     {
-      title: "Current Streak",
-      value: `${profile?.streak || 0} Days`,
+      title: "Streak",
+      desktopTitle: "Current Streak",
+      value: `${profile?.streak || 0}d`,
+      desktopValue: `${profile?.streak || 0} Days`,
       icon: Flame,
     },
     {
-      title: "Total XP",
+      title: "XP",
+      desktopTitle: "Total XP",
       value: profile?.xp || 0,
+      desktopValue: profile?.xp || 0,
       icon: Trophy,
     },
     {
       title: "Workout",
-      value: profile?.current_workout || "Workout",
+      desktopTitle: "Workout",
+      value: profile?.current_workout || "Start",
+      desktopValue: profile?.current_workout || "Workout",
       icon: Dumbbell,
     },
   ];
@@ -128,6 +148,7 @@ function Dashboard() {
           sticky
           top-0
           transition-colors
+          z-30
 
           dark:border-white/10
           dark:bg-zinc-950
@@ -157,6 +178,27 @@ function Dashboard() {
             />
 
             <SidebarButton
+              active={activeTab === "workouts"}
+              onClick={() => setActiveTab("workouts")}
+              icon={<Dumbbell size={20} />}
+              text="Workouts"
+            />
+
+            <SidebarButton
+              active={activeTab === "progress"}
+              onClick={() => setActiveTab("progress")}
+              icon={<Activity size={20} />}
+              text="Progress"
+            />
+
+            <SidebarButton
+              active={activeTab === "rankings"}
+              onClick={() => setActiveTab("rankings")}
+              icon={<Medal size={20} />}
+              text="Rankings"
+            />
+
+            <SidebarButton
               active={activeTab === "feed"}
               onClick={() => setActiveTab("feed")}
               icon={<Users size={20} />}
@@ -169,31 +211,6 @@ function Dashboard() {
               icon={<Target size={20} />}
               text="Challenges"
             />
-
-            <Link to="/inbox">
-              <button
-                className="
-                  w-full
-                  flex
-                  items-center
-                  gap-4
-                  px-5
-                  py-4
-                  rounded-2xl
-                  bg-zinc-100
-                  text-zinc-700
-                  hover:bg-zinc-200
-                  transition
-
-                  dark:bg-white/5
-                  dark:text-zinc-300
-                  dark:hover:bg-white/10
-                "
-              >
-                <MessageCircle size={20} />
-                Inbox
-              </button>
-            </Link>
 
             <div className="pt-2">
               <SidebarButton
@@ -239,9 +256,11 @@ function Dashboard() {
           px-4
           sm:px-6
           lg:px-8
-          py-6
+          py-5
           sm:py-10
-          pb-32
+          pb-28
+          sm:pb-32
+          relative
         "
       >
         <div
@@ -249,6 +268,7 @@ function Dashboard() {
             w-full
             max-w-7xl
             mx-auto
+            relative
           "
         >
           {/* HEADER */}
@@ -260,21 +280,26 @@ function Dashboard() {
               sm:items-center
               flex-col
               sm:flex-row
-              gap-5
+              gap-4
+              sm:gap-5
+              relative
+              z-50
+              overflow-visible
             "
           >
             <div className="min-w-0 w-full">
-              <p className="text-zinc-600 dark:text-zinc-400">
+              <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base">
                 Welcome back
               </p>
 
               <h1
                 className="
-                  text-3xl
+                  text-2xl
                   sm:text-4xl
                   lg:text-5xl
                   font-black
-                  mt-2
+                  mt-1
+                  sm:mt-2
                   break-words
                   leading-tight
                 "
@@ -283,20 +308,27 @@ function Dashboard() {
               </h1>
             </div>
 
+            {/* HEADER ACTIONS */}
             <div
               className="
                 flex
                 items-center
                 gap-3
-                sm:gap-4
                 w-full
                 sm:w-auto
                 justify-end
+                relative
+                z-50
+                overflow-visible
               "
             >
-              <ThemeToggle />
+              <div className="relative z-50">
+                <ThemeToggle />
+              </div>
 
-              <NotificationBell user={user} />
+              <div className="relative z-50">
+                <NotificationBell user={user} />
+              </div>
 
               <button
                 onClick={() => setShowSearch(true)}
@@ -304,14 +336,17 @@ function Dashboard() {
                   flex
                   items-center
                   justify-center
-                  w-12
-                  h-12
+                  w-11
+                  h-11
+                  sm:w-12
+                  sm:h-12
                   rounded-2xl
                   bg-white
                   text-zinc-950
                   border
                   border-zinc-200
                   hover:border-purple-500
+                  hover:text-purple-500
                   transition
                   shadow-sm
                   shrink-0
@@ -319,7 +354,9 @@ function Dashboard() {
                   dark:bg-white/5
                   dark:text-white
                   dark:border-white/10
+                  dark:hover:text-purple-300
                 "
+                aria-label="Search users"
               >
                 <Search size={20} />
               </button>
@@ -344,7 +381,7 @@ function Dashboard() {
                   inset-0
                   bg-black/40
                   backdrop-blur-md
-                  z-50
+                  z-[9999]
                   flex
                   items-center
                   justify-center
@@ -417,20 +454,156 @@ function Dashboard() {
             )}
           </AnimatePresence>
 
+          {/* MOBILE MORE MENU */}
+          <AnimatePresence>
+            {showMobileMenu && (
+              <motion.div
+                initial={{
+                  opacity: 0,
+                }}
+                animate={{
+                  opacity: 1,
+                }}
+                exit={{
+                  opacity: 0,
+                }}
+                className="
+                  fixed
+                  inset-0
+                  z-[9998]
+                  bg-black/40
+                  backdrop-blur-sm
+                  lg:hidden
+                "
+                onClick={() => setShowMobileMenu(false)}
+              >
+                <motion.div
+                  initial={{
+                    y: 120,
+                    opacity: 0,
+                  }}
+                  animate={{
+                    y: 0,
+                    opacity: 1,
+                  }}
+                  exit={{
+                    y: 120,
+                    opacity: 0,
+                  }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 240,
+                    damping: 24,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="
+                    absolute
+                    left-3
+                    right-3
+                    bottom-24
+                    rounded-3xl
+                    bg-white
+                    border
+                    border-zinc-200
+                    shadow-2xl
+                    p-4
+                    text-zinc-950
+
+                    dark:bg-zinc-950
+                    dark:border-white/10
+                    dark:text-white
+                  "
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-black text-lg">
+                      More options
+                    </h3>
+
+                    <button
+                      onClick={() => setShowMobileMenu(false)}
+                      className="
+                        w-10
+                        h-10
+                        rounded-xl
+                        flex
+                        items-center
+                        justify-center
+                        bg-zinc-100
+                        hover:bg-zinc-200
+                        transition
+
+                        dark:bg-white/10
+                        dark:hover:bg-white/20
+                      "
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <MobileMenuButton
+                      active={activeTab === "rankings"}
+                      onClick={() => handleMobileMenuTab("rankings")}
+                      icon={<Medal size={20} />}
+                      text="Rankings"
+                    />
+
+                    <MobileMenuButton
+                      active={activeTab === "challenges"}
+                      onClick={() => handleMobileMenuTab("challenges")}
+                      icon={<Target size={20} />}
+                      text="Challenges"
+                    />
+
+                    <MobileMenuButton
+                      active={activeTab === "settings"}
+                      onClick={() => handleMobileMenuTab("settings")}
+                      icon={<Settings size={20} />}
+                      text="Settings"
+                    />
+
+                    <button
+                      onClick={signOut}
+                      className="
+                        flex
+                        items-center
+                        gap-3
+                        rounded-2xl
+                        border
+                        border-red-500/20
+                        bg-red-500/10
+                        px-4
+                        py-4
+                        font-bold
+                        text-sm
+                        text-red-500
+                        hover:bg-red-500/20
+                        transition
+                      "
+                    >
+                      <LogOut size={20} />
+                      Logout
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* HOME TAB */}
           {activeTab === "home" && (
             <>
               {/* STATS */}
               <div
                 className="
-                  mt-8
+                  mt-6
                   sm:mt-14
                   grid
-                  grid-cols-1
-                  sm:grid-cols-2
-                  xl:grid-cols-3
-                  gap-4
+                  grid-cols-3
+                  gap-3
                   sm:gap-8
+                  relative
+                  z-10
                 "
               >
                 {stats.map((item, index) => {
@@ -438,17 +611,17 @@ function Dashboard() {
 
                   return (
                     <motion.div
-                      key={item.title}
+                      key={item.desktopTitle}
                       initial={{
                         opacity: 0,
-                        y: 40,
+                        y: 24,
                       }}
                       animate={{
                         opacity: 1,
                         y: 0,
                       }}
                       transition={{
-                        delay: index * 0.15,
+                        delay: index * 0.12,
                       }}
                       whileHover={{
                         scale: 1.02,
@@ -458,8 +631,9 @@ function Dashboard() {
                         bg-white
                         border
                         border-zinc-200
-                        rounded-3xl
-                        p-5
+                        rounded-2xl
+                        sm:rounded-3xl
+                        p-3
                         sm:p-8
                         shadow-sm
                         transition-colors
@@ -472,11 +646,12 @@ function Dashboard() {
                     >
                       <div
                         className="
-                          w-12
-                          h-12
+                          w-9
+                          h-9
                           sm:w-14
                           sm:h-14
-                          rounded-2xl
+                          rounded-xl
+                          sm:rounded-2xl
                           bg-gradient-to-r
                           from-purple-500
                           to-fuchsia-500
@@ -486,42 +661,60 @@ function Dashboard() {
                           justify-center
                         "
                       >
-                        <Icon size={24} />
+                        <Icon size={18} className="sm:hidden" />
+                        <Icon size={24} className="hidden sm:block" />
                       </div>
 
-                      <p className="text-zinc-600 dark:text-zinc-400 mt-5 sm:mt-6">
-                        {item.title}
+                      <p className="text-zinc-600 dark:text-zinc-400 mt-3 sm:mt-6 text-[11px] sm:text-base">
+                        <span className="sm:hidden">
+                          {item.title}
+                        </span>
+
+                        <span className="hidden sm:inline">
+                          {item.desktopTitle}
+                        </span>
                       </p>
 
                       <h2
                         className="
-                          text-3xl
+                          text-lg
                           sm:text-4xl
                           font-black
-                          mt-2
+                          mt-1
+                          sm:mt-2
                           break-words
+                          leading-tight
                         "
                       >
-                        {item.value}
+                        <span className="sm:hidden">
+                          {item.value}
+                        </span>
+
+                        <span className="hidden sm:inline">
+                          {item.desktopValue}
+                        </span>
                       </h2>
                     </motion.div>
                   );
                 })}
               </div>
 
-              {/* PROGRESS */}
+              {/* LEVEL PROGRESS */}
               <div
                 className="
-                  mt-8
+                  mt-5
                   sm:mt-10
                   bg-white
                   border
                   border-zinc-200
-                  rounded-3xl
-                  p-5
+                  rounded-2xl
+                  sm:rounded-3xl
+                  p-4
                   sm:p-8
                   shadow-sm
                   min-w-0
+                  relative
+                  z-10
 
                   dark:bg-white/5
                   dark:border-white/10
@@ -534,20 +727,21 @@ function Dashboard() {
                     sm:flex-row
                     sm:justify-between
                     mb-4
-                    gap-3
+                    gap-2
+                    sm:gap-3
                   "
                 >
                   <div>
-                    <p className="text-zinc-600 dark:text-zinc-400">
+                    <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base">
                       Progress to Level {level + 1}
                     </p>
 
-                    <h3 className="text-3xl font-black mt-2">
+                    <h3 className="text-2xl sm:text-3xl font-black mt-1 sm:mt-2">
                       {Math.floor(progress)}%
                     </h3>
                   </div>
 
-                  <div className="text-purple-500 font-bold">
+                  <div className="text-purple-500 font-bold text-sm sm:text-base">
                     {profile?.xp || 0} / {nextLevelXP} XP
                   </div>
                 </div>
@@ -555,7 +749,7 @@ function Dashboard() {
                 <div
                   className="
                     w-full
-                    h-4
+                    h-3
                     sm:h-5
                     bg-zinc-200
                     rounded-full
@@ -585,49 +779,44 @@ function Dashboard() {
                 </div>
               </div>
 
-              {/* REAL WORKOUT SYSTEM */}
-              <DashboardBlock>
-                <WorkoutManager
-                  user={user}
-                  profile={profile}
-                  onProfileUpdated={setProfile}
-                />
-              </DashboardBlock>
-
-              <DashboardBlock>
-                <ProgressAnalytics user={user} />
-              </DashboardBlock>
-
-              <DashboardBlock>
-                <WorkoutCalendar user={user} />
-              </DashboardBlock>
-
               <DashboardBlock>
                 <Achievements user={user} />
-              </DashboardBlock>
-
-              <DashboardBlock>
-                <WeeklyRanking />
-              </DashboardBlock>
-
-              <DashboardBlock>
-                <Leaderboard />
               </DashboardBlock>
             </>
           )}
 
+          {/* WORKOUTS TAB */}
+          {activeTab === "workouts" && (
+            <PageContainer>
+              <WorkoutManager
+                user={user}
+                profile={profile}
+                onProfileUpdated={setProfile}
+              />
+
+              <WorkoutCalendar user={user} />
+            </PageContainer>
+          )}
+
+          {/* PROGRESS TAB */}
+          {activeTab === "progress" && (
+            <PageContainer>
+              <ProgressAnalytics user={user} />
+            </PageContainer>
+          )}
+
+          {/* RANKINGS TAB */}
+          {activeTab === "rankings" && (
+            <PageContainer>
+              <WeeklyRanking />
+
+              <Leaderboard />
+            </PageContainer>
+          )}
+
           {/* FEED TAB */}
           {activeTab === "feed" && (
-            <div
-              className="
-                mt-8
-                sm:mt-10
-                space-y-8
-                sm:space-y-10
-                w-full
-                min-w-0
-              "
-            >
+            <PageContainer>
               <CreatePost
                 user={user}
                 profile={profile}
@@ -639,12 +828,12 @@ function Dashboard() {
                 profile={profile}
                 refreshKey={feedRefreshKey}
               />
-            </div>
+            </PageContainer>
           )}
 
           {/* CHALLENGES TAB */}
           {activeTab === "challenges" && (
-            <div className="mt-8 sm:mt-10">
+            <div className="mt-6 sm:mt-10 relative z-10">
               <Challenges
                 user={user}
                 profile={profile}
@@ -655,12 +844,50 @@ function Dashboard() {
 
           {/* SETTINGS TAB */}
           {activeTab === "settings" && (
-            <div className="mt-8 sm:mt-10">
+            <div className="mt-6 sm:mt-10 relative z-10">
               <ProfileSettings profile={profile} user={user} />
             </div>
           )}
         </div>
       </main>
+
+      {/* FLOATING INBOX BUTTON */}
+      <Link
+        to="/inbox"
+        className="
+          fixed
+          right-4
+          bottom-24
+          z-50
+          w-14
+          h-14
+          rounded-2xl
+          bg-gradient-to-r
+          from-purple-500
+          to-fuchsia-500
+          text-white
+          flex
+          items-center
+          justify-center
+          shadow-2xl
+          shadow-purple-500/30
+          border
+          border-white/20
+          hover:scale-105
+          active:scale-95
+          transition
+
+          lg:right-8
+          lg:bottom-8
+          lg:w-16
+          lg:h-16
+          lg:rounded-3xl
+        "
+        aria-label="Open inbox"
+      >
+        <MessageCircle size={24} className="lg:hidden" />
+        <MessageCircle size={28} className="hidden lg:block" />
+      </Link>
 
       {/* MOBILE NAVBAR */}
       <div
@@ -675,14 +902,12 @@ function Dashboard() {
           border-t
           border-zinc-200
           px-2
-          sm:px-4
           py-2
-          sm:py-3
           flex
           items-center
           justify-around
           lg:hidden
-          z-50
+          z-40
 
           dark:bg-zinc-950/95
           dark:text-white
@@ -697,6 +922,20 @@ function Dashboard() {
         />
 
         <MobileNavButton
+          active={activeTab === "workouts"}
+          onClick={() => setActiveTab("workouts")}
+          icon={<Dumbbell size={21} />}
+          text="Workout"
+        />
+
+        <MobileNavButton
+          active={activeTab === "progress"}
+          onClick={() => setActiveTab("progress")}
+          icon={<Activity size={21} />}
+          text="Progress"
+        />
+
+        <MobileNavButton
           active={activeTab === "feed"}
           onClick={() => setActiveTab("feed")}
           icon={<Users size={21} />}
@@ -704,38 +943,32 @@ function Dashboard() {
         />
 
         <MobileNavButton
-          active={activeTab === "challenges"}
-          onClick={() => setActiveTab("challenges")}
-          icon={<Target size={21} />}
-          text="Challenges"
-        />
-
-        <Link
-          to="/inbox"
-          className="
-            flex
-            flex-col
-            items-center
-            gap-1
-            text-[10px]
-            sm:text-sm
-            text-zinc-500
-            hover:text-purple-500
-            transition
-          "
-        >
-          <MessageCircle size={21} />
-          <span>Inbox</span>
-        </Link>
-
-        <MobileNavButton
-          active={activeTab === "settings"}
-          onClick={() => setActiveTab("settings")}
-          icon={<Settings size={21} />}
-          text="Settings"
+          active={isMoreActive}
+          onClick={() => setShowMobileMenu(true)}
+          icon={<MoreHorizontal size={21} />}
+          text="More"
         />
       </div>
     </section>
+  );
+}
+
+function PageContainer({ children }) {
+  return (
+    <div
+      className="
+        mt-6
+        sm:mt-10
+        space-y-6
+        sm:space-y-10
+        w-full
+        min-w-0
+        relative
+        z-10
+      "
+    >
+      {children}
+    </div>
   );
 }
 
@@ -743,11 +976,13 @@ function DashboardBlock({ children }) {
   return (
     <div
       className="
-        mt-8
+        mt-6
         sm:mt-10
         w-full
         min-w-0
-        overflow-hidden
+        overflow-visible
+        relative
+        z-10
       "
     >
       {children}
@@ -798,11 +1033,12 @@ function MobileNavButton({ active, onClick, icon, text }) {
         flex
         flex-col
         items-center
+        justify-center
         gap-1
         text-[10px]
-        sm:text-sm
         transition
-        max-w-[72px]
+        w-[64px]
+        py-1
 
         ${
           active
@@ -811,11 +1047,63 @@ function MobileNavButton({ active, onClick, icon, text }) {
         }
       `}
     >
-      {icon}
+      <div
+        className={`
+          w-10
+          h-8
+          rounded-2xl
+          flex
+          items-center
+          justify-center
+          transition
 
-      <span className="truncate">
+          ${active ? "bg-purple-500/10" : "bg-transparent"}
+        `}
+      >
+        {icon}
+      </div>
+
+      <span className="truncate max-w-full">
         {text}
       </span>
+    </button>
+  );
+}
+
+function MobileMenuButton({ active, onClick, icon, text }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        flex
+        items-center
+        gap-3
+        rounded-2xl
+        border
+        px-4
+        py-4
+        font-bold
+        text-sm
+        transition
+
+        ${
+          active
+            ? "bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white border-transparent"
+            : `
+              bg-zinc-50
+              border-zinc-200
+              text-zinc-700
+              hover:border-purple-500
+
+              dark:bg-white/5
+              dark:border-white/10
+              dark:text-zinc-300
+            `
+        }
+      `}
+    >
+      {icon}
+      {text}
     </button>
   );
 }

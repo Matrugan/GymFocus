@@ -13,6 +13,7 @@ import {
   Trophy,
   Pencil,
   X,
+  Settings2,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
@@ -27,14 +28,23 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   const [activePlan, setActivePlan] = useState(null);
   const [exercises, setExercises] = useState([]);
   const [progress, setProgress] = useState([]);
+  const [workoutLogs, setWorkoutLogs] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [creatingPlan, setCreatingPlan] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
   const [finishingWorkout, setFinishingWorkout] = useState(false);
-
   const [updatingPlan, setUpdatingPlan] = useState(false);
   const [deletingPlan, setDeletingPlan] = useState(false);
+  const [updatingExercise, setUpdatingExercise] = useState(false);
+  const [updatingFocuses, setUpdatingFocuses] = useState(false);
+
+  const [showCreatePlan, setShowCreatePlan] = useState(false);
+  const [showPlanTools, setShowPlanTools] = useState(false);
+  const [showFocusEditor, setShowFocusEditor] = useState(false);
+  const [showAddExercise, setShowAddExercise] = useState(false);
+
+  const [selectedWorkoutDay, setSelectedWorkoutDay] = useState("Todos");
 
   const [newPlan, setNewPlan] = useState({
     title: "",
@@ -48,7 +58,20 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     description: "",
   });
 
+  const [dayFocuses, setDayFocuses] = useState({});
+
   const [newExercise, setNewExercise] = useState({
+    workout_day: "Treino A",
+    name: "",
+    sets: "",
+    reps: "",
+    load: "",
+  });
+
+  const [editingExercise, setEditingExercise] = useState(null);
+
+  const [editExerciseData, setEditExerciseData] = useState({
+    workout_day: "Treino A",
     name: "",
     sets: "",
     reps: "",
@@ -57,11 +80,101 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
   const today = new Date().toISOString().split("T")[0];
 
+  const workoutDayOptions = [
+    "Treino A",
+    "Treino B",
+    "Treino C",
+    "Treino D",
+    "Treino E",
+    "Full Body",
+  ];
+
+  const workoutFilterOptions = ["Todos", ...workoutDayOptions];
+
   useEffect(() => {
     if (user?.id) {
       getWorkoutData();
     }
   }, [user?.id]);
+
+  function getPlanFocuses(plan) {
+    return plan?.day_focuses || {};
+  }
+
+  function getDayFocus(day) {
+    return dayFocuses?.[day] || "";
+  }
+
+  function getDayLabel(day) {
+    const focus = getDayFocus(day);
+
+    if (!focus.trim()) {
+      return day;
+    }
+
+    return `${day} - ${focus}`;
+  }
+
+  function getOrderedWorkoutDaysFromExercises(exerciseList) {
+    const daysFromExercises = exerciseList.map(
+      (exercise) => exercise.workout_day || "Treino A"
+    );
+
+    const uniqueDays = [...new Set(daysFromExercises)];
+
+    return workoutDayOptions.filter((day) => uniqueDays.includes(day));
+  }
+
+  function getNextWorkoutDayAfter(day, exerciseList) {
+    const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
+
+    if (orderedDays.length === 0) {
+      return "Treino A";
+    }
+
+    const currentIndex = orderedDays.indexOf(day);
+
+    if (currentIndex === -1) {
+      return orderedDays[0];
+    }
+
+    const nextIndex = (currentIndex + 1) % orderedDays.length;
+
+    return orderedDays[nextIndex];
+  }
+
+  function getNextWorkoutDayFromLogs(exerciseList, logs) {
+    const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
+
+    if (orderedDays.length === 0) {
+      return "Treino A";
+    }
+
+    const validLogs = logs.filter((log) => orderedDays.includes(log.workout_day));
+
+    if (validLogs.length === 0) {
+      return orderedDays[0];
+    }
+
+    const lastCompletedLog = validLogs[0];
+    const lastCompletedDay = lastCompletedLog.workout_day;
+
+    return getNextWorkoutDayAfter(lastCompletedDay, exerciseList);
+  }
+
+  function getTodayCompletedLog(logs) {
+    return logs.find((log) => log.workout_date === today) || null;
+  }
+
+  function getCurrentWorkoutDay(exerciseList, logs) {
+    const todayLog = getTodayCompletedLog(logs);
+
+    if (todayLog?.workout_day) {
+      return todayLog.workout_day;
+    }
+
+    return getNextWorkoutDayFromLogs(exerciseList, logs);
+  }
 
   async function getWorkoutData() {
     setLoading(true);
@@ -71,9 +184,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       .select("*")
       .eq("user_id", user.id)
       .eq("is_active", true)
-      .order("created_at", {
-        ascending: false,
-      });
+      .order("created_at", { ascending: false });
 
     if (plansError) {
       console.log(plansError);
@@ -87,10 +198,13 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     const selectedPlan = plansData?.[0] || null;
 
     setActivePlan(selectedPlan);
+    setDayFocuses(getPlanFocuses(selectedPlan));
 
     if (!selectedPlan) {
       setExercises([]);
       setProgress([]);
+      setWorkoutLogs([]);
+      setShowCreatePlan(true);
       setLoading(false);
       return;
     }
@@ -106,9 +220,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       .select("*")
       .eq("user_id", user.id)
       .eq("workout_plan_id", planId)
-      .order("sort_order", {
-        ascending: true,
-      });
+      .order("workout_day", { ascending: true })
+      .order("sort_order", { ascending: true });
 
     if (exercisesError) {
       console.log(exercisesError);
@@ -116,7 +229,29 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       return;
     }
 
-    setExercises(exercisesData || []);
+    const loadedExercises = exercisesData || [];
+
+    setExercises(loadedExercises);
+
+    const { data: logsData, error: logsError } = await supabase
+      .from("workout_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("workout_plan_id", planId)
+      .order("workout_date", { ascending: false });
+
+    if (logsError) {
+      console.log(logsError);
+      toast.error("Error loading workout history.");
+      return;
+    }
+
+    const loadedLogs = logsData || [];
+
+    setWorkoutLogs(loadedLogs);
+
+    const currentDay = getCurrentWorkoutDay(loadedExercises, loadedLogs);
+    setSelectedWorkoutDay(currentDay);
 
     const { data: progressData, error: progressError } = await supabase
       .from("daily_workout_progress")
@@ -150,6 +285,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
           title: newPlan.title.trim(),
           description: newPlan.description.trim(),
           is_active: true,
+          day_focuses: {},
         },
       ])
       .select()
@@ -169,8 +305,13 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setPlans((prev) => [data, ...prev]);
     setActivePlan(data);
+    setDayFocuses({});
     setExercises([]);
     setProgress([]);
+    setWorkoutLogs([]);
+    setSelectedWorkoutDay("Treino A");
+    setShowCreatePlan(false);
+    setShowPlanTools(true);
 
     toast.success("Workout created!");
 
@@ -179,11 +320,17 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
   async function selectPlan(plan) {
     setActivePlan(plan);
+    setDayFocuses(getPlanFocuses(plan));
+    setEditingPlan(null);
+    setEditingExercise(null);
+    setShowCreatePlan(false);
+
     await loadPlanDetails(plan.id);
   }
 
   function startEditPlan(plan) {
     setEditingPlan(plan);
+    setShowPlanTools(true);
 
     setEditPlanData({
       title: plan.title || "",
@@ -234,6 +381,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     if (activePlan?.id === editingPlan.id) {
       setActivePlan(data);
+      setDayFocuses(getPlanFocuses(data));
     }
 
     cancelEditPlan();
@@ -241,6 +389,44 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     toast.success("Workout plan updated!");
 
     setUpdatingPlan(false);
+  }
+
+  async function updateDayFocuses() {
+    if (!activePlan) return;
+
+    setUpdatingFocuses(true);
+
+    const cleanedFocuses = Object.fromEntries(
+      Object.entries(dayFocuses).map(([day, focus]) => [day, focus.trim()])
+    );
+
+    const { data, error } = await supabase
+      .from("workout_plans")
+      .update({
+        day_focuses: cleanedFocuses,
+      })
+      .eq("id", activePlan.id)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.log(error);
+      toast.error("Error saving workout focuses.");
+      setUpdatingFocuses(false);
+      return;
+    }
+
+    setActivePlan(data);
+    setDayFocuses(getPlanFocuses(data));
+
+    setPlans((prev) =>
+      prev.map((plan) => (plan.id === data.id ? data : plan))
+    );
+
+    toast.success("Workout focuses saved!");
+
+    setUpdatingFocuses(false);
   }
 
   async function deleteWorkoutPlan(planId) {
@@ -279,14 +465,19 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       const nextPlan = updatedPlans[0] || null;
 
       setActivePlan(nextPlan);
+      setDayFocuses(getPlanFocuses(nextPlan));
 
       if (nextPlan) {
         await loadPlanDetails(nextPlan.id);
       } else {
         setExercises([]);
         setProgress([]);
+        setWorkoutLogs([]);
+        setShowCreatePlan(true);
       }
     }
+
+    setSelectedWorkoutDay("Treino A");
 
     toast.success("Workout plan deleted.");
 
@@ -312,6 +503,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
         {
           workout_plan_id: activePlan.id,
           user_id: user.id,
+          workout_day: newExercise.workout_day,
           name: newExercise.name.trim(),
           sets: newExercise.sets.trim(),
           reps: newExercise.reps.trim(),
@@ -329,18 +521,96 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       return;
     }
 
-    setExercises((prev) => [...prev, data]);
+    const updatedExercises = [...exercises, data];
+
+    setExercises(updatedExercises);
 
     setNewExercise({
+      workout_day: newExercise.workout_day,
       name: "",
       sets: "",
       reps: "",
       load: "",
     });
 
+    const currentDay = getCurrentWorkoutDay(updatedExercises, workoutLogs);
+    setSelectedWorkoutDay(currentDay);
+
     toast.success("Exercise added!");
 
     setAddingExercise(false);
+  }
+
+  function startEditExercise(exercise) {
+    setEditingExercise(exercise);
+    setShowPlanTools(true);
+
+    setEditExerciseData({
+      workout_day: exercise.workout_day || "Treino A",
+      name: exercise.name || "",
+      sets: exercise.sets || "",
+      reps: exercise.reps || "",
+      load: exercise.load || "",
+    });
+  }
+
+  function cancelEditExercise() {
+    setEditingExercise(null);
+
+    setEditExerciseData({
+      workout_day: "Treino A",
+      name: "",
+      sets: "",
+      reps: "",
+      load: "",
+    });
+  }
+
+  async function updateExercise() {
+    if (!editingExercise) return;
+
+    if (!editExerciseData.name.trim()) {
+      toast.error("Enter an exercise name.");
+      return;
+    }
+
+    setUpdatingExercise(true);
+
+    const { data, error } = await supabase
+      .from("workout_exercises")
+      .update({
+        workout_day: editExerciseData.workout_day,
+        name: editExerciseData.name.trim(),
+        sets: editExerciseData.sets.trim(),
+        reps: editExerciseData.reps.trim(),
+        load: editExerciseData.load.trim(),
+      })
+      .eq("id", editingExercise.id)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.log(error);
+      toast.error("Error updating exercise.");
+      setUpdatingExercise(false);
+      return;
+    }
+
+    const updatedExercises = exercises.map((exercise) =>
+      exercise.id === editingExercise.id ? data : exercise
+    );
+
+    setExercises(updatedExercises);
+
+    const currentDay = getCurrentWorkoutDay(updatedExercises, workoutLogs);
+    setSelectedWorkoutDay(currentDay);
+
+    cancelEditExercise();
+
+    toast.success("Exercise updated!");
+
+    setUpdatingExercise(false);
   }
 
   async function deleteExercise(exerciseId) {
@@ -360,8 +630,17 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       return;
     }
 
-    setExercises((prev) => prev.filter((item) => item.id !== exerciseId));
+    const updatedExercises = exercises.filter((item) => item.id !== exerciseId);
+
+    setExercises(updatedExercises);
     setProgress((prev) => prev.filter((item) => item.exercise_id !== exerciseId));
+
+    if (editingExercise?.id === exerciseId) {
+      cancelEditExercise();
+    }
+
+    const currentDay = getCurrentWorkoutDay(updatedExercises, workoutLogs);
+    setSelectedWorkoutDay(currentDay);
 
     toast.success("Exercise deleted.");
   }
@@ -372,8 +651,38 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     );
   }
 
+  const todayCompletedLog = useMemo(() => {
+    return getTodayCompletedLog(workoutLogs);
+  }, [workoutLogs]);
+
+  const workoutAlreadyCompletedToday = Boolean(todayCompletedLog);
+
+  const currentWorkoutDay = useMemo(() => {
+    return getCurrentWorkoutDay(exercises, workoutLogs);
+  }, [exercises, workoutLogs]);
+
+  const nextWorkoutDay = useMemo(() => {
+    if (!workoutAlreadyCompletedToday) {
+      return currentWorkoutDay;
+    }
+
+    return getNextWorkoutDayAfter(currentWorkoutDay, exercises);
+  }, [workoutAlreadyCompletedToday, currentWorkoutDay, exercises]);
+
   async function toggleExercise(exercise) {
     if (!activePlan) return;
+
+    if (workoutAlreadyCompletedToday) {
+      toast.error("Today's workout is already completed.");
+      return;
+    }
+
+    const exerciseDay = exercise.workout_day || "Treino A";
+
+    if (exerciseDay !== currentWorkoutDay) {
+      toast.error(`Hoje é dia de ${getDayLabel(currentWorkoutDay)}.`);
+      return;
+    }
 
     const existingProgress = progress.find(
       (item) => item.exercise_id === exercise.id
@@ -429,23 +738,91 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setProgress((prev) => [...prev, data]);
   }
 
-  const completedCount = useMemo(() => {
-    return exercises.filter((exercise) => isExerciseCompleted(exercise.id))
-      .length;
-  }, [exercises, progress]);
+  const currentWorkoutExercises = useMemo(() => {
+    return exercises.filter(
+      (exercise) => (exercise.workout_day || "Treino A") === currentWorkoutDay
+    );
+  }, [exercises, currentWorkoutDay]);
 
-  const totalExercises = exercises.length;
+  const filteredExercises = useMemo(() => {
+    if (selectedWorkoutDay === "Todos") {
+      return exercises;
+    }
 
-  const allCompleted = totalExercises > 0 && completedCount === totalExercises;
+    return exercises.filter(
+      (exercise) => (exercise.workout_day || "Treino A") === selectedWorkoutDay
+    );
+  }, [exercises, selectedWorkoutDay]);
 
-  const progressPercent =
-    totalExercises > 0 ? Math.round((completedCount / totalExercises) * 100) : 0;
+  const groupedExercises = useMemo(() => {
+    return filteredExercises.reduce((groups, exercise) => {
+      const day = exercise.workout_day || "Treino A";
+
+      if (!groups[day]) {
+        groups[day] = [];
+      }
+
+      groups[day].push(exercise);
+
+      return groups;
+    }, {});
+  }, [filteredExercises]);
+
+  const availableWorkoutDays = useMemo(() => {
+    const daysFromExercises = exercises.map(
+      (exercise) => exercise.workout_day || "Treino A"
+    );
+
+    return workoutFilterOptions.filter((day) => {
+      if (day === "Todos") return true;
+
+      return daysFromExercises.includes(day);
+    });
+  }, [exercises]);
+
+  const visibleCompletedCount = useMemo(() => {
+    return filteredExercises.filter((exercise) =>
+      isExerciseCompleted(exercise.id)
+    ).length;
+  }, [filteredExercises, progress]);
+
+  const todayCompletedCount = useMemo(() => {
+    return currentWorkoutExercises.filter((exercise) =>
+      isExerciseCompleted(exercise.id)
+    ).length;
+  }, [currentWorkoutExercises, progress]);
+
+  const visibleTotalExercises = filteredExercises.length;
+  const todayTotalExercises = currentWorkoutExercises.length;
+
+  const todayWorkoutCompleted =
+    todayTotalExercises > 0 && todayCompletedCount === todayTotalExercises;
+
+  const visibleProgressPercent =
+    visibleTotalExercises > 0
+      ? Math.round((visibleCompletedCount / visibleTotalExercises) * 100)
+      : 0;
+
+  const todayProgressPercent =
+    todayTotalExercises > 0
+      ? Math.round((todayCompletedCount / todayTotalExercises) * 100)
+      : 0;
 
   async function finishWorkout() {
     if (!activePlan) return;
 
-    if (!allCompleted) {
-      toast.error("Complete all exercises first.");
+    if (workoutAlreadyCompletedToday) {
+      toast.error("Today's workout is already completed.");
+      return;
+    }
+
+    if (todayTotalExercises === 0) {
+      toast.error(`No exercises found for ${getDayLabel(currentWorkoutDay)}.`);
+      return;
+    }
+
+    if (!todayWorkoutCompleted) {
+      toast.error(`Complete all exercises from ${getDayLabel(currentWorkoutDay)} first.`);
       return;
     }
 
@@ -455,21 +832,28 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       .from("workout_logs")
       .select("*")
       .eq("user_id", user.id)
+      .eq("workout_plan_id", activePlan.id)
       .eq("workout_date", today)
       .maybeSingle();
 
     if (existingWorkout) {
-      toast.error("Workout already completed today.");
+      toast.error("Today's workout is already completed.");
       setFinishingWorkout(false);
       return;
     }
 
-    const { error: workoutError } = await supabase.from("workout_logs").insert([
-      {
-        user_id: user.id,
-        workout_date: today,
-      },
-    ]);
+    const { data: insertedLog, error: workoutError } = await supabase
+      .from("workout_logs")
+      .insert([
+        {
+          user_id: user.id,
+          workout_plan_id: activePlan.id,
+          workout_day: currentWorkoutDay,
+          workout_date: today,
+        },
+      ])
+      .select()
+      .single();
 
     if (workoutError) {
       console.log(workoutError);
@@ -477,6 +861,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       setFinishingWorkout(false);
       return;
     }
+
+    setWorkoutLogs((prev) => [insertedLog, ...prev]);
 
     const newXP = (profile?.xp || 0) + 100;
     const newStreak = (profile?.streak || 0) + 1;
@@ -518,7 +904,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       streak: newStreak,
     });
 
-    toast.success("Workout completed! +100 XP");
+    toast.success(`${getDayLabel(currentWorkoutDay)} completed! +100 XP`);
 
     setFinishingWorkout(false);
   }
@@ -588,7 +974,6 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
           sm:flex-row
           gap-4
           mb-6
-          sm:mb-8
         "
       >
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
@@ -614,144 +999,191 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
           <div className="min-w-0">
             <h2 className="text-2xl sm:text-3xl font-black break-words">
-              Today's Workout
+              Workouts
             </h2>
 
             <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base mt-1">
-              Create your workout and complete each checkpoint.
+              {activePlan
+                ? workoutAlreadyCompletedToday
+                  ? `Done today: ${getDayLabel(currentWorkoutDay)}.`
+                  : `Continue with ${getDayLabel(currentWorkoutDay)}.`
+                : "Create your first workout plan."}
             </p>
           </div>
         </div>
 
-        <div
+        <button
+          onClick={() => setShowCreatePlan((prev) => !prev)}
           className="
-            px-4
-            py-2
-            rounded-full
-            bg-purple-500/10
-            border
-            border-purple-500/20
-            text-purple-500
+            w-full
+            sm:w-auto
+            px-5
+            py-3
+            rounded-2xl
+            bg-gradient-to-r
+            from-purple-500
+            to-fuchsia-500
+            text-white
             font-bold
-            text-xs
-            sm:text-sm
+            flex
+            items-center
+            justify-center
+            gap-2
+            hover:scale-[1.02]
+            transition
           "
         >
-          {completedCount}/{totalExercises} completed
-        </div>
+          {showCreatePlan ? <X size={18} /> : <Plus size={18} />}
+          {showCreatePlan ? "Close" : "New workout"}
+        </button>
       </div>
 
       {/* CREATE PLAN */}
-      <div
-        className="
-          bg-zinc-50
-          border
-          border-zinc-200
-          rounded-2xl
-          p-4
-          sm:p-5
-          mb-6
+      {showCreatePlan && (
+        <div
+          className="
+            bg-zinc-50
+            border
+            border-zinc-200
+            rounded-2xl
+            p-4
+            sm:p-5
+            mb-6
 
-          dark:bg-black/30
-          dark:border-white/10
-        "
-      >
-        <h3 className="font-black text-lg sm:text-xl mb-4">
-          Create workout plan
-        </h3>
+            dark:bg-black/30
+            dark:border-white/10
+          "
+        >
+          <h3 className="font-black text-lg sm:text-xl mb-4">
+            Create workout plan
+          </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
-          <input
-            type="text"
-            placeholder="Ex: Treino A - Peito e Tríceps"
-            value={newPlan.title}
-            onChange={(e) =>
-              setNewPlan((prev) => ({
-                ...prev,
-                title: e.target.value,
-              }))
-            }
-            className="
-              w-full
-              rounded-2xl
-              bg-white
-              border
-              border-zinc-200
-              px-4
-              py-3
-              outline-none
-              focus:border-purple-500
-              text-sm
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
+            <input
+              type="text"
+              placeholder="Ex: Treino ABC - Hipertrofia"
+              value={newPlan.title}
+              onChange={(e) =>
+                setNewPlan((prev) => ({
+                  ...prev,
+                  title: e.target.value,
+                }))
+              }
+              className="WorkoutInput"
+            />
 
-              dark:bg-black/30
-              dark:border-white/10
-            "
-          />
+            <input
+              type="text"
+              placeholder="Descrição opcional"
+              value={newPlan.description}
+              onChange={(e) =>
+                setNewPlan((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
+              className="WorkoutInput"
+            />
 
-          <input
-            type="text"
-            placeholder="Descrição opcional"
-            value={newPlan.description}
-            onChange={(e) =>
-              setNewPlan((prev) => ({
-                ...prev,
-                description: e.target.value,
-              }))
-            }
-            className="
-              w-full
-              rounded-2xl
-              bg-white
-              border
-              border-zinc-200
-              px-4
-              py-3
-              outline-none
-              focus:border-purple-500
-              text-sm
+            <button
+              onClick={createWorkoutPlan}
+              disabled={creatingPlan}
+              className="
+                w-full
+                md:w-auto
+                px-5
+                py-3
+                rounded-2xl
+                bg-zinc-950
+                text-white
+                font-bold
+                flex
+                items-center
+                justify-center
+                gap-2
+                disabled:opacity-50
 
-              dark:bg-black/30
-              dark:border-white/10
-            "
-          />
-
-          <button
-            onClick={createWorkoutPlan}
-            disabled={creatingPlan}
-            className="
-              w-full
-              md:w-auto
-              px-5
-              py-3
-              rounded-2xl
-              bg-gradient-to-r
-              from-purple-500
-              to-fuchsia-500
-              text-white
-              font-bold
-              flex
-              items-center
-              justify-center
-              gap-2
-              disabled:opacity-50
-            "
-          >
-            {creatingPlan ? (
-              <Loader2 className="animate-spin" size={18} />
-            ) : (
-              <Plus size={18} />
-            )}
-            Create
-          </button>
+                dark:bg-white
+                dark:text-black
+              "
+            >
+              {creatingPlan ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : (
+                <Plus size={18} />
+              )}
+              Create
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* PLANS */}
       {plans.length > 0 && (
-        <div className="mb-6">
-          <h3 className="font-black text-lg sm:text-xl mb-3">
-            Your workouts
-          </h3>
+        <div
+          className="
+            bg-zinc-50
+            border
+            border-zinc-200
+            rounded-2xl
+            p-4
+            sm:p-5
+            mb-6
+
+            dark:bg-black/30
+            dark:border-white/10
+          "
+        >
+          <div
+            className="
+              flex
+              flex-col
+              sm:flex-row
+              sm:items-center
+              sm:justify-between
+              gap-3
+              mb-4
+            "
+          >
+            <div>
+              <h3 className="font-black text-lg sm:text-xl">
+                Your workout plans
+              </h3>
+
+              <p className="text-zinc-500 text-sm mt-1">
+                Select the plan you want to follow.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowPlanTools((prev) => !prev)}
+              className="
+                w-full
+                sm:w-auto
+                px-4
+                py-2
+                rounded-xl
+                bg-white
+                border
+                border-zinc-200
+                text-zinc-700
+                font-bold
+                flex
+                items-center
+                justify-center
+                gap-2
+                hover:border-purple-500
+                transition
+
+                dark:bg-black/30
+                dark:border-white/10
+                dark:text-zinc-300
+              "
+            >
+              <Settings2 size={17} />
+              Manage
+            </button>
+          </div>
 
           <div className="flex gap-3 overflow-x-auto pb-2">
             {plans.map((plan) => (
@@ -771,54 +1203,58 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                   ${
                     activePlan?.id === plan.id
                       ? "bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white border-transparent"
-                      : "bg-zinc-50 border-zinc-200 text-zinc-700 hover:border-purple-500 dark:bg-black/30 dark:border-white/10 dark:text-zinc-300"
+                      : "bg-white border-zinc-200 text-zinc-700 hover:border-purple-500 dark:bg-black/30 dark:border-white/10 dark:text-zinc-300"
                   }
                 `}
               >
                 <button
                   onClick={() => selectPlan(plan)}
-                  className="font-bold text-sm px-2 py-1 max-w-[180px] truncate"
+                  className="font-bold text-sm px-2 py-1 max-w-[190px] truncate"
                   title={plan.title}
                 >
                   {plan.title}
                 </button>
 
-                <button
-                  onClick={() => startEditPlan(plan)}
-                  className="
-                    w-8
-                    h-8
-                    rounded-xl
-                    flex
-                    items-center
-                    justify-center
-                    hover:bg-white/20
-                    transition
-                  "
-                  title="Edit workout plan"
-                >
-                  <Pencil size={16} />
-                </button>
+                {showPlanTools && (
+                  <>
+                    <button
+                      onClick={() => startEditPlan(plan)}
+                      className="
+                        w-8
+                        h-8
+                        rounded-xl
+                        flex
+                        items-center
+                        justify-center
+                        hover:bg-white/20
+                        transition
+                      "
+                      title="Edit workout plan"
+                    >
+                      <Pencil size={16} />
+                    </button>
 
-                <button
-                  onClick={() => deleteWorkoutPlan(plan.id)}
-                  disabled={deletingPlan}
-                  className="
-                    w-8
-                    h-8
-                    rounded-xl
-                    flex
-                    items-center
-                    justify-center
-                    hover:bg-red-500/20
-                    hover:text-red-300
-                    transition
-                    disabled:opacity-50
-                  "
-                  title="Delete workout plan"
-                >
-                  <Trash2 size={16} />
-                </button>
+                    <button
+                      onClick={() => deleteWorkoutPlan(plan.id)}
+                      disabled={deletingPlan}
+                      className="
+                        w-8
+                        h-8
+                        rounded-xl
+                        flex
+                        items-center
+                        justify-center
+                        hover:bg-red-500/20
+                        hover:text-red-300
+                        transition
+                        disabled:opacity-50
+                      "
+                      title="Delete workout plan"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -856,21 +1292,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                   title: e.target.value,
                 }))
               }
-              className="
-                w-full
-                rounded-2xl
-                bg-white
-                border
-                border-zinc-200
-                px-4
-                py-3
-                outline-none
-                focus:border-purple-500
-                text-sm
-
-                dark:bg-black/30
-                dark:border-white/10
-              "
+              className="WorkoutInput"
             />
 
             <input
@@ -883,21 +1305,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                   description: e.target.value,
                 }))
               }
-              className="
-                w-full
-                rounded-2xl
-                bg-white
-                border
-                border-zinc-200
-                px-4
-                py-3
-                outline-none
-                focus:border-purple-500
-                text-sm
-
-                dark:bg-black/30
-                dark:border-white/10
-              "
+              className="WorkoutInput"
             />
 
             <button
@@ -957,7 +1365,6 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
         </div>
       )}
 
-      {/* ACTIVE PLAN */}
       {!activePlan && (
         <div
           className="
@@ -973,12 +1380,13 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
             dark:border-white/10
           "
         >
-          Create your first workout plan to start tracking exercises.
+          Nenhum treino criado ainda. Clique em <strong>New workout</strong> para começar.
         </div>
       )}
 
       {activePlan && (
         <>
+          {/* CURRENT WORKOUT CARD */}
           <div
             className="
               bg-gradient-to-r
@@ -995,184 +1403,609 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-white/70 text-sm">
-                  Active workout
+                  {workoutAlreadyCompletedToday
+                    ? "Workout completed today"
+                    : "Current workout"}
                 </p>
 
                 <h3 className="text-2xl sm:text-3xl font-black mt-1 break-words">
-                  {activePlan.title}
+                  {getDayLabel(currentWorkoutDay)}
                 </h3>
 
-                {activePlan.description && (
-                  <p className="text-white/80 mt-2 break-words">
-                    {activePlan.description}
-                  </p>
-                )}
+                <p className="text-white/80 mt-2 break-words">
+                  {workoutAlreadyCompletedToday
+                    ? `Next: ${getDayLabel(nextWorkoutDay)}`
+                    : `From plan: ${activePlan.title}`}
+                </p>
               </div>
 
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => startEditPlan(activePlan)}
-                  className="
-                    w-10
-                    h-10
-                    rounded-xl
-                    flex
-                    items-center
-                    justify-center
-                    bg-white/10
-                    hover:bg-white/20
-                    transition
-                  "
-                  title="Edit active workout"
-                >
-                  <Pencil size={18} />
-                </button>
-
-                <button
-                  onClick={() => deleteWorkoutPlan(activePlan.id)}
-                  disabled={deletingPlan}
-                  className="
-                    w-10
-                    h-10
-                    rounded-xl
-                    flex
-                    items-center
-                    justify-center
-                    bg-white/10
-                    hover:bg-red-500/30
-                    transition
-                    disabled:opacity-50
-                  "
-                  title="Delete active workout"
-                >
-                  <Trash2 size={18} />
-                </button>
+              <div
+                className="
+                  px-4
+                  py-2
+                  rounded-full
+                  bg-white/15
+                  border
+                  border-white/20
+                  text-white
+                  font-bold
+                  text-xs
+                  sm:text-sm
+                  shrink-0
+                "
+              >
+                {workoutAlreadyCompletedToday
+                  ? "Done"
+                  : `${todayCompletedCount}/${todayTotalExercises}`}
               </div>
             </div>
 
             <div className="mt-5">
               <div className="flex justify-between text-sm mb-2">
-                <span>Progress</span>
-                <span>{progressPercent}%</span>
+                <span>Today's progress</span>
+                <span>{todayProgressPercent}%</span>
               </div>
 
               <div className="h-3 bg-white/20 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-white rounded-full transition-all"
                   style={{
-                    width: `${progressPercent}%`,
+                    width: `${todayProgressPercent}%`,
                   }}
                 />
               </div>
             </div>
           </div>
 
-          {/* ADD EXERCISE */}
+          {/* QUICK TOOLS */}
           <div
             className="
-              bg-zinc-50
-              border
-              border-zinc-200
-              rounded-2xl
-              p-4
-              sm:p-5
+              grid
+              grid-cols-1
+              sm:grid-cols-2
+              lg:grid-cols-3
+              gap-3
               mb-6
-
-              dark:bg-black/30
-              dark:border-white/10
             "
           >
-            <h3 className="font-black text-lg sm:text-xl mb-4">
+            <button
+              onClick={() => setShowFocusEditor((prev) => !prev)}
+              className="
+                px-4
+                py-3
+                rounded-2xl
+                bg-zinc-50
+                border
+                border-zinc-200
+                text-zinc-700
+                font-bold
+                flex
+                items-center
+                justify-center
+                gap-2
+                hover:border-purple-500
+                transition
+
+                dark:bg-black/30
+                dark:border-white/10
+                dark:text-zinc-300
+              "
+            >
+              {showFocusEditor ? <X size={18} /> : <Pencil size={18} />}
+              Workout focuses
+            </button>
+
+            <button
+              onClick={() => setShowAddExercise((prev) => !prev)}
+              className="
+                px-4
+                py-3
+                rounded-2xl
+                bg-zinc-50
+                border
+                border-zinc-200
+                text-zinc-700
+                font-bold
+                flex
+                items-center
+                justify-center
+                gap-2
+                hover:border-purple-500
+                transition
+
+                dark:bg-black/30
+                dark:border-white/10
+                dark:text-zinc-300
+              "
+            >
+              {showAddExercise ? <X size={18} /> : <Plus size={18} />}
               Add exercise
-            </h3>
+            </button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.4fr_.7fr_.7fr_.7fr_auto] gap-3">
-              <input
-                type="text"
-                placeholder="Exercise name"
-                value={newExercise.name}
-                onChange={(e) =>
-                  setNewExercise((prev) => ({
-                    ...prev,
-                    name: e.target.value,
-                  }))
-                }
-                className="WorkoutInput"
-              />
+            <button
+              onClick={() => setSelectedWorkoutDay(currentWorkoutDay)}
+              className="
+                px-4
+                py-3
+                rounded-2xl
+                bg-zinc-950
+                text-white
+                font-bold
+                flex
+                items-center
+                justify-center
+                gap-2
+                hover:scale-[1.02]
+                transition
 
-              <input
-                type="text"
-                placeholder="Sets"
-                value={newExercise.sets}
-                onChange={(e) =>
-                  setNewExercise((prev) => ({
-                    ...prev,
-                    sets: e.target.value,
-                  }))
-                }
-                className="WorkoutInput"
-              />
-
-              <input
-                type="text"
-                placeholder="Reps"
-                value={newExercise.reps}
-                onChange={(e) =>
-                  setNewExercise((prev) => ({
-                    ...prev,
-                    reps: e.target.value,
-                  }))
-                }
-                className="WorkoutInput"
-              />
-
-              <input
-                type="text"
-                placeholder="Load"
-                value={newExercise.load}
-                onChange={(e) =>
-                  setNewExercise((prev) => ({
-                    ...prev,
-                    load: e.target.value,
-                  }))
-                }
-                className="WorkoutInput"
-              />
-
-              <button
-                onClick={addExercise}
-                disabled={addingExercise}
-                className="
-                  w-full
-                  lg:w-auto
-                  px-5
-                  py-3
-                  rounded-2xl
-                  bg-zinc-950
-                  text-white
-                  font-bold
-                  flex
-                  items-center
-                  justify-center
-                  gap-2
-                  disabled:opacity-50
-
-                  dark:bg-white
-                  dark:text-black
-                "
-              >
-                {addingExercise ? (
-                  <Loader2 className="animate-spin" size={18} />
-                ) : (
-                  <Plus size={18} />
-                )}
-                Add
-              </button>
-            </div>
+                dark:bg-white
+                dark:text-black
+              "
+            >
+              <Dumbbell size={18} />
+              Today's checklist
+            </button>
           </div>
 
+          {/* DAY FOCUSES */}
+          {showFocusEditor && (
+            <div
+              className="
+                bg-zinc-50
+                border
+                border-zinc-200
+                rounded-2xl
+                p-4
+                sm:p-5
+                mb-6
+
+                dark:bg-black/30
+                dark:border-white/10
+              "
+            >
+              <div
+                className="
+                  flex
+                  flex-col
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  gap-4
+                  mb-4
+                "
+              >
+                <div>
+                  <h3 className="font-black text-lg sm:text-xl">
+                    Workout focuses
+                  </h3>
+
+                  <p className="text-zinc-500 text-sm mt-1">
+                    Define o foco principal de cada treino.
+                  </p>
+                </div>
+
+                <button
+                  onClick={updateDayFocuses}
+                  disabled={updatingFocuses}
+                  className="
+                    w-full
+                    sm:w-auto
+                    px-5
+                    py-3
+                    rounded-2xl
+                    bg-gradient-to-r
+                    from-purple-500
+                    to-fuchsia-500
+                    text-white
+                    font-bold
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+                    disabled:opacity-50
+                  "
+                >
+                  {updatingFocuses ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    <Save size={18} />
+                  )}
+                  Save focuses
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {workoutDayOptions.map((day) => (
+                  <div key={day}>
+                    <label className="block text-sm font-bold text-zinc-600 dark:text-zinc-300 mb-2">
+                      {day}
+                    </label>
+
+                    <input
+                      type="text"
+                      placeholder={
+                        day === "Treino A"
+                          ? "Ex: Peito e Tríceps"
+                          : day === "Treino B"
+                          ? "Ex: Costas e Bíceps"
+                          : day === "Treino C"
+                          ? "Ex: Pernas e Abdômen"
+                          : "Ex: Ombros, Cardio..."
+                      }
+                      value={dayFocuses?.[day] || ""}
+                      onChange={(e) =>
+                        setDayFocuses((prev) => ({
+                          ...prev,
+                          [day]: e.target.value,
+                        }))
+                      }
+                      className="WorkoutInput"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ADD EXERCISE */}
+          {showAddExercise && (
+            <div
+              className="
+                bg-zinc-50
+                border
+                border-zinc-200
+                rounded-2xl
+                p-4
+                sm:p-5
+                mb-6
+
+                dark:bg-black/30
+                dark:border-white/10
+              "
+            >
+              <h3 className="font-black text-lg sm:text-xl mb-4">
+                Add exercise
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[.9fr_1.4fr_.7fr_.7fr_.7fr_auto] gap-3">
+                <select
+                  value={newExercise.workout_day}
+                  onChange={(e) =>
+                    setNewExercise((prev) => ({
+                      ...prev,
+                      workout_day: e.target.value,
+                    }))
+                  }
+                  className="WorkoutInput"
+                >
+                  {workoutDayOptions.map((day) => (
+                    <option key={day} value={day}>
+                      {getDayLabel(day)}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="text"
+                  placeholder="Exercise name"
+                  value={newExercise.name}
+                  onChange={(e) =>
+                    setNewExercise((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }))
+                  }
+                  className="WorkoutInput"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Sets"
+                  value={newExercise.sets}
+                  onChange={(e) =>
+                    setNewExercise((prev) => ({
+                      ...prev,
+                      sets: e.target.value,
+                    }))
+                  }
+                  className="WorkoutInput"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Reps"
+                  value={newExercise.reps}
+                  onChange={(e) =>
+                    setNewExercise((prev) => ({
+                      ...prev,
+                      reps: e.target.value,
+                    }))
+                  }
+                  className="WorkoutInput"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Load"
+                  value={newExercise.load}
+                  onChange={(e) =>
+                    setNewExercise((prev) => ({
+                      ...prev,
+                      load: e.target.value,
+                    }))
+                  }
+                  className="WorkoutInput"
+                />
+
+                <button
+                  onClick={addExercise}
+                  disabled={addingExercise}
+                  className="
+                    w-full
+                    lg:w-auto
+                    px-5
+                    py-3
+                    rounded-2xl
+                    bg-zinc-950
+                    text-white
+                    font-bold
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+                    disabled:opacity-50
+
+                    dark:bg-white
+                    dark:text-black
+                  "
+                >
+                  {addingExercise ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    <Plus size={18} />
+                  )}
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* FILTER */}
+          {exercises.length > 0 && (
+            <div
+              className="
+                bg-zinc-50
+                border
+                border-zinc-200
+                rounded-2xl
+                p-4
+                sm:p-5
+                mb-6
+
+                dark:bg-black/30
+                dark:border-white/10
+              "
+            >
+              <div
+                className="
+                  flex
+                  flex-col
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  gap-4
+                  mb-4
+                "
+              >
+                <div>
+                  <h3 className="font-black text-lg sm:text-xl">
+                    Checklist
+                  </h3>
+
+                  <p className="text-zinc-500 text-sm mt-1">
+                    Showing {visibleCompletedCount}/{visibleTotalExercises} completed
+                    {selectedWorkoutDay !== "Todos"
+                      ? ` in ${getDayLabel(selectedWorkoutDay)}`
+                      : " in all workouts"}
+                  </p>
+                </div>
+
+                <div
+                  className="
+                    px-3
+                    py-1
+                    rounded-full
+                    bg-purple-500/10
+                    border
+                    border-purple-500/20
+                    text-purple-500
+                    text-xs
+                    font-bold
+                    w-fit
+                  "
+                >
+                  {visibleProgressPercent}% visible progress
+                </div>
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {availableWorkoutDays.map((day) => (
+                  <button
+                    key={day}
+                    onClick={() => setSelectedWorkoutDay(day)}
+                    className={`
+                      shrink-0
+                      px-4
+                      py-2
+                      rounded-xl
+                      border
+                      text-sm
+                      font-bold
+                      transition
+
+                      ${
+                        selectedWorkoutDay === day
+                          ? "bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white border-transparent"
+                          : "bg-white border-zinc-200 text-zinc-600 hover:border-purple-500 dark:bg-black/30 dark:border-white/10 dark:text-zinc-300"
+                      }
+                    `}
+                  >
+                    {day === "Todos" ? "Todos" : getDayLabel(day)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* EDIT EXERCISE */}
+          {editingExercise && (
+            <div
+              className="
+                bg-zinc-50
+                border
+                border-zinc-200
+                rounded-2xl
+                p-4
+                sm:p-5
+                mb-6
+
+                dark:bg-black/30
+                dark:border-white/10
+              "
+            >
+              <h3 className="font-black text-lg sm:text-xl mb-4">
+                Edit exercise
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[.9fr_1.4fr_.7fr_.7fr_.7fr_auto_auto] gap-3">
+                <select
+                  value={editExerciseData.workout_day}
+                  onChange={(e) =>
+                    setEditExerciseData((prev) => ({
+                      ...prev,
+                      workout_day: e.target.value,
+                    }))
+                  }
+                  className="WorkoutInput"
+                >
+                  {workoutDayOptions.map((day) => (
+                    <option key={day} value={day}>
+                      {getDayLabel(day)}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="text"
+                  placeholder="Exercise name"
+                  value={editExerciseData.name}
+                  onChange={(e) =>
+                    setEditExerciseData((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }))
+                  }
+                  className="WorkoutInput"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Sets"
+                  value={editExerciseData.sets}
+                  onChange={(e) =>
+                    setEditExerciseData((prev) => ({
+                      ...prev,
+                      sets: e.target.value,
+                    }))
+                  }
+                  className="WorkoutInput"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Reps"
+                  value={editExerciseData.reps}
+                  onChange={(e) =>
+                    setEditExerciseData((prev) => ({
+                      ...prev,
+                      reps: e.target.value,
+                    }))
+                  }
+                  className="WorkoutInput"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Load"
+                  value={editExerciseData.load}
+                  onChange={(e) =>
+                    setEditExerciseData((prev) => ({
+                      ...prev,
+                      load: e.target.value,
+                    }))
+                  }
+                  className="WorkoutInput"
+                />
+
+                <button
+                  onClick={updateExercise}
+                  disabled={updatingExercise}
+                  className="
+                    w-full
+                    lg:w-auto
+                    px-5
+                    py-3
+                    rounded-2xl
+                    bg-green-600
+                    text-white
+                    font-bold
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+                    disabled:opacity-50
+                  "
+                >
+                  {updatingExercise ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    <Save size={18} />
+                  )}
+                  Save
+                </button>
+
+                <button
+                  onClick={cancelEditExercise}
+                  className="
+                    w-full
+                    lg:w-auto
+                    px-5
+                    py-3
+                    rounded-2xl
+                    bg-zinc-200
+                    text-zinc-700
+                    font-bold
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+                    hover:bg-zinc-300
+                    transition
+
+                    dark:bg-white/10
+                    dark:text-white
+                    dark:hover:bg-white/20
+                  "
+                >
+                  <X size={18} />
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* EXERCISES */}
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-5 sm:space-y-6">
             {exercises.length === 0 && (
               <div
                 className="
@@ -1188,119 +2021,285 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                   dark:border-white/10
                 "
               >
-                No exercises yet. Add your first checkpoint.
+                No exercises yet. Use <strong>Add exercise</strong> to create your first checkpoint.
               </div>
             )}
 
-            {exercises.map((exercise) => {
-              const completed = isExerciseCompleted(exercise.id);
+            {exercises.length > 0 && visibleTotalExercises === 0 && (
+              <div
+                className="
+                  bg-zinc-50
+                  border
+                  border-zinc-200
+                  rounded-2xl
+                  p-8
+                  text-center
+                  text-zinc-500
 
-              return (
-                <motion.div
-                  key={exercise.id}
-                  initial={{
-                    opacity: 0,
-                    y: 12,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                  }}
-                  className={`
-                    flex
-                    items-center
-                    justify-between
-                    gap-4
-                    rounded-2xl
-                    border
-                    p-4
-                    sm:p-5
-                    transition
+                  dark:bg-black/30
+                  dark:border-white/10
+                "
+              >
+                No exercises found for this filter.
+              </div>
+            )}
 
-                    ${
-                      completed
-                        ? "bg-green-500/10 border-green-500/30"
-                        : "bg-zinc-50 border-zinc-200 dark:bg-black/30 dark:border-white/10"
-                    }
-                  `}
-                >
-                  <button
-                    onClick={() => toggleExercise(exercise)}
-                    className="
-                      flex
-                      items-center
-                      gap-4
-                      flex-1
-                      min-w-0
-                      text-left
-                    "
-                  >
-                    <div
-                      className={`
-                        w-11
-                        h-11
-                        rounded-2xl
-                        flex
-                        items-center
-                        justify-center
-                        shrink-0
+            {Object.entries(groupedExercises).map(([day, dayExercises]) => (
+              <div
+                key={day}
+                className={`
+                  bg-zinc-50
+                  border
+                  rounded-2xl
+                  p-4
+                  sm:p-5
 
-                        ${
-                          completed
-                            ? "bg-green-500 text-white"
-                            : "bg-zinc-200 text-zinc-500 dark:bg-zinc-800"
-                        }
-                      `}
-                    >
-                      {completed ? (
-                        <CheckCircle size={22} />
-                      ) : (
-                        <Circle size={22} />
+                  ${
+                    day === currentWorkoutDay && !workoutAlreadyCompletedToday
+                      ? "border-purple-500/40 ring-2 ring-purple-500/20"
+                      : "border-zinc-200 dark:border-white/10"
+                  }
+
+                  dark:bg-black/20
+                `}
+              >
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-black text-lg sm:text-xl">
+                        {getDayLabel(day)}
+                      </h3>
+
+                      {day === currentWorkoutDay && !workoutAlreadyCompletedToday && (
+                        <span
+                          className="
+                            px-3
+                            py-1
+                            rounded-full
+                            bg-purple-500
+                            text-white
+                            text-[11px]
+                            font-bold
+                          "
+                        >
+                          Current
+                        </span>
+                      )}
+
+                      {todayCompletedLog?.workout_day === day && (
+                        <span
+                          className="
+                            px-3
+                            py-1
+                            rounded-full
+                            bg-green-500
+                            text-white
+                            text-[11px]
+                            font-bold
+                          "
+                        >
+                          Completed today
+                        </span>
                       )}
                     </div>
 
-                    <div className="min-w-0">
-                      <h4
-                        className={`
-                          font-black
-                          text-base
-                          sm:text-lg
-                          break-words
+                    <p className="text-zinc-500 text-sm mt-1">
+                      {dayExercises.length} exercise
+                      {dayExercises.length !== 1 ? "s" : ""}
+                    </p>
+                  </div>
 
-                          ${completed ? "line-through opacity-70" : ""}
-                        `}
-                      >
-                        {exercise.name}
-                      </h4>
-
-                      <p className="text-zinc-500 text-sm mt-1">
-                        {exercise.sets || "-"} sets • {exercise.reps || "-"} reps
-                        {exercise.load ? ` • ${exercise.load}` : ""}
-                      </p>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => deleteExercise(exercise.id)}
+                  <div
                     className="
-                      w-10
-                      h-10
-                      rounded-xl
-                      flex
-                      items-center
-                      justify-center
-                      text-zinc-500
-                      hover:text-red-500
-                      hover:bg-red-500/10
-                      transition
-                      shrink-0
+                      px-3
+                      py-1
+                      rounded-full
+                      bg-purple-500/10
+                      border
+                      border-purple-500/20
+                      text-purple-500
+                      text-xs
+                      font-bold
                     "
                   >
-                    <Trash2 size={18} />
-                  </button>
-                </motion.div>
-              );
-            })}
+                    {
+                      dayExercises.filter((exercise) =>
+                        isExerciseCompleted(exercise.id)
+                      ).length
+                    }
+                    /{dayExercises.length}
+                  </div>
+                </div>
+
+                <div className="space-y-3 sm:space-y-4">
+                  {dayExercises.map((exercise) => {
+                    const completed = isExerciseCompleted(exercise.id);
+                    const isEditingCurrentExercise =
+                      editingExercise?.id === exercise.id;
+                    const isCurrentExercise =
+                      (exercise.workout_day || "Treino A") === currentWorkoutDay;
+
+                    return (
+                      <motion.div
+                        key={exercise.id}
+                        initial={{
+                          opacity: 0,
+                          y: 12,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                        }}
+                        className={`
+                          flex
+                          items-center
+                          justify-between
+                          gap-4
+                          rounded-2xl
+                          border
+                          p-4
+                          sm:p-5
+                          transition
+
+                          ${
+                            completed
+                              ? "bg-green-500/10 border-green-500/30"
+                              : "bg-white border-zinc-200 dark:bg-black/30 dark:border-white/10"
+                          }
+
+                          ${
+                            isEditingCurrentExercise
+                              ? "ring-2 ring-purple-500/60"
+                              : ""
+                          }
+
+                          ${
+                            !isCurrentExercise || workoutAlreadyCompletedToday
+                              ? "opacity-70"
+                              : ""
+                          }
+                        `}
+                      >
+                        <button
+                          onClick={() => toggleExercise(exercise)}
+                          className="
+                            flex
+                            items-center
+                            gap-4
+                            flex-1
+                            min-w-0
+                            text-left
+                          "
+                        >
+                          <div
+                            className={`
+                              w-11
+                              h-11
+                              rounded-2xl
+                              flex
+                              items-center
+                              justify-center
+                              shrink-0
+
+                              ${
+                                completed
+                                  ? "bg-green-500 text-white"
+                                  : isCurrentExercise && !workoutAlreadyCompletedToday
+                                  ? "bg-zinc-200 text-zinc-500 dark:bg-zinc-800"
+                                  : "bg-zinc-100 text-zinc-400 dark:bg-white/5"
+                              }
+                            `}
+                          >
+                            {completed ? (
+                              <CheckCircle size={22} />
+                            ) : (
+                              <Circle size={22} />
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <h4
+                              className={`
+                                font-black
+                                text-base
+                                sm:text-lg
+                                break-words
+
+                                ${completed ? "line-through opacity-70" : ""}
+                              `}
+                            >
+                              {exercise.name}
+                            </h4>
+
+                            <p className="text-zinc-500 text-sm mt-1">
+                              {exercise.sets || "-"} sets •{" "}
+                              {exercise.reps || "-"} reps
+                              {exercise.load ? ` • ${exercise.load}` : ""}
+                            </p>
+
+                            {!isCurrentExercise && (
+                              <p className="text-xs text-zinc-400 mt-1">
+                                Not current in sequence
+                              </p>
+                            )}
+
+                            {workoutAlreadyCompletedToday && isCurrentExercise && (
+                              <p className="text-xs text-green-500 mt-1">
+                                This workout was completed today
+                              </p>
+                            )}
+                          </div>
+                        </button>
+
+                        {showPlanTools && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={() => startEditExercise(exercise)}
+                              className="
+                                w-10
+                                h-10
+                                rounded-xl
+                                flex
+                                items-center
+                                justify-center
+                                text-zinc-500
+                                hover:text-purple-500
+                                hover:bg-purple-500/10
+                                transition
+                                shrink-0
+                              "
+                              title="Edit exercise"
+                            >
+                              <Pencil size={18} />
+                            </button>
+
+                            <button
+                              onClick={() => deleteExercise(exercise.id)}
+                              className="
+                                w-10
+                                h-10
+                                rounded-xl
+                                flex
+                                items-center
+                                justify-center
+                                text-zinc-500
+                                hover:text-red-500
+                                hover:bg-red-500/10
+                                transition
+                                shrink-0
+                              "
+                              title="Delete exercise"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* FINISH BUTTON */}
@@ -1326,17 +2325,25 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
           >
             <div>
               <h3 className="font-black text-lg">
-                Finish today's workout
+                {workoutAlreadyCompletedToday
+                  ? "Workout completed today"
+                  : `Finish ${getDayLabel(currentWorkoutDay)}`}
               </h3>
 
               <p className="text-zinc-500 text-sm mt-1">
-                Complete every checkpoint to unlock the finish button.
+                {workoutAlreadyCompletedToday
+                  ? `Next workout in sequence: ${getDayLabel(nextWorkoutDay)}.`
+                  : "Complete today's sequence workout to finish the day."}
               </p>
             </div>
 
             <button
               onClick={finishWorkout}
-              disabled={!allCompleted || finishingWorkout}
+              disabled={
+                !todayWorkoutCompleted ||
+                finishingWorkout ||
+                workoutAlreadyCompletedToday
+              }
               className="
                 w-full
                 sm:w-auto
@@ -1363,7 +2370,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
               ) : (
                 <Trophy size={20} />
               )}
-              Complete Workout
+              {workoutAlreadyCompletedToday ? "Done Today" : "Complete Today"}
             </button>
           </div>
         </>
