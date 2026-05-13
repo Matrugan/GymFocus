@@ -15,6 +15,8 @@ import {
   X,
   Settings2,
   CalendarDays,
+  Sparkles,
+  ClipboardList,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
@@ -23,6 +25,1283 @@ import { motion } from "framer-motion";
 
 import { unlockAchievement } from "../utils/achievementSystem";
 import { logXP } from "../utils/xpSystem";
+
+const workoutTemplates = [
+  {
+    title: "AB Iniciante",
+    description: "Treino AB simples para quem está começando.",
+    focuses: {
+      "Treino A": "Superiores",
+      "Treino B": "Inferiores e Abdômen",
+    },
+    exercises: [
+      {
+        workout_day: "Treino A",
+        name: "Supino máquina",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Puxada alta",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Desenvolvimento de ombros",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Rosca direta",
+        sets: "2",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Tríceps pulley",
+        sets: "2",
+        reps: "12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino B",
+        name: "Agachamento livre ou guiado",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Leg press",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Cadeira extensora",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Mesa flexora",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Prancha abdominal",
+        sets: "3",
+        reps: "30s",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "ABC Iniciante",
+    description: "Treino ABC com volume moderado para iniciantes.",
+    focuses: {
+      "Treino A": "Peito, Ombros e Tríceps",
+      "Treino B": "Costas e Bíceps",
+      "Treino C": "Pernas e Abdômen",
+    },
+    exercises: [
+      {
+        workout_day: "Treino A",
+        name: "Supino máquina",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Supino inclinado com halteres",
+        sets: "3",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Desenvolvimento de ombros",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Tríceps pulley",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino B",
+        name: "Puxada alta",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada baixa",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Pulldown",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Rosca direta",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino C",
+        name: "Agachamento guiado",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Leg press",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Cadeira extensora",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Mesa flexora",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Abdominal máquina",
+        sets: "3",
+        reps: "15",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "ABC Hipertrofia",
+    description: "Treino ABC focado em hipertrofia muscular.",
+    focuses: {
+      "Treino A": "Peito e Tríceps",
+      "Treino B": "Costas e Bíceps",
+      "Treino C": "Pernas e Abdômen",
+    },
+    exercises: [
+      {
+        workout_day: "Treino A",
+        name: "Supino reto",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Supino inclinado",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Crucifixo",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Tríceps corda",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Tríceps testa",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino B",
+        name: "Puxada alta",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada baixa",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada unilateral",
+        sets: "3",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Rosca direta",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Rosca martelo",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino C",
+        name: "Agachamento livre",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Leg press",
+        sets: "4",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Cadeira extensora",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Mesa flexora",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Abdominal prancha",
+        sets: "3",
+        reps: "30-45s",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "ABC Avançado",
+    description: "Treino ABC com maior intensidade e volume.",
+    focuses: {
+      "Treino A": "Peito, Ombros e Tríceps",
+      "Treino B": "Costas, Trapézio e Bíceps",
+      "Treino C": "Pernas completas",
+    },
+    exercises: [
+      {
+        workout_day: "Treino A",
+        name: "Supino reto",
+        sets: "4",
+        reps: "6-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Supino inclinado com halteres",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Crossover",
+        sets: "3",
+        reps: "12-15",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Desenvolvimento militar",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Elevação lateral",
+        sets: "4",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Tríceps francês",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino B",
+        name: "Barra fixa ou puxada alta",
+        sets: "4",
+        reps: "6-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada curvada",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada cavalinho",
+        sets: "3",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Encolhimento",
+        sets: "4",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Rosca direta barra",
+        sets: "3",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Rosca alternada",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino C",
+        name: "Agachamento livre",
+        sets: "5",
+        reps: "6-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Leg press",
+        sets: "4",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Stiff",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Cadeira extensora",
+        sets: "3",
+        reps: "12-15",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Mesa flexora",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Panturrilha em pé",
+        sets: "5",
+        reps: "12-15",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "ABCD Normal",
+    description: "Divisão ABCD equilibrada para evolução muscular.",
+    focuses: {
+      "Treino A": "Peito e Tríceps",
+      "Treino B": "Costas e Bíceps",
+      "Treino C": "Pernas",
+      "Treino D": "Ombros e Abdômen",
+    },
+    exercises: [
+      {
+        workout_day: "Treino A",
+        name: "Supino reto",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Supino inclinado",
+        sets: "3",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Crucifixo",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Tríceps pulley",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino B",
+        name: "Puxada alta",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada baixa",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Pulldown",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Rosca direta",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino C",
+        name: "Agachamento",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Leg press",
+        sets: "4",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Stiff",
+        sets: "3",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Panturrilha sentado",
+        sets: "4",
+        reps: "12-15",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino D",
+        name: "Desenvolvimento com halteres",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino D",
+        name: "Elevação lateral",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino D",
+        name: "Face pull",
+        sets: "3",
+        reps: "12-15",
+        load: "",
+      },
+      {
+        workout_day: "Treino D",
+        name: "Abdominal infra",
+        sets: "3",
+        reps: "15",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "ABCD Avançado",
+    description: "Divisão ABCD com maior volume e intensidade.",
+    focuses: {
+      "Treino A": "Peito",
+      "Treino B": "Costas",
+      "Treino C": "Pernas",
+      "Treino D": "Ombros e Braços",
+    },
+    exercises: [
+      {
+        workout_day: "Treino A",
+        name: "Supino reto",
+        sets: "4",
+        reps: "6-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Supino inclinado com halteres",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Paralelas",
+        sets: "3",
+        reps: "8-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Crossover",
+        sets: "3",
+        reps: "12-15",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino B",
+        name: "Barra fixa ou puxada alta",
+        sets: "4",
+        reps: "6-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada curvada",
+        sets: "4",
+        reps: "8",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada unilateral",
+        sets: "3",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Pulldown",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino C",
+        name: "Agachamento livre",
+        sets: "5",
+        reps: "6-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Leg press",
+        sets: "4",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Stiff",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Mesa flexora",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino D",
+        name: "Desenvolvimento militar",
+        sets: "4",
+        reps: "6-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino D",
+        name: "Elevação lateral",
+        sets: "4",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino D",
+        name: "Rosca direta",
+        sets: "3",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino D",
+        name: "Rosca martelo",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino D",
+        name: "Tríceps testa",
+        sets: "3",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino D",
+        name: "Tríceps corda",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "ABCDE Avançado",
+    description: "Treino ABCDE com foco específico por grupo muscular.",
+    focuses: {
+      "Treino A": "Peito",
+      "Treino B": "Costas",
+      "Treino C": "Pernas",
+      "Treino D": "Ombros",
+      "Treino E": "Braços e Abdômen",
+    },
+    exercises: [
+      {
+        workout_day: "Treino A",
+        name: "Supino reto",
+        sets: "4",
+        reps: "6-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Supino inclinado",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Crossover",
+        sets: "4",
+        reps: "12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino B",
+        name: "Puxada alta",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada curvada",
+        sets: "4",
+        reps: "8",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada baixa",
+        sets: "4",
+        reps: "10-12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino C",
+        name: "Agachamento livre",
+        sets: "5",
+        reps: "6-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Leg press",
+        sets: "4",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Stiff",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Panturrilha em pé",
+        sets: "5",
+        reps: "12-15",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino D",
+        name: "Desenvolvimento militar",
+        sets: "4",
+        reps: "6-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino D",
+        name: "Elevação lateral",
+        sets: "4",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino D",
+        name: "Face pull",
+        sets: "4",
+        reps: "12-15",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino E",
+        name: "Rosca direta",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino E",
+        name: "Rosca martelo",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino E",
+        name: "Tríceps testa",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino E",
+        name: "Abdominal prancha",
+        sets: "4",
+        reps: "40-60s",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "Full Body Iniciante",
+    description: "Treino de corpo inteiro ideal para iniciantes.",
+    focuses: {
+      "Full Body": "Corpo inteiro",
+    },
+    exercises: [
+      {
+        workout_day: "Full Body",
+        name: "Agachamento livre ou guiado",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Supino máquina",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Puxada alta",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Desenvolvimento de ombros",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Leg press",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Prancha abdominal",
+        sets: "3",
+        reps: "30s",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "Full Body Intermediário",
+    description: "Treino de corpo inteiro com volume moderado.",
+    focuses: {
+      "Full Body": "Corpo inteiro e condicionamento",
+    },
+    exercises: [
+      {
+        workout_day: "Full Body",
+        name: "Agachamento livre",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Supino reto",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Remada baixa",
+        sets: "4",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Desenvolvimento militar",
+        sets: "3",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Stiff",
+        sets: "3",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Rosca direta",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Tríceps pulley",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Full Body",
+        name: "Prancha abdominal",
+        sets: "3",
+        reps: "45s",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "PPL - Push Pull Legs",
+    description: "Divisão Push, Pull e Legs.",
+    focuses: {
+      "Treino A": "Push - Peito, Ombros e Tríceps",
+      "Treino B": "Pull - Costas e Bíceps",
+      "Treino C": "Legs - Pernas",
+    },
+    exercises: [
+      {
+        workout_day: "Treino A",
+        name: "Supino reto",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Desenvolvimento militar",
+        sets: "3",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Elevação lateral",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Tríceps corda",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino B",
+        name: "Puxada alta",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada baixa",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Face pull",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Rosca direta",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino C",
+        name: "Agachamento",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Leg press",
+        sets: "4",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Stiff",
+        sets: "3",
+        reps: "10-12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Panturrilha em pé",
+        sets: "4",
+        reps: "12-15",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "PPL Avançado",
+    description: "Push Pull Legs com maior volume para praticantes avançados.",
+    focuses: {
+      "Treino A": "Push pesado",
+      "Treino B": "Pull pesado",
+      "Treino C": "Legs pesado",
+    },
+    exercises: [
+      {
+        workout_day: "Treino A",
+        name: "Supino reto",
+        sets: "5",
+        reps: "5-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Supino inclinado com halteres",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Desenvolvimento militar",
+        sets: "4",
+        reps: "6-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Elevação lateral",
+        sets: "4",
+        reps: "12-15",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Tríceps testa",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino B",
+        name: "Barra fixa",
+        sets: "5",
+        reps: "6-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada curvada",
+        sets: "4",
+        reps: "6-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Remada baixa",
+        sets: "4",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Face pull",
+        sets: "4",
+        reps: "12-15",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Rosca direta",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino C",
+        name: "Agachamento livre",
+        sets: "5",
+        reps: "5-8",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Leg press",
+        sets: "4",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Stiff",
+        sets: "4",
+        reps: "8-10",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Afundo com halteres",
+        sets: "3",
+        reps: "10 cada perna",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Panturrilha em pé",
+        sets: "5",
+        reps: "12-15",
+        load: "",
+      },
+    ],
+  },
+  {
+    title: "Emagrecimento e Condicionamento",
+    description: "Treino com musculação e exercícios metabólicos.",
+    focuses: {
+      "Treino A": "Força geral",
+      "Treino B": "Condicionamento",
+      "Treino C": "Pernas e Core",
+    },
+    exercises: [
+      {
+        workout_day: "Treino A",
+        name: "Agachamento goblet",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Supino máquina",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Puxada alta",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino A",
+        name: "Prancha abdominal",
+        sets: "3",
+        reps: "30-45s",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino B",
+        name: "Esteira ou bike",
+        sets: "1",
+        reps: "15-20min",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Burpee adaptado",
+        sets: "3",
+        reps: "10",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Kettlebell swing ou remada alta",
+        sets: "3",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino B",
+        name: "Abdominal bicicleta",
+        sets: "3",
+        reps: "20",
+        load: "",
+      },
+
+      {
+        workout_day: "Treino C",
+        name: "Leg press",
+        sets: "4",
+        reps: "12",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Cadeira extensora",
+        sets: "3",
+        reps: "15",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Mesa flexora",
+        sets: "3",
+        reps: "15",
+        load: "",
+      },
+      {
+        workout_day: "Treino C",
+        name: "Abdominal infra",
+        sets: "3",
+        reps: "15",
+        load: "",
+      },
+    ],
+  },
+];
 
 function WorkoutManager({ user, profile, onProfileUpdated }) {
   const [plans, setPlans] = useState([]);
@@ -33,6 +1312,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
   const [loading, setLoading] = useState(true);
   const [creatingPlan, setCreatingPlan] = useState(false);
+  const [creatingTemplate, setCreatingTemplate] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
   const [finishingWorkout, setFinishingWorkout] = useState(false);
   const [updatingPlan, setUpdatingPlan] = useState(false);
@@ -41,6 +1321,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   const [updatingFocuses, setUpdatingFocuses] = useState(false);
 
   const [showCreatePlan, setShowCreatePlan] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [showPlanTools, setShowPlanTools] = useState(false);
   const [showFocusEditor, setShowFocusEditor] = useState(false);
   const [showAddExercise, setShowAddExercise] = useState(false);
@@ -291,6 +1572,82 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     }
 
     setProgress(progressData || []);
+  }
+
+  async function createWorkoutFromTemplate(template) {
+    if (!user?.id) return;
+
+    const confirmCreate = confirm(
+      `Create "${template.title}" with ${template.exercises.length} exercises?`,
+    );
+
+    if (!confirmCreate) return;
+
+    setCreatingTemplate(true);
+
+    const { data: planData, error: planError } = await supabase
+      .from("workout_plans")
+      .insert([
+        {
+          user_id: user.id,
+          title: template.title,
+          description: template.description,
+          is_active: true,
+          day_focuses: template.focuses,
+        },
+      ])
+      .select()
+      .single();
+
+    if (planError) {
+      console.log(planError);
+      toast.error("Error creating workout template.");
+      setCreatingTemplate(false);
+      return;
+    }
+
+    const exercisesToInsert = template.exercises.map((exercise, index) => ({
+      workout_plan_id: planData.id,
+      user_id: user.id,
+      workout_day: exercise.workout_day,
+      name: exercise.name,
+      sets: exercise.sets,
+      reps: exercise.reps,
+      load: exercise.load,
+      sort_order: index + 1,
+    }));
+
+    const { data: exercisesData, error: exercisesError } = await supabase
+      .from("workout_exercises")
+      .insert(exercisesToInsert)
+      .select();
+
+    if (exercisesError) {
+      console.log(exercisesError);
+      toast.error("Workout created, but exercises could not be added.");
+      setCreatingTemplate(false);
+      return;
+    }
+
+    const createdExercises = exercisesData || [];
+
+    setPlans((prev) => [planData, ...prev]);
+    setActivePlan(planData);
+    setDayFocuses(template.focuses);
+    setExercises(createdExercises);
+    setProgress([]);
+    setWorkoutLogs([]);
+    setSelectedWorkoutDay(getCurrentWorkoutDay(createdExercises, []));
+
+    setShowTemplates(false);
+    setShowCreatePlan(false);
+    setShowPlanTools(false);
+    setShowFocusEditor(false);
+    setShowAddExercise(false);
+
+    toast.success(`${template.title} created!`);
+
+    setCreatingTemplate(false);
   }
 
   async function createWorkoutPlan() {
@@ -696,8 +2053,15 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   const recentWorkoutLogs = useMemo(() => {
     return workoutLogs.slice(0, 7);
   }, [workoutLogs]);
+
   const lastCompletedWorkoutLog = useMemo(() => {
-    return workoutLogs.find((log) => log.workout_date !== today) || null;
+    return (
+      workoutLogs.find((log) => {
+        const logStatus = log.status || "completed";
+
+        return log.workout_date !== today && logStatus === "completed";
+      }) || null
+    );
   }, [workoutLogs, today]);
 
   const lastCompletedWorkoutDay = lastCompletedWorkoutLog?.workout_day || null;
@@ -1131,31 +2495,188 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
           </div>
         </div>
 
-        <button
-          onClick={() => setShowCreatePlan((prev) => !prev)}
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => setShowTemplates((prev) => !prev)}
+            className="
+              w-full
+              sm:w-auto
+              px-5
+              py-3
+              rounded-2xl
+              bg-zinc-950
+              text-white
+              font-bold
+              flex
+              items-center
+              justify-center
+              gap-2
+              hover:scale-[1.02]
+              transition
+
+              dark:bg-white
+              dark:text-black
+            "
+          >
+            {showTemplates ? <X size={18} /> : <Sparkles size={18} />}
+            {showTemplates ? "Close templates" : "Templates"}
+          </button>
+
+          <button
+            onClick={() => setShowCreatePlan((prev) => !prev)}
+            className="
+              w-full
+              sm:w-auto
+              px-5
+              py-3
+              rounded-2xl
+              bg-gradient-to-r
+              from-purple-500
+              to-fuchsia-500
+              text-white
+              font-bold
+              flex
+              items-center
+              justify-center
+              gap-2
+              hover:scale-[1.02]
+              transition
+            "
+          >
+            {showCreatePlan ? <X size={18} /> : <Plus size={18} />}
+            {showCreatePlan ? "Close" : "New workout"}
+          </button>
+        </div>
+      </div>
+
+      {/* WORKOUT TEMPLATES */}
+      {showTemplates && (
+        <div
           className="
-            w-full
-            sm:w-auto
-            px-5
-            py-3
+            bg-zinc-50
+            border
+            border-zinc-200
             rounded-2xl
-            bg-gradient-to-r
-            from-purple-500
-            to-fuchsia-500
-            text-white
-            font-bold
-            flex
-            items-center
-            justify-center
-            gap-2
-            hover:scale-[1.02]
-            transition
+            p-4
+            sm:p-5
+            mb-6
+
+            dark:bg-black/30
+            dark:border-white/10
           "
         >
-          {showCreatePlan ? <X size={18} /> : <Plus size={18} />}
-          {showCreatePlan ? "Close" : "New workout"}
-        </button>
-      </div>
+          <div className="mb-5">
+            <h3 className="font-black text-lg sm:text-xl">Workout templates</h3>
+
+            <p className="text-zinc-500 text-sm mt-1">
+              Choose a ready-made plan and customize it later.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {workoutTemplates.map((template) => (
+              <div
+                key={template.title}
+                className="
+                  bg-white
+                  border
+                  border-zinc-200
+                  rounded-2xl
+                  p-4
+                  flex
+                  flex-col
+                  justify-between
+                  gap-4
+
+                  dark:bg-black/30
+                  dark:border-white/10
+                "
+              >
+                <div>
+                  <div
+                    className="
+                      w-11
+                      h-11
+                      rounded-2xl
+                      bg-purple-500/10
+                      text-purple-500
+                      flex
+                      items-center
+                      justify-center
+                      mb-4
+                    "
+                  >
+                    <ClipboardList size={21} />
+                  </div>
+
+                  <h4 className="font-black text-lg">{template.title}</h4>
+
+                  <p className="text-zinc-500 text-sm mt-2">
+                    {template.description}
+                  </p>
+
+                  <div className="mt-4 space-y-2">
+                    {Object.entries(template.focuses).map(([day, focus]) => (
+                      <div
+                        key={day}
+                        className="
+                          text-xs
+                          px-3
+                          py-2
+                          rounded-xl
+                          bg-zinc-100
+                          text-zinc-600
+
+                          dark:bg-white/5
+                          dark:text-zinc-300
+                        "
+                      >
+                        <strong>{day}</strong> - {focus}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-zinc-500 text-xs mb-3">
+                    {template.exercises.length} exercises included
+                  </p>
+
+                  <button
+                    onClick={() => createWorkoutFromTemplate(template)}
+                    disabled={creatingTemplate}
+                    className="
+                      w-full
+                      px-4
+                      py-3
+                      rounded-2xl
+                      bg-gradient-to-r
+                      from-purple-500
+                      to-fuchsia-500
+                      text-white
+                      font-bold
+                      flex
+                      items-center
+                      justify-center
+                      gap-2
+                      disabled:opacity-50
+                      hover:scale-[1.02]
+                      transition
+                    "
+                  >
+                    {creatingTemplate ? (
+                      <Loader2 className="animate-spin" size={18} />
+                    ) : (
+                      <Plus size={18} />
+                    )}
+                    Use template
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* CREATE PLAN */}
       {showCreatePlan && (
@@ -1500,26 +3021,25 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
           "
         >
           Nenhum treino criado ainda. Clique em <strong>New workout</strong>{" "}
-          para começar.
+          para começar ou use um <strong>Template</strong>.
         </div>
       )}
 
       {activePlan && (
         <>
           {/* CURRENT WORKOUT CARD */}
-          {/* CURRENT WORKOUT CARD */}
           <div
             className="
-    bg-gradient-to-r
-    from-purple-600
-    to-fuchsia-600
-    rounded-2xl
-    sm:rounded-3xl
-    p-5
-    sm:p-6
-    text-white
-    mb-6
-  "
+              bg-gradient-to-r
+              from-purple-600
+              to-fuchsia-600
+              rounded-2xl
+              sm:rounded-3xl
+              p-5
+              sm:p-6
+              text-white
+              mb-6
+            "
           >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -1542,18 +3062,18 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
               <div
                 className="
-        px-4
-        py-2
-        rounded-full
-        bg-white/15
-        border
-        border-white/20
-        text-white
-        font-bold
-        text-xs
-        sm:text-sm
-        shrink-0
-      "
+                  px-4
+                  py-2
+                  rounded-full
+                  bg-white/15
+                  border
+                  border-white/20
+                  text-white
+                  font-bold
+                  text-xs
+                  sm:text-sm
+                  shrink-0
+                "
               >
                 {workoutAlreadyCompletedToday
                   ? "Done"
@@ -1580,21 +3100,21 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
             {/* WORKOUT SEQUENCE */}
             <div
               className="
-      mt-5
-      grid
-      grid-cols-1
-      sm:grid-cols-3
-      gap-3
-    "
+                mt-5
+                grid
+                grid-cols-1
+                sm:grid-cols-3
+                gap-3
+              "
             >
               <div
                 className="
-        rounded-2xl
-        bg-white/10
-        border
-        border-white/15
-        p-4
-      "
+                  rounded-2xl
+                  bg-white/10
+                  border
+                  border-white/15
+                  p-4
+                "
               >
                 <p className="text-white/60 text-xs font-bold uppercase tracking-wide">
                   Last
@@ -1615,14 +3135,14 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
               <div
                 className="
-        rounded-2xl
-        bg-white
-        text-purple-700
-        border
-        border-white
-        p-4
-        shadow-lg
-      "
+                  rounded-2xl
+                  bg-white
+                  text-purple-700
+                  border
+                  border-white
+                  p-4
+                  shadow-lg
+                "
               >
                 <p className="text-purple-500 text-xs font-black uppercase tracking-wide">
                   Current
@@ -1641,12 +3161,12 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
               <div
                 className="
-        rounded-2xl
-        bg-white/10
-        border
-        border-white/15
-        p-4
-      "
+                  rounded-2xl
+                  bg-white/10
+                  border
+                  border-white/15
+                  p-4
+                "
               >
                 <p className="text-white/60 text-xs font-bold uppercase tracking-wide">
                   Next
@@ -1678,27 +3198,28 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
               onClick={skipWorkout}
               disabled={workoutAlreadyCompletedToday || finishingWorkout}
               className="
-    px-4
-    py-3
-    rounded-2xl
-    bg-orange-500/10
-    border
-    border-orange-500/20
-    text-orange-500
-    font-bold
-    flex
-    items-center
-    justify-center
-    gap-2
-    hover:bg-orange-500/20
-    disabled:opacity-40
-    disabled:hover:bg-orange-500/10
-    transition
-  "
+                px-4
+                py-3
+                rounded-2xl
+                bg-orange-500/10
+                border
+                border-orange-500/20
+                text-orange-500
+                font-bold
+                flex
+                items-center
+                justify-center
+                gap-2
+                hover:bg-orange-500/20
+                disabled:opacity-40
+                disabled:hover:bg-orange-500/10
+                transition
+              "
             >
               <X size={18} />
               Skip workout
             </button>
+
             <button
               onClick={() => setShowFocusEditor((prev) => !prev)}
               className="
@@ -2584,7 +4105,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                   </h3>
 
                   <p className="text-zinc-500 text-sm mt-1">
-                    Last completed workouts from this plan.
+                    Last logs from this plan.
                   </p>
                 </div>
               </div>
@@ -2622,8 +4143,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                   dark:border-white/10
                 "
               >
-                No completed workouts yet. Finish your first workout to build
-                history.
+                No workout logs yet. Finish or skip a workout to build history.
               </div>
             ) : (
               <div className="space-y-3">
@@ -2638,19 +4158,19 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                         `${log.workout_date}-${log.workout_day}-${index}`
                       }
                       className="
-        flex
-        items-center
-        justify-between
-        gap-4
-        rounded-2xl
-        bg-white
-        border
-        border-zinc-200
-        p-4
+                        flex
+                        items-center
+                        justify-between
+                        gap-4
+                        rounded-2xl
+                        bg-white
+                        border
+                        border-zinc-200
+                        p-4
 
-        dark:bg-black/30
-        dark:border-white/10
-      "
+                        dark:bg-black/30
+                        dark:border-white/10
+                      "
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -2661,15 +4181,15 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                           {log.workout_date === today && (
                             <span
                               className={`
-                px-2
-                py-1
-                rounded-full
-                text-white
-                text-[10px]
-                font-bold
+                                px-2
+                                py-1
+                                rounded-full
+                                text-white
+                                text-[10px]
+                                font-bold
 
-                ${isSkipped ? "bg-orange-500" : "bg-green-500"}
-              `}
+                                ${isSkipped ? "bg-orange-500" : "bg-green-500"}
+                              `}
                             >
                               Today
                             </span>
@@ -2677,18 +4197,18 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
                           <span
                             className={`
-              px-2
-              py-1
-              rounded-full
-              text-[10px]
-              font-bold
+                              px-2
+                              py-1
+                              rounded-full
+                              text-[10px]
+                              font-bold
 
-              ${
-                isSkipped
-                  ? "bg-orange-500/10 text-orange-500"
-                  : "bg-green-500/10 text-green-500"
-              }
-            `}
+                              ${
+                                isSkipped
+                                  ? "bg-orange-500/10 text-orange-500"
+                                  : "bg-green-500/10 text-green-500"
+                              }
+                            `}
                           >
                             {isSkipped ? "Skipped" : "Completed"}
                           </span>
@@ -2702,20 +4222,20 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
                       <div
                         className={`
-          w-10
-          h-10
-          rounded-xl
-          flex
-          items-center
-          justify-center
-          shrink-0
+                          w-10
+                          h-10
+                          rounded-xl
+                          flex
+                          items-center
+                          justify-center
+                          shrink-0
 
-          ${
-            isSkipped
-              ? "bg-orange-500/10 text-orange-500"
-              : "bg-green-500/10 text-green-500"
-          }
-        `}
+                          ${
+                            isSkipped
+                              ? "bg-orange-500/10 text-orange-500"
+                              : "bg-green-500/10 text-green-500"
+                          }
+                        `}
                       >
                         {isSkipped ? (
                           <X size={20} />
