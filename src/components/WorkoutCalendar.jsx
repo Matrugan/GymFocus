@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { supabase } from "../lib/supabase";
 
-import { CalendarDays, CheckCircle, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle, XCircle, SkipForward } from "lucide-react";
 
 import { motion } from "framer-motion";
 
@@ -12,10 +12,10 @@ function WorkoutCalendar({ user }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       getWorkouts();
     }
-  }, [user]);
+  }, [user?.id]);
 
   async function getWorkouts() {
     setLoading(true);
@@ -23,7 +23,8 @@ function WorkoutCalendar({ user }) {
     const { data, error } = await supabase
       .from("workout_logs")
       .select("*")
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .order("workout_date", { ascending: false });
 
     if (error) {
       console.log(error);
@@ -48,23 +49,65 @@ function WorkoutCalendar({ user }) {
     })
     .reverse();
 
-  function didWorkout(date) {
-    return workouts.some((workout) => workout.workout_date === date);
+  function getWorkoutStatus(date) {
+    const dayLogs = workouts.filter((workout) => workout.workout_date === date);
+
+    const hasCompleted = dayLogs.some(
+      (workout) => (workout.status || "completed") === "completed",
+    );
+
+    if (hasCompleted) {
+      return "completed";
+    }
+
+    const hasSkipped = dayLogs.some((workout) => workout.status === "skipped");
+
+    if (hasSkipped) {
+      return "skipped";
+    }
+
+    return "none";
+  }
+
+  function getWorkoutLabel(date) {
+    const dayLogs = workouts.filter((workout) => workout.workout_date === date);
+
+    const completedLog = dayLogs.find(
+      (workout) => (workout.status || "completed") === "completed",
+    );
+
+    if (completedLog?.workout_day) {
+      return completedLog.workout_day;
+    }
+
+    const skippedLog = dayLogs.find((workout) => workout.status === "skipped");
+
+    if (skippedLog?.workout_day) {
+      return skippedLog.workout_day;
+    }
+
+    return null;
   }
 
   function getDayLabel(date) {
-    return new Date(date).toLocaleDateString("en-US", {
+    return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
       weekday: "short",
     });
   }
 
   function getDayNumber(date) {
-    return new Date(date).toLocaleDateString("en-US", {
+    return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
       day: "2-digit",
     });
   }
 
-  const completedDays = last7Days.filter((day) => didWorkout(day)).length;
+  const completedDays = last7Days.filter(
+    (day) => getWorkoutStatus(day) === "completed",
+  ).length;
+
+  const skippedDays = last7Days.filter(
+    (day) => getWorkoutStatus(day) === "skipped",
+  ).length;
 
   if (loading) {
     return (
@@ -233,20 +276,47 @@ function WorkoutCalendar({ user }) {
 
         <div
           className="
-            px-4
-            py-2
-            rounded-full
-            bg-purple-500/10
-            border
-            border-purple-500/20
-            text-purple-500
-            font-bold
-            text-xs
-            sm:text-sm
-            shrink-0
+            flex
+            items-center
+            gap-2
+            flex-wrap
           "
         >
-          {completedDays}/7 days
+          <div
+            className="
+              px-4
+              py-2
+              rounded-full
+              bg-purple-500/10
+              border
+              border-purple-500/20
+              text-purple-500
+              font-bold
+              text-xs
+              sm:text-sm
+              shrink-0
+            "
+          >
+            {completedDays}/7 completed
+          </div>
+
+          <div
+            className="
+              px-4
+              py-2
+              rounded-full
+              bg-orange-500/10
+              border
+              border-orange-500/20
+              text-orange-500
+              font-bold
+              text-xs
+              sm:text-sm
+              shrink-0
+            "
+          >
+            {skippedDays} skipped
+          </div>
         </div>
       </div>
 
@@ -262,7 +332,10 @@ function WorkoutCalendar({ user }) {
         "
       >
         {last7Days.map((day, index) => {
-          const completed = didWorkout(day);
+          const status = getWorkoutStatus(day);
+          const completed = status === "completed";
+          const skipped = status === "skipped";
+          const workoutLabel = getWorkoutLabel(day);
 
           return (
             <motion.div
@@ -297,13 +370,18 @@ function WorkoutCalendar({ user }) {
                       bg-purple-500/10
                       border-purple-500/30
                     `
-                    : `
-                      bg-zinc-50
-                      border-zinc-200
+                    : skipped
+                      ? `
+                        bg-orange-500/10
+                        border-orange-500/30
+                      `
+                      : `
+                        bg-zinc-50
+                        border-zinc-200
 
-                      dark:bg-black/30
-                      dark:border-white/10
-                    `
+                        dark:bg-black/30
+                        dark:border-white/10
+                      `
                 }
               `}
             >
@@ -335,6 +413,11 @@ function WorkoutCalendar({ user }) {
                   <CheckCircle
                     size={18}
                     className="text-purple-500 shrink-0"
+                  />
+                ) : skipped ? (
+                  <SkipForward
+                    size={18}
+                    className="text-orange-500 shrink-0"
                   />
                 ) : (
                   <XCircle
@@ -368,13 +451,18 @@ function WorkoutCalendar({ user }) {
                         to-fuchsia-500
                         text-white
                       `
-                      : `
-                        bg-zinc-200
-                        text-zinc-500
+                      : skipped
+                        ? `
+                          bg-orange-500
+                          text-white
+                        `
+                        : `
+                          bg-zinc-200
+                          text-zinc-500
 
-                        dark:bg-zinc-800
-                        dark:text-zinc-500
-                      `
+                          dark:bg-zinc-800
+                          dark:text-zinc-500
+                        `
                   }
                 `}
               >
@@ -391,12 +479,20 @@ function WorkoutCalendar({ user }) {
                   ${
                     completed
                       ? "text-purple-500"
-                      : "text-zinc-500"
+                      : skipped
+                        ? "text-orange-500"
+                        : "text-zinc-500"
                   }
                 `}
               >
-                {completed ? "Completed" : "Rest / Missed"}
+                {completed ? "Completed" : skipped ? "Skipped" : "Rest / Missed"}
               </p>
+
+              {workoutLabel && (
+                <p className="text-[11px] text-zinc-500 mt-1 truncate">
+                  {workoutLabel}
+                </p>
+              )}
             </motion.div>
           );
         })}
@@ -408,7 +504,7 @@ function WorkoutCalendar({ user }) {
           mt-5
           sm:hidden
           grid
-          grid-cols-2
+          grid-cols-3
           gap-3
         "
       >
@@ -446,11 +542,32 @@ function WorkoutCalendar({ user }) {
           "
         >
           <p className="text-zinc-500 text-xs">
-            Missed / Rest
+            Skipped
+          </p>
+
+          <h3 className="text-2xl font-black text-orange-500 mt-1">
+            {skippedDays}
+          </h3>
+        </div>
+
+        <div
+          className="
+            bg-zinc-50
+            border
+            border-zinc-200
+            rounded-2xl
+            p-4
+
+            dark:bg-black/30
+            dark:border-white/10
+          "
+        >
+          <p className="text-zinc-500 text-xs">
+            Rest
           </p>
 
           <h3 className="text-2xl font-black text-zinc-500 mt-1">
-            {7 - completedDays}
+            {7 - completedDays - skippedDays}
           </h3>
         </div>
       </div>
@@ -483,8 +600,8 @@ function WorkoutCalendar({ user }) {
         />
 
         <p className="text-sm">
-          Complete your daily workout to keep your streak alive and increase
-          your weekly consistency.
+          Complete your daily workout to mark the day as completed. Skipped
+          workouts appear separately and do not count as completed days.
         </p>
       </div>
     </motion.div>
