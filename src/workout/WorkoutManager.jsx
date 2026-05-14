@@ -1443,6 +1443,30 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     return orderedDays[nextIndex];
   }
 
+  function getWorkoutDateKey(workoutDate) {
+    if (!workoutDate) {
+      return "";
+    }
+
+    return String(workoutDate).split("T")[0];
+  }
+
+  function sortWorkoutLogs(logs) {
+    return [...logs].sort((a, b) => {
+      const dateA = getWorkoutDateKey(a.workout_date);
+      const dateB = getWorkoutDateKey(b.workout_date);
+
+      if (dateA !== dateB) {
+        return dateB.localeCompare(dateA);
+      }
+
+      const createdA = a.created_at || "";
+      const createdB = b.created_at || "";
+
+      return createdB.localeCompare(createdA);
+    });
+  }
+
   function getNextWorkoutDayFromLogs(exerciseList, logs) {
     const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
 
@@ -1450,7 +1474,9 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       return "Treino A";
     }
 
-    const validLogs = logs.filter((log) => {
+    const sortedLogs = sortWorkoutLogs(logs);
+
+    const validLogs = sortedLogs.filter((log) => {
       const logStatus = log.status || "completed";
 
       return (
@@ -1464,28 +1490,24 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     }
 
     const lastSequenceLog = validLogs[0];
-    const lastSequenceDay = lastSequenceLog.workout_day;
 
-    return getNextWorkoutDayAfter(lastSequenceDay, exerciseList);
+    return getNextWorkoutDayAfter(lastSequenceLog.workout_day, exerciseList);
   }
 
   function getTodayCompletedLog(logs) {
     return (
-      logs.find((log) => {
+      sortWorkoutLogs(logs).find((log) => {
         const logStatus = log.status || "completed";
 
-        return log.workout_date === today && logStatus === "completed";
+        return (
+          getWorkoutDateKey(log.workout_date) === today &&
+          logStatus === "completed"
+        );
       }) || null
     );
   }
 
   function getCurrentWorkoutDay(exerciseList, logs) {
-    const todayCompletedLog = getTodayCompletedLog(logs);
-
-    if (todayCompletedLog?.workout_day) {
-      return todayCompletedLog.workout_day;
-    }
-
     return getNextWorkoutDayFromLogs(exerciseList, logs);
   }
 
@@ -1551,7 +1573,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       .select("*")
       .eq("user_id", user.id)
       .eq("workout_plan_id", planId)
-      .order("workout_date", { ascending: false });
+      .order("workout_date", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (logsError) {
       console.log(logsError);
@@ -3053,8 +3076,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
               <div className="min-w-0">
                 <p className="text-white/70 text-sm">
                   {workoutAlreadyCompletedToday
-                    ? "Workout completed today"
-                    : "Current workout"}
+                    ? getDayLabel(todayCompletedLog.workout_day)
+                    : getDayLabel(currentWorkoutDay)}
                 </p>
 
                 <h3 className="text-2xl sm:text-3xl font-black mt-1 break-words">

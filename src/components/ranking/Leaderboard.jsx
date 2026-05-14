@@ -1,12 +1,101 @@
 import { useEffect, useState } from "react";
 
-import { Crown, Trophy, Medal } from "lucide-react";
+import { Crown, Trophy, Medal, Dumbbell } from "lucide-react";
 
 import { supabase } from "../../lib/supabase";
 
 import { motion } from "framer-motion";
 
 import { Link } from "react-router-dom";
+
+const workoutDayOptions = [
+  "Treino A",
+  "Treino B",
+  "Treino C",
+  "Treino D",
+  "Treino E",
+  "Full Body",
+];
+
+function sortWorkoutLogs(logs) {
+  return [...logs].sort((a, b) => {
+    const dateA = String(a.workout_date || "").split("T")[0];
+    const dateB = String(b.workout_date || "").split("T")[0];
+
+    if (dateA !== dateB) {
+      return dateB.localeCompare(dateA);
+    }
+
+    return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+  });
+}
+
+function getOrderedWorkoutDaysFromExercises(exerciseList) {
+  const daysFromExercises = exerciseList.map(
+    (exercise) => exercise.workout_day || "Treino A",
+  );
+
+  const uniqueDays = [...new Set(daysFromExercises)];
+
+  return workoutDayOptions.filter((day) => uniqueDays.includes(day));
+}
+
+function getNextWorkoutDayAfter(day, exerciseList) {
+  const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
+
+  if (orderedDays.length === 0) {
+    return null;
+  }
+
+  const currentIndex = orderedDays.indexOf(day);
+
+  if (currentIndex === -1) {
+    return orderedDays[0];
+  }
+
+  const nextIndex = (currentIndex + 1) % orderedDays.length;
+
+  return orderedDays[nextIndex];
+}
+
+function getCurrentWorkoutDay(exerciseList, logs) {
+  const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
+
+  if (orderedDays.length === 0) {
+    return null;
+  }
+
+  const sortedLogs = sortWorkoutLogs(logs);
+
+  const validLogs = sortedLogs.filter((log) => {
+    const status = log.status || "completed";
+
+    return (
+      orderedDays.includes(log.workout_day) &&
+      ["completed", "skipped"].includes(status)
+    );
+  });
+
+  if (validLogs.length === 0) {
+    return orderedDays[0];
+  }
+
+  return getNextWorkoutDayAfter(validLogs[0].workout_day, exerciseList);
+}
+
+function getWorkoutLabel(plan, day) {
+  if (!day) {
+    return "No workout";
+  }
+
+  const focus = plan?.day_focuses?.[day];
+
+  if (!focus) {
+    return day;
+  }
+
+  return `${day} - ${focus}`;
+}
 
 function Leaderboard() {
   const [users, setUsers] = useState([]);
@@ -16,6 +105,107 @@ function Leaderboard() {
   useEffect(() => {
     getRanking();
   }, []);
+
+  async function getCurrentWorkoutLabelsByUser(userIds) {
+    if (!userIds.length) {
+      return {};
+    }
+
+    const { data: plansData, error: plansError } = await supabase
+      .from("workout_plans")
+      .select("*")
+      .in("user_id", userIds)
+      .eq("is_active", true)
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (plansError) {
+      console.log(plansError);
+      return {};
+    }
+
+    const activePlanByUser = {};
+
+    (plansData || []).forEach((plan) => {
+      if (!activePlanByUser[plan.user_id]) {
+        activePlanByUser[plan.user_id] = plan;
+      }
+    });
+
+    const activePlans = Object.values(activePlanByUser);
+    const activePlanIds = activePlans.map((plan) => plan.id);
+
+    if (!activePlanIds.length) {
+      return {};
+    }
+
+    const { data: exercisesData, error: exercisesError } = await supabase
+      .from("workout_exercises")
+      .select("*")
+      .in("workout_plan_id", activePlanIds)
+      .order("workout_day", {
+        ascending: true,
+      })
+      .order("sort_order", {
+        ascending: true,
+      });
+
+    if (exercisesError) {
+      console.log(exercisesError);
+      return {};
+    }
+
+    const { data: logsData, error: logsError } = await supabase
+      .from("workout_logs")
+      .select("*")
+      .in("workout_plan_id", activePlanIds)
+      .in("user_id", userIds)
+      .order("workout_date", {
+        ascending: false,
+      })
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (logsError) {
+      console.log(logsError);
+      return {};
+    }
+
+    const labelsByUser = {};
+
+    userIds.forEach((userId) => {
+      const plan = activePlanByUser[userId];
+
+      if (!plan) {
+        labelsByUser[userId] = "No workout";
+        return;
+      }
+
+      const userExercises = (exercisesData || []).filter((exercise) => {
+        return (
+          exercise.user_id === userId &&
+          exercise.workout_plan_id === plan.id
+        );
+      });
+
+      if (!userExercises.length) {
+        labelsByUser[userId] = "Add exercises";
+        return;
+      }
+
+      const userLogs = (logsData || []).filter((log) => {
+        return log.user_id === userId && log.workout_plan_id === plan.id;
+      });
+
+      const currentWorkoutDay = getCurrentWorkoutDay(userExercises, userLogs);
+
+      labelsByUser[userId] = getWorkoutLabel(plan, currentWorkoutDay);
+    });
+
+    return labelsByUser;
+  }
 
   async function getRanking() {
     setLoading(true);
@@ -36,7 +226,19 @@ function Leaderboard() {
       return;
     }
 
-    setUsers(data || []);
+    const rankingUsers = data || [];
+    const userIds = rankingUsers.map((rankingUser) => rankingUser.id);
+
+    const currentWorkoutLabelsByUser =
+      await getCurrentWorkoutLabelsByUser(userIds);
+
+    const usersWithCurrentWorkout = rankingUsers.map((rankingUser) => ({
+      ...rankingUser,
+      currentWorkoutLabel:
+        currentWorkoutLabelsByUser[rankingUser.id] || "No workout",
+    }));
+
+    setUsers(usersWithCurrentWorkout);
 
     setLoading(false);
   }
@@ -282,10 +484,10 @@ function Leaderboard() {
                     position === 1
                       ? "bg-yellow-500/10 border-yellow-500/30"
                       : position === 2
-                      ? "bg-zinc-100 border-zinc-300 dark:bg-zinc-300/10 dark:border-zinc-300/20"
-                      : position === 3
-                      ? "bg-orange-500/10 border-orange-500/20"
-                      : "bg-zinc-50 border-zinc-200 dark:bg-white/5 dark:border-white/10"
+                        ? "bg-zinc-100 border-zinc-300 dark:bg-zinc-300/10 dark:border-zinc-300/20"
+                        : position === 3
+                          ? "bg-orange-500/10 border-orange-500/20"
+                          : "bg-zinc-50 border-zinc-200 dark:bg-white/5 dark:border-white/10"
                   }
                 `}
               >
@@ -319,10 +521,10 @@ function Leaderboard() {
                         position === 1
                           ? "bg-yellow-500 text-black"
                           : position === 2
-                          ? "bg-zinc-300 text-black"
-                          : position === 3
-                          ? "bg-orange-500 text-black"
-                          : "bg-zinc-200 text-zinc-700 dark:bg-white/10 dark:text-white"
+                            ? "bg-zinc-300 text-black"
+                            : position === 3
+                              ? "bg-orange-500 text-black"
+                              : "bg-zinc-200 text-zinc-700 dark:bg-white/10 dark:text-white"
                       }
                     `}
                   >
@@ -375,9 +577,16 @@ function Leaderboard() {
                         text-xs
                         sm:text-sm
                         truncate
+                        flex
+                        items-center
+                        gap-1.5
                       "
                     >
-                      {rankingUser.current_workout || "GymFocus Athlete"}
+                      <Dumbbell size={14} className="shrink-0" />
+
+                      <span className="truncate">
+                        {rankingUser.currentWorkoutLabel}
+                      </span>
                     </p>
                   </div>
                 </div>

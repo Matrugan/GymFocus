@@ -60,10 +60,15 @@ function Dashboard() {
   const [showSearch, setShowSearch] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [feedRefreshKey, setFeedRefreshKey] = useState(0);
+  const [dashboardWorkout, setDashboardWorkout] = useState({
+    value: "Start",
+    desktopValue: "Workout",
+  });
 
   useEffect(() => {
     if (user) {
       getProfile();
+      getDashboardCurrentWorkout();
     }
   }, [user]);
 
@@ -85,6 +90,181 @@ function Dashboard() {
   function handleMobileMenuTab(tab) {
     setActiveTab(tab);
     setShowMobileMenu(false);
+  }
+
+  function getLocalDateString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
+
+  function sortWorkoutLogs(logs) {
+    return [...logs].sort((a, b) => {
+      const dateA = String(a.workout_date || "").split("T")[0];
+      const dateB = String(b.workout_date || "").split("T")[0];
+
+      if (dateA !== dateB) {
+        return dateB.localeCompare(dateA);
+      }
+
+      return String(b.created_at || "").localeCompare(
+        String(a.created_at || ""),
+      );
+    });
+  }
+
+  const dashboardWorkoutDayOptions = [
+    "Treino A",
+    "Treino B",
+    "Treino C",
+    "Treino D",
+    "Treino E",
+    "Full Body",
+  ];
+
+  function getDashboardOrderedWorkoutDays(exerciseList) {
+    const daysFromExercises = exerciseList.map(
+      (exercise) => exercise.workout_day || "Treino A",
+    );
+
+    const uniqueDays = [...new Set(daysFromExercises)];
+
+    return dashboardWorkoutDayOptions.filter((day) => uniqueDays.includes(day));
+  }
+
+  function getDashboardNextWorkoutDayAfter(day, exerciseList) {
+    const orderedDays = getDashboardOrderedWorkoutDays(exerciseList);
+
+    if (orderedDays.length === 0) {
+      return "Treino A";
+    }
+
+    const currentIndex = orderedDays.indexOf(day);
+
+    if (currentIndex === -1) {
+      return orderedDays[0];
+    }
+
+    const nextIndex = (currentIndex + 1) % orderedDays.length;
+
+    return orderedDays[nextIndex];
+  }
+
+  function getDashboardCurrentWorkoutDay(exerciseList, logs) {
+    const orderedDays = getDashboardOrderedWorkoutDays(exerciseList);
+
+    if (orderedDays.length === 0) {
+      return "Treino A";
+    }
+
+    const sortedLogs = sortWorkoutLogs(logs);
+
+    const validLogs = sortedLogs.filter((log) => {
+      const status = log.status || "completed";
+
+      return (
+        orderedDays.includes(log.workout_day) &&
+        ["completed", "skipped"].includes(status)
+      );
+    });
+
+    if (validLogs.length === 0) {
+      return orderedDays[0];
+    }
+
+    return getDashboardNextWorkoutDayAfter(
+      validLogs[0].workout_day,
+      exerciseList,
+    );
+  }
+
+  function getDashboardWorkoutLabel(plan, day) {
+    const focus = plan?.day_focuses?.[day];
+
+    if (!focus) {
+      return day;
+    }
+
+    return `${day} - ${focus}`;
+  }
+
+  async function getDashboardCurrentWorkout() {
+    if (!user?.id) return;
+
+    const { data: plansData, error: plansError } = await supabase
+      .from("workout_plans")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (plansError) {
+      console.log(plansError);
+      return;
+    }
+
+    const activePlan = plansData?.[0] || null;
+
+    if (!activePlan) {
+      setDashboardWorkout({
+        value: "Start",
+        desktopValue: "Workout",
+      });
+
+      return;
+    }
+
+    const { data: exercisesData, error: exercisesError } = await supabase
+      .from("workout_exercises")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("workout_plan_id", activePlan.id)
+      .order("workout_day", { ascending: true })
+      .order("sort_order", { ascending: true });
+
+    if (exercisesError) {
+      console.log(exercisesError);
+      return;
+    }
+
+    const exercises = exercisesData || [];
+
+    if (exercises.length === 0) {
+      setDashboardWorkout({
+        value: "Empty",
+        desktopValue: "Add exercises",
+      });
+
+      return;
+    }
+
+    const { data: logsData, error: logsError } = await supabase
+      .from("workout_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("workout_plan_id", activePlan.id)
+      .order("workout_date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (logsError) {
+      console.log(logsError);
+      return;
+    }
+
+    const logs = logsData || [];
+    const currentWorkoutDay = getDashboardCurrentWorkoutDay(exercises, logs);
+    const currentWorkoutLabel = getDashboardWorkoutLabel(
+      activePlan,
+      currentWorkoutDay,
+    );
+
+    setDashboardWorkout({
+      value: currentWorkoutLabel,
+      desktopValue: currentWorkoutLabel,
+    });
   }
 
   const level = getLevel(profile?.xp || 0);
@@ -121,9 +301,9 @@ function Dashboard() {
     },
     {
       title: "Workout",
-      desktopTitle: "Workout",
-      value: profile?.current_workout || "Start",
-      desktopValue: profile?.current_workout || "Workout",
+      desktopTitle: "Current Workout",
+      value: dashboardWorkout.value,
+      desktopValue: dashboardWorkout.desktopValue,
       icon: Dumbbell,
     },
   ];
@@ -525,9 +705,7 @@ function Dashboard() {
                   "
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-black text-lg">
-                      More options
-                    </h3>
+                    <h3 className="font-black text-lg">More options</h3>
 
                     <button
                       onClick={() => setShowMobileMenu(false)}
@@ -676,9 +854,7 @@ function Dashboard() {
                       </div>
 
                       <p className="text-zinc-600 dark:text-zinc-400 mt-3 sm:mt-6 text-[11px] sm:text-base">
-                        <span className="sm:hidden">
-                          {item.title}
-                        </span>
+                        <span className="sm:hidden">{item.title}</span>
 
                         <span className="hidden sm:inline">
                           {item.desktopTitle}
@@ -696,9 +872,7 @@ function Dashboard() {
                           leading-tight
                         "
                       >
-                        <span className="sm:hidden">
-                          {item.value}
-                        </span>
+                        <span className="sm:hidden">{item.value}</span>
 
                         <span className="hidden sm:inline">
                           {item.desktopValue}
@@ -805,7 +979,10 @@ function Dashboard() {
               <WorkoutManager
                 user={user}
                 profile={profile}
-                onProfileUpdated={setProfile}
+                onProfileUpdated={(updatedProfile) => {
+                  setProfile(updatedProfile);
+                  getDashboardCurrentWorkout();
+                }}
               />
 
               <WorkoutCalendar user={user} />
@@ -837,11 +1014,7 @@ function Dashboard() {
                 onPostCreated={() => setFeedRefreshKey((prev) => prev + 1)}
               />
 
-              <Feed
-                user={user}
-                profile={profile}
-                refreshKey={feedRefreshKey}
-              />
+              <Feed user={user} profile={profile} refreshKey={feedRefreshKey} />
             </PageContainer>
           )}
 
@@ -1054,11 +1227,7 @@ function MobileNavButton({ active, onClick, icon, text }) {
         w-[64px]
         py-1
 
-        ${
-          active
-            ? "text-purple-500"
-            : "text-zinc-500 hover:text-purple-500"
-        }
+        ${active ? "text-purple-500" : "text-zinc-500 hover:text-purple-500"}
       `}
     >
       <div
@@ -1077,9 +1246,7 @@ function MobileNavButton({ active, onClick, icon, text }) {
         {icon}
       </div>
 
-      <span className="truncate max-w-full">
-        {text}
-      </span>
+      <span className="truncate max-w-full">{text}</span>
     </button>
   );
 }
@@ -1122,7 +1289,6 @@ function MobileMenuButton({ active, onClick, icon, text }) {
   );
 }
 
-
 function WorkoutSummaryCard({ user }) {
   const [activePlan, setActivePlan] = useState(null);
   const [exercises, setExercises] = useState([]);
@@ -1149,7 +1315,7 @@ function WorkoutSummaryCard({ user }) {
 
   function getOrderedWorkoutDaysFromExercises(exerciseList) {
     const daysFromExercises = exerciseList.map(
-      (exercise) => exercise.workout_day || "Treino A"
+      (exercise) => exercise.workout_day || "Treino A",
     );
 
     const uniqueDays = [...new Set(daysFromExercises)];
@@ -1186,12 +1352,6 @@ function WorkoutSummaryCard({ user }) {
   }
 
   function getCurrentWorkoutDay(exerciseList, logList) {
-    const todayCompletedLog = getTodayCompletedLog(logList);
-
-    if (todayCompletedLog?.workout_day) {
-      return todayCompletedLog.workout_day;
-    }
-
     const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
 
     if (orderedDays.length === 0) {
@@ -1272,7 +1432,8 @@ function WorkoutSummaryCard({ user }) {
       .select("*")
       .eq("user_id", user.id)
       .eq("workout_plan_id", plan.id)
-      .order("workout_date", { ascending: false });
+      .order("workout_date", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (logsError) {
       console.log(logsError);
@@ -1305,15 +1466,15 @@ function WorkoutSummaryCard({ user }) {
 
   const currentExercises = useMemo(() => {
     return exercises.filter(
-      (exercise) => (exercise.workout_day || "Treino A") === currentWorkoutDay
+      (exercise) => (exercise.workout_day || "Treino A") === currentWorkoutDay,
     );
   }, [exercises, currentWorkoutDay]);
 
   const completedToday = useMemo(() => {
     return currentExercises.filter((exercise) =>
       progress.some(
-        (item) => item.exercise_id === exercise.id && item.completed
-      )
+        (item) => item.exercise_id === exercise.id && item.completed,
+      ),
     ).length;
   }, [currentExercises, progress]);
 

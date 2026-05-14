@@ -9,6 +9,44 @@ import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext();
 
+function isInvalidRefreshTokenError(error) {
+  const message = error?.message || "";
+
+  return (
+    message.includes("Invalid Refresh Token") ||
+    message.includes("Refresh Token Not Found") ||
+    message.includes("refresh_token_not_found")
+  );
+}
+
+async function clearBrokenAuthSession() {
+  try {
+    await supabase.auth.signOut({
+      scope: "local",
+    });
+  } catch (error) {
+    console.log("Erro ao limpar sessão local:", error);
+  }
+
+  const keysToRemove = [];
+
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+
+    if (
+      key?.includes("supabase") ||
+      key?.includes("sb-") ||
+      key?.includes("auth")
+    ) {
+      keysToRemove.push(key);
+    }
+  }
+
+  keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+  sessionStorage.clear();
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
@@ -35,15 +73,32 @@ export function AuthProvider({ children }) {
     }
   }
 
-
   useEffect(() => {
+    let isMounted = true;
+
     async function loadSession() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
 
-        setUser(session?.user ?? null);
+        if (error) {
+          if (isInvalidRefreshTokenError(error)) {
+            await clearBrokenAuthSession();
+
+            if (isMounted) {
+              setUser(null);
+            }
+
+            return;
+          }
+
+          console.log("Erro ao carregar sessão:", error);
+        }
+
+        const session = data?.session ?? null;
+
+        if (isMounted) {
+          setUser(session?.user ?? null);
+        }
 
         // Best-effort: não travar o app se `profiles` estiver bloqueado por RLS.
         if (session?.user) {
@@ -51,9 +106,24 @@ export function AuthProvider({ children }) {
         }
       } catch (err) {
         console.log("Erro ao carregar sessão:", err);
-        setUser(null);
+
+        if (isInvalidRefreshTokenError(err)) {
+          await clearBrokenAuthSession();
+
+          if (isMounted) {
+            setUser(null);
+          }
+
+          return;
+        }
+
+        if (isMounted) {
+          setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
@@ -61,21 +131,37 @@ export function AuthProvider({ children }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (
+        event === "TOKEN_REFRESHED" ||
+        event === "SIGNED_IN" ||
+        event === "INITIAL_SESSION"
+      ) {
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        setUserOnlineStatus(session.user.id, true);
+        if (session?.user) {
+          setUserOnlineStatus(session.user.id, true);
+        }
+
+        setLoading(false);
+        return;
       }
 
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      setUser(session?.user ?? null);
       setLoading(false);
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
-
 
   async function signUp(email, password, username) {
     const { data, error } = await supabase.auth.signUp({
@@ -129,7 +215,6 @@ export function AuthProvider({ children }) {
       setUserOnlineStatus(data.user.id, true);
     }
 
-
     return {
       data,
     };
@@ -161,7 +246,6 @@ export function AuthProvider({ children }) {
       // Não bloquear login por erro de update em profiles.
       setUserOnlineStatus(data.user.id, true);
     }
-
 
     return {
       data,

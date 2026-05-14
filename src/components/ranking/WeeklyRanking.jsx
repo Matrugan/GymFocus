@@ -4,9 +4,98 @@ import { supabase } from "../../lib/supabase";
 
 import { motion } from "framer-motion";
 
-import { Crown, Medal, Trophy } from "lucide-react";
+import { Crown, Medal, Trophy, Dumbbell } from "lucide-react";
 
 import { Link } from "react-router-dom";
+
+const workoutDayOptions = [
+  "Treino A",
+  "Treino B",
+  "Treino C",
+  "Treino D",
+  "Treino E",
+  "Full Body",
+];
+
+function sortWorkoutLogs(logs) {
+  return [...logs].sort((a, b) => {
+    const dateA = String(a.workout_date || "").split("T")[0];
+    const dateB = String(b.workout_date || "").split("T")[0];
+
+    if (dateA !== dateB) {
+      return dateB.localeCompare(dateA);
+    }
+
+    return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+  });
+}
+
+function getOrderedWorkoutDaysFromExercises(exerciseList) {
+  const daysFromExercises = exerciseList.map(
+    (exercise) => exercise.workout_day || "Treino A",
+  );
+
+  const uniqueDays = [...new Set(daysFromExercises)];
+
+  return workoutDayOptions.filter((day) => uniqueDays.includes(day));
+}
+
+function getNextWorkoutDayAfter(day, exerciseList) {
+  const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
+
+  if (orderedDays.length === 0) {
+    return "Treino A";
+  }
+
+  const currentIndex = orderedDays.indexOf(day);
+
+  if (currentIndex === -1) {
+    return orderedDays[0];
+  }
+
+  const nextIndex = (currentIndex + 1) % orderedDays.length;
+
+  return orderedDays[nextIndex];
+}
+
+function getCurrentWorkoutDay(exerciseList, logs) {
+  const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
+
+  if (orderedDays.length === 0) {
+    return null;
+  }
+
+  const sortedLogs = sortWorkoutLogs(logs);
+
+  const validLogs = sortedLogs.filter((log) => {
+    const status = log.status || "completed";
+
+    return (
+      orderedDays.includes(log.workout_day) &&
+      ["completed", "skipped"].includes(status)
+    );
+  });
+
+  if (validLogs.length === 0) {
+    return orderedDays[0];
+  }
+
+  return getNextWorkoutDayAfter(validLogs[0].workout_day, exerciseList);
+}
+
+function getWorkoutLabel(plan, day) {
+  if (!day) {
+    return "No workout";
+  }
+
+  const focus = plan?.day_focuses?.[day];
+
+  if (!focus) {
+    return day;
+  }
+
+  return `${day} - ${focus}`;
+}
 
 function WeeklyRanking() {
   const [ranking, setRanking] = useState([]);
@@ -16,6 +105,98 @@ function WeeklyRanking() {
   useEffect(() => {
     getWeeklyRanking();
   }, []);
+
+  async function getCurrentWorkoutLabelsByUser(userIds) {
+    if (!userIds.length) {
+      return {};
+    }
+
+    const { data: plans, error: plansError } = await supabase
+      .from("workout_plans")
+      .select("*")
+      .in("user_id", userIds)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+
+    if (plansError) {
+      console.log(plansError);
+      return {};
+    }
+
+    const activePlanByUser = {};
+
+    (plans || []).forEach((plan) => {
+      if (!activePlanByUser[plan.user_id]) {
+        activePlanByUser[plan.user_id] = plan;
+      }
+    });
+
+    const activePlans = Object.values(activePlanByUser);
+    const activePlanIds = activePlans.map((plan) => plan.id);
+
+    if (!activePlanIds.length) {
+      return {};
+    }
+
+    const { data: exercises, error: exercisesError } = await supabase
+      .from("workout_exercises")
+      .select("*")
+      .in("workout_plan_id", activePlanIds)
+      .order("workout_day", { ascending: true })
+      .order("sort_order", { ascending: true });
+
+    if (exercisesError) {
+      console.log(exercisesError);
+      return {};
+    }
+
+    const { data: logs, error: logsError } = await supabase
+      .from("workout_logs")
+      .select("*")
+      .in("workout_plan_id", activePlanIds)
+      .in("user_id", userIds)
+      .order("workout_date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (logsError) {
+      console.log(logsError);
+      return {};
+    }
+
+    const labelsByUser = {};
+
+    userIds.forEach((userId) => {
+      const plan = activePlanByUser[userId];
+
+      if (!plan) {
+        labelsByUser[userId] = "No workout";
+        return;
+      }
+
+      const userExercises = (exercises || []).filter(
+        (exercise) =>
+          exercise.user_id === userId &&
+          exercise.workout_plan_id === plan.id,
+      );
+
+      if (!userExercises.length) {
+        labelsByUser[userId] = "Add exercises";
+        return;
+      }
+
+      const userLogs = (logs || []).filter(
+        (log) =>
+          log.user_id === userId &&
+          log.workout_plan_id === plan.id,
+      );
+
+      const currentWorkoutDay = getCurrentWorkoutDay(userExercises, userLogs);
+
+      labelsByUser[userId] = getWorkoutLabel(plan, currentWorkoutDay);
+    });
+
+    return labelsByUser;
+  }
 
   async function getWeeklyRanking() {
     setLoading(true);
@@ -70,6 +251,9 @@ function WeeklyRanking() {
       return;
     }
 
+    const currentWorkoutLabelsByUser =
+      await getCurrentWorkoutLabelsByUser(userIds);
+
     const formatted = userIds
       .map((userId) => {
         const profile = profiles?.find((profile) => profile.id === userId);
@@ -78,6 +262,8 @@ function WeeklyRanking() {
           userId,
           weeklyXP: grouped[userId],
           profile,
+          currentWorkout:
+            currentWorkoutLabelsByUser[userId] || "No workout",
         };
       })
       .filter((item) => item.profile)
@@ -422,9 +608,15 @@ function WeeklyRanking() {
                         text-xs
                         sm:text-sm
                         truncate
+                        flex
+                        items-center
+                        gap-1
                       "
                     >
-                      🔥 {item.profile.streak || 0} streak
+                      <Dumbbell size={14} className="shrink-0" />
+                      <span className="truncate">
+                        {item.currentWorkout}
+                      </span>
                     </p>
                   </div>
                 </div>
