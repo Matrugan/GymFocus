@@ -7,6 +7,7 @@ import { Send, Trash2, MessageCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { createNotification } from "../../utils/notificationSystem";
+import { reportError } from "../../utils/errorHandler";
 
 function CommentSection({ postId, user, profile }) {
   const [comments, setComments] = useState([]);
@@ -31,7 +32,7 @@ function CommentSection({ postId, user, profile }) {
       });
 
     if (error) {
-      console.log(error);
+      reportError(error);
       return;
     }
 
@@ -62,8 +63,7 @@ function CommentSection({ postId, user, profile }) {
     ]);
 
     if (error) {
-      console.log(error);
-      toast.error("Error adding comment.");
+      reportError(error, "Error adding comment.");
       setLoading(false);
       return;
     }
@@ -100,8 +100,7 @@ function CommentSection({ postId, user, profile }) {
       .eq("id", commentId);
 
     if (error) {
-      console.log(error);
-      toast.error("Error deleting comment.");
+      reportError(error, "Error deleting comment.");
       return;
     }
 

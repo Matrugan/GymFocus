@@ -9,9 +9,12 @@ import {
   SkipForward,
   Loader2,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { motion } from "framer-motion";
+import { reportError } from "../utils/errorHandler";
 
 function getLocalDateString(date = new Date()) {
   const year = date.getFullYear();
@@ -30,6 +33,14 @@ function parseDateStringAsLocalDate(dateString) {
   const [year, month, day] = cleanDate.split("-").map(Number);
 
   return new Date(year, month - 1, day);
+}
+
+function getMonthStart(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1, 12, 0, 0, 0);
+}
+
+function addMonths(date, amount) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1, 12, 0, 0, 0);
 }
 
 function getWorkoutDateKey(workoutDate) {
@@ -61,6 +72,9 @@ function WorkoutCalendar({ user }) {
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState(() =>
+    getMonthStart(new Date()),
+  );
 
   const today = getLocalDateString();
 
@@ -133,7 +147,7 @@ function WorkoutCalendar({ user }) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.log(error);
+      reportError(error);
       setLoading(false);
       setRefreshing(false);
       return;
@@ -144,8 +158,31 @@ function WorkoutCalendar({ user }) {
     setRefreshing(false);
   }
 
-  const last7Days = useMemo(() => {
-    return [...Array(7)]
+  const visibleMonthDays = useMemo(() => {
+    const monthStart = getMonthStart(visibleMonth);
+    const firstGridDate = new Date(monthStart);
+    const leadingDays = firstGridDate.getDay();
+
+    firstGridDate.setDate(firstGridDate.getDate() - leadingDays);
+
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(firstGridDate);
+      date.setDate(firstGridDate.getDate() + index);
+
+      return {
+        date: getLocalDateString(date),
+        inCurrentMonth: date.getMonth() === visibleMonth.getMonth(),
+      };
+    });
+  }, [visibleMonth]);
+
+  const visibleMonthDates = useMemo(() => {
+    return visibleMonthDays
+      .filter((day) => day.inCurrentMonth)
+      .map((day) => day.date);
+  }, [visibleMonthDays]);
+
+  /*
       .map((_, index) => {
         const date = new Date();
 
@@ -157,6 +194,7 @@ function WorkoutCalendar({ user }) {
       })
       .reverse();
   }, [today]);
+  */
 
   function getLogsByDate(date) {
     return workouts.filter((workout) => {
@@ -230,15 +268,22 @@ function WorkoutCalendar({ user }) {
     });
   }
 
-  const completedDays = last7Days.filter((day) => {
+  const completedDays = visibleMonthDates.filter((day) => {
     return getWorkoutStatus(day) === "completed";
   }).length;
 
-  const skippedDays = last7Days.filter((day) => {
+  const skippedDays = visibleMonthDates.filter((day) => {
     return getWorkoutStatus(day) === "skipped";
   }).length;
 
-  const emptyDays = 7 - completedDays - skippedDays;
+  const emptyDays = visibleMonthDates.length - completedDays - skippedDays;
+
+  const visibleMonthLabel = visibleMonth.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+
+  const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   if (loading) {
     return (
@@ -319,7 +364,7 @@ function WorkoutCalendar({ user }) {
         border-zinc-200
         rounded-2xl
         sm:rounded-3xl
-        p-4
+        p-3
         sm:p-6
         md:p-8
         shadow-sm
@@ -342,7 +387,7 @@ function WorkoutCalendar({ user }) {
           gap-4
           flex-col
           sm:flex-row
-          mb-6
+          mb-5
           sm:mb-8
         "
       >
@@ -357,10 +402,10 @@ function WorkoutCalendar({ user }) {
         >
           <div
             className="
-              w-12
-              h-12
-              sm:w-14
-              sm:h-14
+              w-11
+              h-11
+              sm:w-12
+              sm:h-12
               rounded-2xl
               bg-gradient-to-r
               from-purple-500
@@ -385,7 +430,7 @@ function WorkoutCalendar({ user }) {
                   break-words
                 "
               >
-                Weekly Consistency
+                Monthly Workouts
               </h2>
 
               {refreshing && (
@@ -406,11 +451,12 @@ function WorkoutCalendar({ user }) {
                 mt-1
                 text-sm
                 sm:text-base
+                leading-snug
 
                 dark:text-zinc-400
               "
             >
-              Your workout activity over the last 7 days
+              Your complete workout calendar for {visibleMonthLabel}
             </p>
           </div>
         </div>
@@ -421,8 +467,89 @@ function WorkoutCalendar({ user }) {
             items-center
             gap-2
             flex-wrap
+            w-full
+            sm:w-auto
+            justify-between
+            sm:justify-start
           "
         >
+          <button
+            type="button"
+            onClick={() =>
+              setVisibleMonth((currentMonth) => addMonths(currentMonth, -1))
+            }
+            className="
+              w-10
+              h-10
+              rounded-xl
+              bg-zinc-50
+              border
+              border-zinc-200
+              text-zinc-700
+              flex
+              items-center
+              justify-center
+              hover:border-purple-500
+              transition
+
+              dark:bg-black/30
+              dark:border-white/10
+              dark:text-zinc-300
+            "
+            title="Previous month"
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setVisibleMonth(getMonthStart(new Date()))}
+            className="
+              px-4
+              py-2.5
+              rounded-xl
+              bg-zinc-950
+              text-white
+              font-bold
+              text-xs
+              sm:text-sm
+              transition
+
+              dark:bg-white
+              dark:text-black
+            "
+          >
+            Today
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))
+            }
+            className="
+              w-10
+              h-10
+              rounded-xl
+              bg-zinc-50
+              border
+              border-zinc-200
+              text-zinc-700
+              flex
+              items-center
+              justify-center
+              hover:border-purple-500
+              transition
+
+              dark:bg-black/30
+              dark:border-white/10
+              dark:text-zinc-300
+            "
+            title="Next month"
+          >
+            <ChevronRight size={18} />
+          </button>
+
           <div
             className="
               px-4
@@ -436,9 +563,11 @@ function WorkoutCalendar({ user }) {
               text-xs
               sm:text-sm
               shrink-0
+              hidden
+              sm:block
             "
           >
-            {completedDays}/7 completed
+            {completedDays}/{visibleMonthDates.length} completed
           </div>
 
           <div
@@ -454,6 +583,8 @@ function WorkoutCalendar({ user }) {
               text-xs
               sm:text-sm
               shrink-0
+              hidden
+              sm:block
             "
           >
             {skippedDays} skipped
@@ -464,14 +595,32 @@ function WorkoutCalendar({ user }) {
       <div
         className="
           grid
-          grid-cols-2
-          sm:grid-cols-4
-          lg:grid-cols-7
-          gap-3
-          sm:gap-4
+          grid-cols-7
+          gap-1
+          sm:gap-3
         "
       >
-        {last7Days.map((day, index) => {
+        {weekDays.map((weekDay) => (
+          <div
+            key={weekDay}
+            className="
+              text-center
+              text-[9px]
+              sm:text-xs
+              font-black
+              uppercase
+              tracking-normal
+              sm:tracking-wide
+              text-zinc-400
+              py-1.5
+            "
+          >
+            {weekDay}
+          </div>
+        ))}
+
+        {visibleMonthDays.map((monthDay, index) => {
+          const day = monthDay.date;
           const status = getWorkoutStatus(day);
           const completed = status === "completed";
           const skipped = status === "skipped";
@@ -490,21 +639,26 @@ function WorkoutCalendar({ user }) {
                 y: 0,
               }}
               transition={{
-                delay: index * 0.06,
+                delay: index * 0.01,
               }}
               whileHover={{
                 y: -4,
               }}
               className={`
-                rounded-2xl
-                sm:rounded-3xl
-                p-4
-                sm:p-5
+                rounded-xl
+                sm:rounded-2xl
+                p-1.5
+                sm:p-3
                 border
                 transition-all
                 shadow-sm
                 min-w-0
                 relative
+                min-h-[58px]
+                aspect-square
+                sm:aspect-auto
+                sm:min-h-[120px]
+                ${monthDay.inCurrentMonth ? "" : "opacity-40"}
 
                 ${
                   completed
@@ -540,15 +694,17 @@ function WorkoutCalendar({ user }) {
                 <div
                   className="
                     absolute
-                    top-3
-                    right-3
-                    px-2
-                    py-1
+                    top-2
+                    right-2
+                    px-1.5
+                    py-0.5
                     rounded-full
                     bg-purple-500
                     text-white
                     text-[10px]
                     font-black
+                    hidden
+                    sm:block
                   "
                 >
                   Today
@@ -560,16 +716,18 @@ function WorkoutCalendar({ user }) {
                   flex
                   items-center
                   justify-between
-                  mb-4
-                  sm:mb-5
+                  mb-2
+                  sm:mb-3
                   gap-2
-                  pr-12
+                  pr-8
+                  hidden
+                  sm:flex
                 "
               >
                 <span
                   className="
-                    text-xs
-                    sm:text-sm
+                    text-[10px]
+                    sm:text-xs
                     font-bold
                     text-zinc-600
                     truncate
@@ -582,17 +740,17 @@ function WorkoutCalendar({ user }) {
 
                 {completed ? (
                   <CheckCircle
-                    size={18}
+                    size={15}
                     className="text-purple-500 shrink-0"
                   />
                 ) : skipped ? (
                   <SkipForward
-                    size={18}
+                    size={15}
                     className="text-orange-500 shrink-0"
                   />
                 ) : (
                   <XCircle
-                    size={18}
+                    size={15}
                     className="text-zinc-400 shrink-0"
                   />
                 )}
@@ -600,19 +758,25 @@ function WorkoutCalendar({ user }) {
 
               <div
                 className={`
-                  w-12
-                  h-12
-                  sm:w-16
-                  sm:h-16
+                  w-full
+                  h-full
+                  max-w-10
+                  max-h-10
+                  mx-auto
+                  sm:w-12
+                  sm:h-12
+                  sm:max-w-none
+                  sm:max-h-none
+                  sm:mx-0
                   rounded-2xl
                   flex
                   items-center
                   justify-center
                   font-black
-                  text-xl
-                  sm:text-2xl
-                  mb-3
-                  sm:mb-4
+                  text-base
+                  sm:text-xl
+                  mb-0
+                  sm:mb-2
 
                   ${
                     completed
@@ -640,7 +804,7 @@ function WorkoutCalendar({ user }) {
                 {getDayNumber(day)}
               </div>
 
-              <p className="text-[11px] text-zinc-400 font-bold uppercase tracking-wide mb-1">
+              <p className="hidden sm:block text-[11px] text-zinc-400 font-bold uppercase tracking-wide mb-1">
                 {getMonthLabel(day)}
               </p>
 
@@ -650,6 +814,8 @@ function WorkoutCalendar({ user }) {
                   sm:text-sm
                   font-bold
                   leading-tight
+                  hidden
+                  sm:block
 
                   ${
                     completed
@@ -664,10 +830,30 @@ function WorkoutCalendar({ user }) {
               </p>
 
               {workoutLabel && (
-                <p className="text-[11px] text-zinc-500 mt-1 truncate">
+                <p className="hidden sm:block text-[11px] text-zinc-500 mt-1 truncate">
                   {workoutLabel}
                 </p>
               )}
+
+              <div
+                className={`
+                  absolute
+                  bottom-1.5
+                  right-1.5
+                  w-2
+                  h-2
+                  rounded-full
+                  sm:hidden
+
+                  ${
+                    completed
+                      ? "bg-purple-500"
+                      : skipped
+                        ? "bg-orange-500"
+                        : "bg-zinc-300 dark:bg-zinc-700"
+                  }
+                `}
+              />
             </motion.div>
           );
         })}
@@ -679,7 +865,7 @@ function WorkoutCalendar({ user }) {
           sm:hidden
           grid
           grid-cols-3
-          gap-3
+          gap-2
         "
       >
         <div
@@ -687,8 +873,8 @@ function WorkoutCalendar({ user }) {
             bg-zinc-50
             border
             border-zinc-200
-            rounded-2xl
-            p-4
+            rounded-xl
+            p-3
 
             dark:bg-black/30
             dark:border-white/10
@@ -696,7 +882,7 @@ function WorkoutCalendar({ user }) {
         >
           <p className="text-zinc-500 text-xs">Completed</p>
 
-          <h3 className="text-2xl font-black text-purple-500 mt-1">
+          <h3 className="text-xl font-black text-purple-500 mt-1">
             {completedDays}
           </h3>
         </div>
@@ -706,8 +892,8 @@ function WorkoutCalendar({ user }) {
             bg-zinc-50
             border
             border-zinc-200
-            rounded-2xl
-            p-4
+            rounded-xl
+            p-3
 
             dark:bg-black/30
             dark:border-white/10
@@ -715,7 +901,7 @@ function WorkoutCalendar({ user }) {
         >
           <p className="text-zinc-500 text-xs">Skipped</p>
 
-          <h3 className="text-2xl font-black text-orange-500 mt-1">
+          <h3 className="text-xl font-black text-orange-500 mt-1">
             {skippedDays}
           </h3>
         </div>
@@ -725,8 +911,8 @@ function WorkoutCalendar({ user }) {
             bg-zinc-50
             border
             border-zinc-200
-            rounded-2xl
-            p-4
+            rounded-xl
+            p-3
 
             dark:bg-black/30
             dark:border-white/10
@@ -734,7 +920,7 @@ function WorkoutCalendar({ user }) {
         >
           <p className="text-zinc-500 text-xs">Rest</p>
 
-          <h3 className="text-2xl font-black text-zinc-500 mt-1">
+          <h3 className="text-xl font-black text-zinc-500 mt-1">
             {emptyDays}
           </h3>
         </div>

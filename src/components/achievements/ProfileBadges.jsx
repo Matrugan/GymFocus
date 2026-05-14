@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabase";
 import { motion } from "framer-motion";
 
 import { Award, Sparkles, Trophy } from "lucide-react";
+import { reportError } from "../../utils/errorHandler";
 
 function ProfileBadges({ profileId }) {
   const [badges, setBadges] = useState([]);
@@ -30,7 +31,7 @@ function ProfileBadges({ profileId }) {
       .limit(6);
 
     if (error) {
-      console.log(error);
+      reportError(error);
 
       setLoading(false);
 

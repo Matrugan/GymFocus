@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabase";
 import { motion } from "framer-motion";
 
 import { Link } from "react-router-dom";
+import { reportError } from "../../utils/errorHandler";
 
 const workoutDayOptions = [
   "Treino A",
@@ -121,7 +122,7 @@ function Leaderboard() {
       });
 
     if (plansError) {
-      console.log(plansError);
+      reportError(plansError);
       return {};
     }
 
@@ -152,7 +153,7 @@ function Leaderboard() {
       });
 
     if (exercisesError) {
-      console.log(exercisesError);
+      reportError(exercisesError);
       return {};
     }
 
@@ -169,7 +170,7 @@ function Leaderboard() {
       });
 
     if (logsError) {
-      console.log(logsError);
+      reportError(logsError);
       return {};
     }
 
@@ -219,7 +220,7 @@ function Leaderboard() {
       .limit(5);
 
     if (error) {
-      console.log(error);
+      reportError(error);
 
       setLoading(false);
 

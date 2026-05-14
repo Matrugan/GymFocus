@@ -5,6 +5,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 import { useAuth } from "../context/AuthContext";
+import useFeed from "../hooks/useFeed";
+import useFollow from "../hooks/useFollow";
+import useProfileData from "../hooks/useProfile";
 
 import {
   Heart,
@@ -24,16 +27,12 @@ import { motion } from "framer-motion";
 import CommentSection from "../components/feed/CommentSection";
 
 import ProfileBadges from "../components/achievements/ProfileBadges";
+import LevelProgressCard from "../components/level/LevelProgressCard";
 
-import {
-  getLevel,
-  getXPForNextLevel,
-  getLevelProgress,
-} from "../utils/levelSystem";
+import { getLevel, getRankInfo } from "../utils/levelSystem";
 
 import ThemeToggle from "../components/layout/ThemeToggle";
-
-import { createNotification } from "../utils/notificationSystem";
+import { reportError } from "../utils/errorHandler";
 
 function Profile() {
   const { username } = useParams();
@@ -42,177 +41,21 @@ function Profile() {
 
   const navigate = useNavigate();
 
-  const [profile, setProfile] = useState(null);
-
-  const [followersCount, setFollowersCount] = useState(0);
-
-  const [followingCount, setFollowingCount] = useState(0);
-
-  const [isFollowing, setIsFollowing] = useState(false);
-
-  const [posts, setPosts] = useState([]);
-
-  const [likes, setLikes] = useState([]);
-
-  useEffect(() => {
-    getProfile();
-  }, [username]);
-
-  useEffect(() => {
-    if (profile && user) {
-      getFollowers();
-    }
-  }, [profile, user]);
-
-  useEffect(() => {
-    if (profile) {
-      getPosts();
-    }
-  }, [profile]);
-
-  useEffect(() => {
-    getLikes();
-  }, []);
-
-  async function getProfile() {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("username", username)
-      .single();
-
-    if (error) {
-      console.log(error);
-      return;
-    }
-
-    setProfile(data);
-  }
-
-  async function getFollowers() {
-    const { data: followers } = await supabase
-      .from("followers")
-      .select("*")
-      .eq("following_id", profile.id);
-
-    setFollowersCount(followers?.length || 0);
-
-    const { data: following } = await supabase
-      .from("followers")
-      .select("*")
-      .eq("follower_id", profile.id);
-
-    setFollowingCount(following?.length || 0);
-
-    const { data: existingFollow } = await supabase
-      .from("followers")
-      .select("*")
-      .eq("follower_id", user.id)
-      .eq("following_id", profile.id)
-      .maybeSingle();
-
-    setIsFollowing(!!existingFollow);
-  }
-
-  async function getPosts() {
-    const { data, error } = await supabase
-      .from("posts")
-      .select("*")
-      .eq("user_id", profile.id)
-      .order("created_at", {
-        ascending: false,
-      });
-
-    if (error) {
-      console.log(error);
-      return;
-    }
-
-    setPosts(data || []);
-  }
-
-  async function getLikes() {
-    const { data, error } = await supabase.from("likes").select("*");
-
-    if (error) {
-      console.log(error);
-      return;
-    }
-
-    setLikes(data || []);
-  }
-
-  async function toggleLike(postId) {
-    if (!user) return;
-
-    const existingLike = likes.find(
-      (like) => like.post_id === postId && like.user_id === user.id
-    );
-
-    if (existingLike) {
-      const { error } = await supabase
-        .from("likes")
-        .delete()
-        .eq("id", existingLike.id);
-
-      if (error) {
-        console.log(error);
-        return;
-      }
-    } else {
-      const { error } = await supabase.from("likes").insert([
-        {
-          post_id: postId,
-          user_id: user.id,
-        },
-      ]);
-
-      if (error) {
-        console.log(error);
-        return;
-      }
-    }
-
-    getLikes();
-  }
-
-  async function toggleFollow() {
-  if (!user || !profile) return;
-
-  if (isFollowing) {
-    const { error } = await supabase
-      .from("followers")
-      .delete()
-      .eq("follower_id", user.id)
-      .eq("following_id", profile.id);
-
-    if (error) {
-      console.log(error);
-      return;
-    }
-  } else {
-    const { error } = await supabase.from("followers").insert([
-      {
-        follower_id: user.id,
-        following_id: profile.id,
-      },
-    ]);
-
-    if (error) {
-      console.log(error);
-      return;
-    }
-
-    await createNotification({
-      userId: profile.id,
-      actorId: user.id,
-      type: "follow",
-      message: "started following you.",
+  const { profile } = useProfileData({
+    enabled: Boolean(username),
+    username,
+  });
+  const { likes, posts, toggleLike } = useFeed({
+    enabled: Boolean(profile?.id),
+    profileId: profile?.id,
+    userId: user?.id,
+  });
+  const { followersCount, followingCount, isFollowing, toggleFollow } =
+    useFollow({
+      enabled: Boolean(profile?.id),
+      profileId: profile?.id,
+      userId: user?.id,
     });
-  }
-
-  getFollowers();
-}
 
   async function startConversation() {
     if (!user || !profile) return;
@@ -250,7 +93,7 @@ function Profile() {
       .single();
 
     if (error) {
-      console.log(error);
+      reportError(error);
       return;
     }
 
@@ -264,7 +107,7 @@ function Profile() {
       ]);
 
     if (selfParticipantError) {
-      console.log(selfParticipantError);
+      reportError(selfParticipantError);
       return;
     }
 
@@ -278,7 +121,7 @@ function Profile() {
       ]);
 
     if (otherParticipantError) {
-      console.log(otherParticipantError);
+      reportError(otherParticipantError);
       return;
     }
 
@@ -307,9 +150,7 @@ function Profile() {
 
   const level = getLevel(profile?.xp || 0);
 
-  const nextLevelXP = getXPForNextLevel(level);
-
-  const progress = getLevelProgress(profile?.xp || 0);
+  const rank = getRankInfo(level);
 
   const totalLikes = posts.reduce((total, post) => {
     const postLikes = likes.filter((like) => like.post_id === post.id).length;
@@ -472,7 +313,7 @@ function Profile() {
             />
 
             <div
-              className="
+              className={`
                 absolute
                 bottom-4
                 left-4
@@ -482,9 +323,9 @@ function Profile() {
                 items-center
                 gap-2
                 sm:gap-3
-                bg-black/30
+                bg-black/35
                 border
-                border-white/10
+                border-white/15
                 rounded-2xl
                 px-4
                 sm:px-5
@@ -494,12 +335,28 @@ function Profile() {
                 text-white
                 text-sm
                 sm:text-base
-              "
+                shadow-lg
+              `}
             >
-              <Star size={17} />
+              <span
+                className={`
+                  flex
+                  h-8
+                  w-8
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-gradient-to-br
+                  ${rank.gradient}
+                  text-base
+                  font-black
+                `}
+              >
+                {rank.icon}
+              </span>
 
               <span className="font-bold">
-                Level {level} Athlete
+                {rank.name} · Level {level}
               </span>
             </div>
           </div>
@@ -824,79 +681,8 @@ function Profile() {
               />
             </div>
 
-            {/* LEVEL PROGRESS */}
-            <div
-              className="
-                mt-6
-                sm:mt-8
-                bg-zinc-50
-                border
-                border-zinc-200
-                rounded-3xl
-                p-5
-                sm:p-6
-
-                dark:bg-black/30
-                dark:border-white/10
-              "
-            >
-              <div
-                className="
-                  flex
-                  flex-col
-                  sm:flex-row
-                  sm:items-center
-                  sm:justify-between
-                  gap-3
-                  sm:gap-4
-                  mb-4
-                "
-              >
-                <div>
-                  <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base">
-                    Progress to Level {level + 1}
-                  </p>
-
-                  <h3 className="text-2xl sm:text-3xl font-black mt-1">
-                    {Math.floor(progress)}%
-                  </h3>
-                </div>
-
-                <div className="text-purple-500 font-bold text-sm sm:text-base">
-                  {profile.xp || 0} / {nextLevelXP} XP
-                </div>
-              </div>
-
-              <div
-                className="
-                  w-full
-                  h-4
-                  bg-zinc-200
-                  rounded-full
-                  overflow-hidden
-
-                  dark:bg-zinc-800
-                "
-              >
-                <motion.div
-                  initial={{
-                    width: 0,
-                  }}
-                  animate={{
-                    width: `${progress}%`,
-                  }}
-                  transition={{
-                    duration: 1.2,
-                  }}
-                  className="
-                    h-full
-                    rounded-full
-                    bg-gradient-to-r
-                    from-purple-500
-                    to-fuchsia-500
-                  "
-                />
-              </div>
+            <div className="mt-6 sm:mt-8">
+              <LevelProgressCard xp={profile.xp || 0} compact />
             </div>
           </div>
         </motion.div>
@@ -1312,7 +1098,7 @@ function WorkoutSummaryCard({ profileUserId }) {
       .limit(1);
 
     if (plansError) {
-      console.log(plansError);
+      reportError(plansError);
       setLoading(false);
       return;
     }
@@ -1338,7 +1124,7 @@ function WorkoutSummaryCard({ profileUserId }) {
       .order("sort_order", { ascending: true });
 
     if (exercisesError) {
-      console.log(exercisesError);
+      reportError(exercisesError);
       setLoading(false);
       return;
     }
@@ -1351,7 +1137,7 @@ function WorkoutSummaryCard({ profileUserId }) {
       .order("workout_date", { ascending: false });
 
     if (logsError) {
-      console.log(logsError);
+      reportError(logsError);
       setLoading(false);
       return;
     }
@@ -1364,7 +1150,7 @@ function WorkoutSummaryCard({ profileUserId }) {
       .eq("workout_date", today);
 
     if (progressError) {
-      console.log(progressError);
+      reportError(progressError);
       setLoading(false);
       return;
     }

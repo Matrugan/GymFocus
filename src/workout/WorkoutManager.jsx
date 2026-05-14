@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { supabase } from "../lib/supabase";
-
 import {
-  Dumbbell,
   Plus,
   Trash2,
   CheckCircle,
@@ -15,16 +12,50 @@ import {
   X,
   Settings2,
   CalendarDays,
-  Sparkles,
-  ClipboardList,
+  Archive,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
 
 import { motion } from "framer-motion";
 
+import { updateProfileStats } from "../services/profileService";
+import {
+  archiveWorkoutPlanRecord,
+  createCompletedWorkoutLogWithDuration,
+  createWorkoutExercise,
+  createWorkoutExercises,
+  createWorkoutLog,
+  createWorkoutPlanRecord,
+  createWorkoutProgress,
+  createWorkoutSetLogs,
+  deleteWorkoutExercise,
+  deleteWorkoutSetLogsForExerciseDate,
+  fetchActiveWorkoutPlans,
+  fetchDailyWorkoutProgress,
+  fetchWorkoutExercises,
+  fetchWorkoutLogs,
+  fetchWorkoutSetLogs,
+  findCompletedWorkoutLog,
+  findWorkoutLogByDay,
+  updateWorkoutExercise,
+  updateWorkoutPlanRecord,
+  updateWorkoutProgress,
+} from "../services/workoutService";
 import { unlockAchievement } from "../utils/achievementSystem";
 import { logXP } from "../utils/xpSystem";
+import CurrentWorkoutCard from "./components/CurrentWorkoutCard";
+import CreateWorkoutPlanForm from "./components/CreateWorkoutPlanForm";
+import WorkoutHeader from "./components/WorkoutHeader";
+import WorkoutQuickTools from "./components/WorkoutQuickTools";
+import WorkoutTemplatesPanel from "./components/WorkoutTemplatesPanel";
+import { reportError } from "../utils/errorHandler";
+import {
+  getCurrentWorkoutDay,
+  getNextWorkoutDayAfter,
+  sortWorkoutLogs,
+  getWorkoutDateKey,
+} from "./components/workoutLogic";
 
 const workoutTemplates = [
   {
@@ -1317,6 +1348,12 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   const [exercises, setExercises] = useState([]);
   const [progress, setProgress] = useState([]);
   const [workoutLogs, setWorkoutLogs] = useState([]);
+  const [setLogs, setSetLogs] = useState([]);
+  const [expandedSetLoggerId, setExpandedSetLoggerId] = useState(null);
+  const [setLogForms, setSetLogForms] = useState({});
+  const [savingSetLogs, setSavingSetLogs] = useState(false);
+  const [workoutStartedAt, setWorkoutStartedAt] = useState(null);
+  const [elapsedWorkoutSeconds, setElapsedWorkoutSeconds] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [creatingPlan, setCreatingPlan] = useState(false);
@@ -1415,115 +1452,43 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     return `${day}/${month}/${year}`;
   }
 
-  function getOrderedWorkoutDaysFromExercises(exerciseList) {
-    const daysFromExercises = exerciseList.map(
-      (exercise) => exercise.workout_day || "Treino A",
-    );
+  function formatWorkoutDuration(totalSeconds) {
+    const safeSeconds = Math.max(0, Number(totalSeconds) || 0);
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+    const seconds = safeSeconds % 60;
 
-    const uniqueDays = [...new Set(daysFromExercises)];
-
-    return workoutDayOptions.filter((day) => uniqueDays.includes(day));
-  }
-
-  function getNextWorkoutDayAfter(day, exerciseList) {
-    const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
-
-    if (orderedDays.length === 0) {
-      return "Treino A";
+    if (hours > 0) {
+      return `${hours}h ${String(minutes).padStart(2, "0")}m`;
     }
 
-    const currentIndex = orderedDays.indexOf(day);
-
-    if (currentIndex === -1) {
-      return orderedDays[0];
-    }
-
-    const nextIndex = (currentIndex + 1) % orderedDays.length;
-
-    return orderedDays[nextIndex];
-  }
-
-  function getWorkoutDateKey(workoutDate) {
-    if (!workoutDate) {
-      return "";
-    }
-
-    return String(workoutDate).split("T")[0];
-  }
-
-  function sortWorkoutLogs(logs) {
-    return [...logs].sort((a, b) => {
-      const dateA = getWorkoutDateKey(a.workout_date);
-      const dateB = getWorkoutDateKey(b.workout_date);
-
-      if (dateA !== dateB) {
-        return dateB.localeCompare(dateA);
-      }
-
-      const createdA = a.created_at || "";
-      const createdB = b.created_at || "";
-
-      return createdB.localeCompare(createdA);
-    });
-  }
-
-  function getNextWorkoutDayFromLogs(exerciseList, logs) {
-    const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
-
-    if (orderedDays.length === 0) {
-      return "Treino A";
-    }
-
-    const sortedLogs = sortWorkoutLogs(logs);
-
-    const validLogs = sortedLogs.filter((log) => {
-      const logStatus = log.status || "completed";
-
-      return (
-        orderedDays.includes(log.workout_day) &&
-        ["completed", "skipped"].includes(logStatus)
-      );
-    });
-
-    if (validLogs.length === 0) {
-      return orderedDays[0];
-    }
-
-    const lastSequenceLog = validLogs[0];
-
-    return getNextWorkoutDayAfter(lastSequenceLog.workout_day, exerciseList);
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+      2,
+      "0",
+    )}`;
   }
 
   function getTodayCompletedLog(logs) {
-    return (
-      sortWorkoutLogs(logs).find((log) => {
-        const logStatus = log.status || "completed";
+  return (
+    sortWorkoutLogs(logs).find((log) => {
+      const logStatus = log.status || "completed";
 
-        return (
-          getWorkoutDateKey(log.workout_date) === today &&
-          logStatus === "completed"
-        );
-      }) || null
-    );
-  }
-
-  function getCurrentWorkoutDay(exerciseList, logs) {
-    return getNextWorkoutDayFromLogs(exerciseList, logs);
-  }
+      return (
+        getWorkoutDateKey(log.workout_date) === today &&
+        logStatus === "completed"
+      );
+    }) || null
+  );
+}
 
   async function getWorkoutData() {
     setLoading(true);
 
-    const { data: plansData, error: plansError } = await supabase
-      .from("workout_plans")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
+    const { data: plansData, error: plansError } =
+      await fetchActiveWorkoutPlans(user.id);
 
     if (plansError) {
-      console.log(plansError);
-      toast.error("Error loading workout plans.");
+      reportError(plansError, "Error loading workout plans.");
       setLoading(false);
       return;
     }
@@ -1532,6 +1497,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     const selectedPlan = plansData?.[0] || null;
 
+    setExpandedSetLoggerId(null);
+    setSetLogForms({});
     setActivePlan(selectedPlan);
     setDayFocuses(getPlanFocuses(selectedPlan));
 
@@ -1539,6 +1506,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       setExercises([]);
       setProgress([]);
       setWorkoutLogs([]);
+      setSetLogs([]);
       setShowCreatePlan(true);
       setLoading(false);
       return;
@@ -1550,17 +1518,11 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   }
 
   async function loadPlanDetails(planId) {
-    const { data: exercisesData, error: exercisesError } = await supabase
-      .from("workout_exercises")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_plan_id", planId)
-      .order("workout_day", { ascending: true })
-      .order("sort_order", { ascending: true });
+    const { data: exercisesData, error: exercisesError } =
+      await fetchWorkoutExercises(user.id, planId);
 
     if (exercisesError) {
-      console.log(exercisesError);
-      toast.error("Error loading exercises.");
+      reportError(exercisesError, "Error loading exercises.");
       return;
     }
 
@@ -1568,17 +1530,13 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setExercises(loadedExercises);
 
-    const { data: logsData, error: logsError } = await supabase
-      .from("workout_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_plan_id", planId)
-      .order("workout_date", { ascending: false })
-      .order("created_at", { ascending: false });
+    const { data: logsData, error: logsError } = await fetchWorkoutLogs(
+      user.id,
+      planId,
+    );
 
     if (logsError) {
-      console.log(logsError);
-      toast.error("Error loading workout history.");
+      reportError(logsError, "Error loading workout history.");
       return;
     }
 
@@ -1587,20 +1545,26 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setWorkoutLogs(loadedLogs);
 
     const currentDay = getCurrentWorkoutDay(loadedExercises, loadedLogs);
-    setSelectedWorkoutDay(currentDay);
+    const loadedTodayCompletedLog = getTodayCompletedLog(loadedLogs);
 
-    const { data: progressData, error: progressError } = await supabase
-      .from("daily_workout_progress")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_plan_id", planId)
-      .eq("workout_date", today);
+    setSelectedWorkoutDay(loadedTodayCompletedLog?.workout_day || currentDay);
+
+    const { data: progressData, error: progressError } =
+      await fetchDailyWorkoutProgress(user.id, planId, today);
 
     if (progressError) {
-      console.log(progressError);
-      toast.error("Error loading workout progress.");
+      reportError(progressError, "Error loading workout progress.");
       return;
     }
+    const { data: setLogsData, error: setLogsError } =
+      await fetchWorkoutSetLogs(user.id, planId);
+
+    if (setLogsError) {
+      reportError(setLogsError, "Error loading set logs.");
+      return;
+    }
+
+    setSetLogs(setLogsData || []);
 
     setProgress(progressData || []);
   }
@@ -1616,23 +1580,17 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setCreatingTemplate(true);
 
-    const { data: planData, error: planError } = await supabase
-      .from("workout_plans")
-      .insert([
-        {
-          user_id: user.id,
-          title: template.title,
-          description: template.description,
-          is_active: true,
-          day_focuses: template.focuses,
-        },
-      ])
-      .select()
-      .single();
+    const { data: planData, error: planError } =
+      await createWorkoutPlanRecord({
+        user_id: user.id,
+        title: template.title,
+        description: template.description,
+        is_active: true,
+        day_focuses: template.focuses,
+      });
 
     if (planError) {
-      console.log(planError);
-      toast.error("Error creating workout template.");
+      reportError(planError, "Error creating workout template.");
       setCreatingTemplate(false);
       return;
     }
@@ -1648,14 +1606,11 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       sort_order: index + 1,
     }));
 
-    const { data: exercisesData, error: exercisesError } = await supabase
-      .from("workout_exercises")
-      .insert(exercisesToInsert)
-      .select();
+    const { data: exercisesData, error: exercisesError } =
+      await createWorkoutExercises(exercisesToInsert);
 
     if (exercisesError) {
-      console.log(exercisesError);
-      toast.error("Workout created, but exercises could not be added.");
+      reportError(exercisesError, "Workout created, but exercises could not be added.");
       setCreatingTemplate(false);
       return;
     }
@@ -1668,6 +1623,9 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setExercises(createdExercises);
     setProgress([]);
     setWorkoutLogs([]);
+    setSetLogs([]);
+    setExpandedSetLoggerId(null);
+    setSetLogForms({});
     setSelectedWorkoutDay(getCurrentWorkoutDay(createdExercises, []));
 
     setShowTemplates(false);
@@ -1689,23 +1647,16 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setCreatingPlan(true);
 
-    const { data, error } = await supabase
-      .from("workout_plans")
-      .insert([
-        {
-          user_id: user.id,
-          title: newPlan.title.trim(),
-          description: newPlan.description.trim(),
-          is_active: true,
-          day_focuses: {},
-        },
-      ])
-      .select()
-      .single();
+    const { data, error } = await createWorkoutPlanRecord({
+      user_id: user.id,
+      title: newPlan.title.trim(),
+      description: newPlan.description.trim(),
+      is_active: true,
+      day_focuses: {},
+    });
 
     if (error) {
-      console.log(error);
-      toast.error("Error creating workout.");
+      reportError(error, "Error creating workout.");
       setCreatingPlan(false);
       return;
     }
@@ -1721,6 +1672,9 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setExercises([]);
     setProgress([]);
     setWorkoutLogs([]);
+    setSetLogs([]);
+    setExpandedSetLoggerId(null);
+    setSetLogForms({});
     setSelectedWorkoutDay("Treino A");
     setShowCreatePlan(false);
     setShowPlanTools(true);
@@ -1735,6 +1689,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setDayFocuses(getPlanFocuses(plan));
     setEditingPlan(null);
     setEditingExercise(null);
+    setExpandedSetLoggerId(null);
+    setSetLogForms({});
     setShowCreatePlan(false);
 
     await loadPlanDetails(plan.id);
@@ -1769,20 +1725,17 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setUpdatingPlan(true);
 
-    const { data, error } = await supabase
-      .from("workout_plans")
-      .update({
+    const { data, error } = await updateWorkoutPlanRecord(
+      editingPlan.id,
+      user.id,
+      {
         title: editPlanData.title.trim(),
         description: editPlanData.description.trim(),
-      })
-      .eq("id", editingPlan.id)
-      .eq("user_id", user.id)
-      .select()
-      .single();
+      },
+    );
 
     if (error) {
-      console.log(error);
-      toast.error("Error updating workout plan.");
+      reportError(error, "Error updating workout plan.");
       setUpdatingPlan(false);
       return;
     }
@@ -1812,19 +1765,16 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       Object.entries(dayFocuses).map(([day, focus]) => [day, focus.trim()]),
     );
 
-    const { data, error } = await supabase
-      .from("workout_plans")
-      .update({
+    const { data, error } = await updateWorkoutPlanRecord(
+      activePlan.id,
+      user.id,
+      {
         day_focuses: cleanedFocuses,
-      })
-      .eq("id", activePlan.id)
-      .eq("user_id", user.id)
-      .select()
-      .single();
+      },
+    );
 
     if (error) {
-      console.log(error);
-      toast.error("Error saving workout focuses.");
+      reportError(error, "Error saving workout focuses.");
       setUpdatingFocuses(false);
       return;
     }
@@ -1839,26 +1789,19 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setUpdatingFocuses(false);
   }
 
-  async function deleteWorkoutPlan(planId) {
-    const confirmDelete = confirm(
-      "Delete this workout plan? This will also remove it from your active workouts.",
+  async function archiveWorkoutPlan(planId) {
+    const confirmArchive = confirm(
+      "Archive this workout plan? It will leave your active plans, but your workout history and records will stay saved.",
     );
 
-    if (!confirmDelete) return;
+    if (!confirmArchive) return;
 
     setDeletingPlan(true);
 
-    const { error } = await supabase
-      .from("workout_plans")
-      .update({
-        is_active: false,
-      })
-      .eq("id", planId)
-      .eq("user_id", user.id);
+    const { error } = await archiveWorkoutPlanRecord(planId, user.id);
 
     if (error) {
-      console.log(error);
-      toast.error("Error deleting workout plan.");
+      reportError(error, "Error archiving workout plan.");
       setDeletingPlan(false);
       return;
     }
@@ -1883,13 +1826,16 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
         setExercises([]);
         setProgress([]);
         setWorkoutLogs([]);
+        setSetLogs([]);
+        setExpandedSetLoggerId(null);
+        setSetLogForms({});
         setShowCreatePlan(true);
       }
     }
 
     setSelectedWorkoutDay("Treino A");
 
-    toast.success("Workout plan deleted.");
+    toast.success("Workout plan archived.");
 
     setDeletingPlan(false);
   }
@@ -1907,26 +1853,19 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setAddingExercise(true);
 
-    const { data, error } = await supabase
-      .from("workout_exercises")
-      .insert([
-        {
-          workout_plan_id: activePlan.id,
-          user_id: user.id,
-          workout_day: newExercise.workout_day,
-          name: newExercise.name.trim(),
-          sets: newExercise.sets.trim(),
-          reps: newExercise.reps.trim(),
-          load: newExercise.load.trim(),
-          sort_order: exercises.length + 1,
-        },
-      ])
-      .select()
-      .single();
+    const { data, error } = await createWorkoutExercise({
+      workout_plan_id: activePlan.id,
+      user_id: user.id,
+      workout_day: newExercise.workout_day,
+      name: newExercise.name.trim(),
+      sets: newExercise.sets.trim(),
+      reps: newExercise.reps.trim(),
+      load: newExercise.load.trim(),
+      sort_order: exercises.length + 1,
+    });
 
     if (error) {
-      console.log(error);
-      toast.error("Error adding exercise.");
+      reportError(error, "Error adding exercise.");
       setAddingExercise(false);
       return;
     }
@@ -1986,23 +1925,20 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setUpdatingExercise(true);
 
-    const { data, error } = await supabase
-      .from("workout_exercises")
-      .update({
+    const { data, error } = await updateWorkoutExercise(
+      editingExercise.id,
+      user.id,
+      {
         workout_day: editExerciseData.workout_day,
         name: editExerciseData.name.trim(),
         sets: editExerciseData.sets.trim(),
         reps: editExerciseData.reps.trim(),
         load: editExerciseData.load.trim(),
-      })
-      .eq("id", editingExercise.id)
-      .eq("user_id", user.id)
-      .select()
-      .single();
+      },
+    );
 
     if (error) {
-      console.log(error);
-      toast.error("Error updating exercise.");
+      reportError(error, "Error updating exercise.");
       setUpdatingExercise(false);
       return;
     }
@@ -2028,15 +1964,10 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     if (!confirmDelete) return;
 
-    const { error } = await supabase
-      .from("workout_exercises")
-      .delete()
-      .eq("id", exerciseId)
-      .eq("user_id", user.id);
+    const { error } = await deleteWorkoutExercise(exerciseId, user.id);
 
     if (error) {
-      console.log(error);
-      toast.error("Error deleting exercise.");
+      reportError(error, "Error deleting exercise.");
       return;
     }
 
@@ -2046,6 +1977,16 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setProgress((prev) =>
       prev.filter((item) => item.exercise_id !== exerciseId),
     );
+    setSetLogs((prev) => prev.filter((item) => item.exercise_id !== exerciseId));
+    setSetLogForms((prev) => {
+      const nextForms = { ...prev };
+      delete nextForms[exerciseId];
+      return nextForms;
+    });
+
+    if (expandedSetLoggerId === exerciseId) {
+      setExpandedSetLoggerId(null);
+    }
 
     if (editingExercise?.id === exerciseId) {
       cancelEditExercise();
@@ -2073,42 +2014,120 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     return getCurrentWorkoutDay(exercises, workoutLogs);
   }, [exercises, workoutLogs]);
 
+  const completedWorkoutDayToday = todayCompletedLog?.workout_day || null;
+
+  const displayWorkoutDay =
+    workoutAlreadyCompletedToday && completedWorkoutDayToday
+      ? completedWorkoutDayToday
+      : currentWorkoutDay;
+
+  useEffect(() => {
+    if (completedWorkoutDayToday) {
+      setSelectedWorkoutDay(completedWorkoutDayToday);
+    }
+  }, [todayCompletedLog?.id, completedWorkoutDayToday]);
+
   const nextWorkoutDay = useMemo(() => {
-    if (!workoutAlreadyCompletedToday) {
-      return currentWorkoutDay;
+  return getNextWorkoutDayAfter(currentWorkoutDay, exercises);
+}, [currentWorkoutDay, exercises]);
+
+const recentWorkoutLogs = useMemo(() => {
+  return workoutLogs.slice(0, 7);
+}, [workoutLogs]);
+
+const lastCompletedWorkoutLog = useMemo(() => {
+  return (
+    workoutLogs.find((log) => {
+      const logStatus = log.status || "completed";
+
+      return log.workout_date !== today && logStatus === "completed";
+    }) || null
+  );
+}, [workoutLogs, today]);
+
+const lastCompletedWorkoutDay = lastCompletedWorkoutLog?.workout_day || null;
+
+const displayNextWorkoutDay = useMemo(() => {
+  return getNextWorkoutDayAfter(currentWorkoutDay, exercises);
+}, [currentWorkoutDay, exercises]);
+
+const workoutTimerStorageKey = useMemo(() => {
+  if (!user?.id || !activePlan?.id || !currentWorkoutDay) {
+    return "";
+  }
+
+  return `gymfocus-workout-timer:${user.id}:${activePlan.id}:${today}:${currentWorkoutDay}`;
+}, [user?.id, activePlan?.id, today, currentWorkoutDay]);
+
+  const workoutTimerRunning =
+    Boolean(workoutStartedAt) && !workoutAlreadyCompletedToday;
+
+  useEffect(() => {
+    if (!workoutTimerStorageKey || workoutAlreadyCompletedToday) {
+      setWorkoutStartedAt(null);
+      setElapsedWorkoutSeconds(0);
+
+      if (workoutTimerStorageKey) {
+        localStorage.removeItem(workoutTimerStorageKey);
+      }
+
+      return;
     }
 
-    return getNextWorkoutDayAfter(currentWorkoutDay, exercises);
-  }, [workoutAlreadyCompletedToday, currentWorkoutDay, exercises]);
+    const storedStartedAt = Number(localStorage.getItem(workoutTimerStorageKey));
 
-  const recentWorkoutLogs = useMemo(() => {
-    return workoutLogs.slice(0, 7);
-  }, [workoutLogs]);
-
-  const lastCompletedWorkoutLog = useMemo(() => {
-    return (
-      workoutLogs.find((log) => {
-        const logStatus = log.status || "completed";
-
-        return log.workout_date !== today && logStatus === "completed";
-      }) || null
-    );
-  }, [workoutLogs, today]);
-
-  const lastCompletedWorkoutDay = lastCompletedWorkoutLog?.workout_day || null;
-
-  const displayNextWorkoutDay = useMemo(() => {
-    if (workoutAlreadyCompletedToday) {
-      return nextWorkoutDay;
+    if (Number.isFinite(storedStartedAt) && storedStartedAt > 0) {
+      setWorkoutStartedAt(storedStartedAt);
+      setElapsedWorkoutSeconds(
+        Math.max(0, Math.floor((Date.now() - storedStartedAt) / 1000)),
+      );
+      return;
     }
 
-    return getNextWorkoutDayAfter(currentWorkoutDay, exercises);
-  }, [
-    workoutAlreadyCompletedToday,
-    nextWorkoutDay,
-    currentWorkoutDay,
-    exercises,
-  ]);
+    setWorkoutStartedAt(null);
+    setElapsedWorkoutSeconds(0);
+  }, [workoutTimerStorageKey, workoutAlreadyCompletedToday]);
+
+  useEffect(() => {
+    if (!workoutTimerRunning) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setElapsedWorkoutSeconds(
+        Math.max(0, Math.floor((Date.now() - workoutStartedAt) / 1000)),
+      );
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [workoutTimerRunning, workoutStartedAt]);
+
+  function startWorkoutTimer() {
+    if (!workoutTimerStorageKey || workoutAlreadyCompletedToday) {
+      return;
+    }
+
+    if (workoutStartedAt) {
+      return;
+    }
+
+    const startedAt = Date.now();
+
+    localStorage.setItem(workoutTimerStorageKey, String(startedAt));
+    setWorkoutStartedAt(startedAt);
+    setElapsedWorkoutSeconds(0);
+  }
+
+  function clearWorkoutTimer() {
+    if (workoutTimerStorageKey) {
+      localStorage.removeItem(workoutTimerStorageKey);
+    }
+
+    setWorkoutStartedAt(null);
+    setElapsedWorkoutSeconds(0);
+  }
 
   async function toggleExercise(exercise) {
     if (!activePlan) return;
@@ -2125,6 +2144,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       return;
     }
 
+    startWorkoutTimer();
+
     const existingProgress = progress.find(
       (item) => item.exercise_id === exercise.id,
     );
@@ -2132,19 +2153,16 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     if (existingProgress) {
       const newCompletedStatus = !existingProgress.completed;
 
-      const { data, error } = await supabase
-        .from("daily_workout_progress")
-        .update({
+      const { data, error } = await updateWorkoutProgress(
+        existingProgress.id,
+        {
           completed: newCompletedStatus,
           completed_at: newCompletedStatus ? new Date().toISOString() : null,
-        })
-        .eq("id", existingProgress.id)
-        .select()
-        .single();
+        },
+      );
 
       if (error) {
-        console.log(error);
-        toast.error("Error updating progress.");
+        reportError(error, "Error updating progress.");
         return;
       }
 
@@ -2155,24 +2173,17 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("daily_workout_progress")
-      .insert([
-        {
-          user_id: user.id,
-          workout_plan_id: activePlan.id,
-          exercise_id: exercise.id,
-          workout_date: today,
-          completed: true,
-          completed_at: new Date().toISOString(),
-        },
-      ])
-      .select()
-      .single();
+    const { data, error } = await createWorkoutProgress({
+      user_id: user.id,
+      workout_plan_id: activePlan.id,
+      exercise_id: exercise.id,
+      workout_date: today,
+      completed: true,
+      completed_at: new Date().toISOString(),
+    });
 
     if (error) {
-      console.log(error);
-      toast.error("Error marking exercise.");
+      reportError(error, "Error marking exercise.");
       return;
     }
 
@@ -2184,6 +2195,12 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       (exercise) => (exercise.workout_day || "Treino A") === currentWorkoutDay,
     );
   }, [exercises, currentWorkoutDay]);
+
+  const displayWorkoutExercises = useMemo(() => {
+    return exercises.filter(
+      (exercise) => (exercise.workout_day || "Treino A") === displayWorkoutDay,
+    );
+  }, [exercises, displayWorkoutDay]);
 
   const filteredExercises = useMemo(() => {
     if (selectedWorkoutDay === "Todos") {
@@ -2233,8 +2250,15 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     ).length;
   }, [currentWorkoutExercises, progress]);
 
+  const displayWorkoutCompletedCount = useMemo(() => {
+    return displayWorkoutExercises.filter((exercise) =>
+      isExerciseCompleted(exercise.id),
+    ).length;
+  }, [displayWorkoutExercises, progress]);
+
   const visibleTotalExercises = filteredExercises.length;
   const todayTotalExercises = currentWorkoutExercises.length;
+  const displayWorkoutTotalExercises = displayWorkoutExercises.length;
 
   const todayWorkoutCompleted =
     todayTotalExercises > 0 && todayCompletedCount === todayTotalExercises;
@@ -2244,9 +2268,11 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       ? Math.round((visibleCompletedCount / visibleTotalExercises) * 100)
       : 0;
 
-  const todayProgressPercent =
-    todayTotalExercises > 0
-      ? Math.round((todayCompletedCount / todayTotalExercises) * 100)
+  const displayWorkoutProgressPercent =
+    displayWorkoutTotalExercises > 0
+      ? Math.round(
+          (displayWorkoutCompletedCount / displayWorkoutTotalExercises) * 100,
+        )
       : 0;
 
   async function finishWorkout() {
@@ -2271,14 +2297,11 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setFinishingWorkout(true);
 
-    const { data: existingWorkout } = await supabase
-      .from("workout_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_plan_id", activePlan.id)
-      .eq("workout_date", today)
-      .eq("status", "completed")
-      .maybeSingle();
+    const { data: existingWorkout } = await findCompletedWorkoutLog(
+      user.id,
+      activePlan.id,
+      today,
+    );
 
     if (existingWorkout) {
       toast.error("Today's workout is already completed.");
@@ -2286,43 +2309,46 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       return;
     }
 
-    const { data: insertedLog, error: workoutError } = await supabase
-      .from("workout_logs")
-      .insert([
-        {
-          user_id: user.id,
-          workout_plan_id: activePlan.id,
-          workout_day: currentWorkoutDay,
-          workout_date: today,
-          status: "completed",
-        },
-      ])
-      .select()
-      .single();
+    const finishedAt = new Date();
+    const startedAtDate = workoutStartedAt
+      ? new Date(workoutStartedAt)
+      : finishedAt;
+    const durationSeconds = workoutStartedAt
+      ? Math.max(1, Math.floor((finishedAt.getTime() - workoutStartedAt) / 1000))
+      : elapsedWorkoutSeconds;
+    const workoutLogPayload = {
+      user_id: user.id,
+      workout_plan_id: activePlan.id,
+      workout_day: currentWorkoutDay,
+      workout_date: today,
+      status: "completed",
+      started_at: startedAtDate.toISOString(),
+      completed_at: finishedAt.toISOString(),
+      duration_seconds: durationSeconds,
+    };
+
+    const { data: insertedLog, error: workoutError } =
+      await createCompletedWorkoutLogWithDuration(workoutLogPayload);
 
     if (workoutError) {
-      console.log(workoutError);
-      toast.error("Error completing workout.");
+      reportError(workoutError, "Error completing workout.");
       setFinishingWorkout(false);
       return;
     }
 
+    setSelectedWorkoutDay(currentWorkoutDay);
     setWorkoutLogs((prev) => [insertedLog, ...prev]);
 
     const newXP = (profile?.xp || 0) + 100;
     const newStreak = (profile?.streak || 0) + 1;
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        xp: newXP,
-        streak: newStreak,
-      })
-      .eq("id", user.id);
+    const { error: profileError } = await updateProfileStats(user.id, {
+      xp: newXP,
+      streak: newStreak,
+    });
 
     if (profileError) {
-      console.log(profileError);
-      toast.error("Error updating profile.");
+      reportError(profileError, "Error updating profile.");
       setFinishingWorkout(false);
       return;
     }
@@ -2351,6 +2377,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     toast.success(`${getDayLabel(currentWorkoutDay)} completed! +100 XP`);
 
+    clearWorkoutTimer();
     setFinishingWorkout(false);
   }
 
@@ -2370,14 +2397,12 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setFinishingWorkout(true);
 
-    const { data: existingWorkout } = await supabase
-      .from("workout_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_plan_id", activePlan.id)
-      .eq("workout_date", today)
-      .eq("workout_day", currentWorkoutDay)
-      .maybeSingle();
+    const { data: existingWorkout } = await findWorkoutLogByDay(
+      user.id,
+      activePlan.id,
+      today,
+      currentWorkoutDay,
+    );
 
     if (existingWorkout) {
       toast.error("Today's workout already has a record.");
@@ -2385,23 +2410,16 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       return;
     }
 
-    const { data: insertedLog, error } = await supabase
-      .from("workout_logs")
-      .insert([
-        {
-          user_id: user.id,
-          workout_plan_id: activePlan.id,
-          workout_day: currentWorkoutDay,
-          workout_date: today,
-          status: "skipped",
-        },
-      ])
-      .select()
-      .single();
+    const { data: insertedLog, error } = await createWorkoutLog({
+      user_id: user.id,
+      workout_plan_id: activePlan.id,
+      workout_day: currentWorkoutDay,
+      workout_date: today,
+      status: "skipped",
+    });
 
     if (error) {
-      console.log(error);
-      toast.error("Error skipping workout.");
+      reportError(error, "Error skipping workout.");
       setFinishingWorkout(false);
       return;
     }
@@ -2420,7 +2438,345 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       )}.`,
     );
 
+    clearWorkoutTimer();
     setFinishingWorkout(false);
+  }
+
+  function getExerciseSetLogs(exerciseId) {
+    return setLogs
+      .filter((log) => log.exercise_id === exerciseId)
+      .sort((a, b) => {
+        const dateComparison = getWorkoutDateKey(b.workout_date).localeCompare(
+          getWorkoutDateKey(a.workout_date),
+        );
+
+        if (dateComparison !== 0) {
+          return dateComparison;
+        }
+
+        return a.set_number - b.set_number;
+      });
+  }
+
+  function getTodayExerciseSetLogs(exerciseId) {
+    return getExerciseSetLogs(exerciseId).filter(
+      (log) => getWorkoutDateKey(log.workout_date) === today,
+    );
+  }
+
+  function getPlannedSetsCount(exercise) {
+    const parsedSets = Number.parseInt(exercise.sets, 10);
+
+    if (Number.isNaN(parsedSets) || parsedSets <= 0) {
+      return 3;
+    }
+
+    return parsedSets;
+  }
+
+  function createInitialSetRows(exercise) {
+    const existingLogs = getTodayExerciseSetLogs(exercise.id);
+
+    if (existingLogs.length > 0) {
+      return existingLogs.map((log) => ({
+        set_number: log.set_number,
+        load: log.load ?? "",
+        reps: log.reps ?? "",
+      }));
+    }
+
+    const setsCount = getPlannedSetsCount(exercise);
+
+    return Array.from({ length: setsCount }, (_, index) => ({
+      set_number: index + 1,
+      load: "",
+      reps: "",
+    }));
+  }
+
+  function openSetLogger(exercise) {
+    setExpandedSetLoggerId((currentId) =>
+      currentId === exercise.id ? null : exercise.id,
+    );
+
+    setSetLogForms((prev) => {
+      if (prev[exercise.id]) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [exercise.id]: {
+          difficulty: "moderate",
+          notes: "",
+          sets: createInitialSetRows(exercise),
+        },
+      };
+    });
+  }
+
+  function updateSetRow(exerciseId, index, field, value) {
+    setSetLogForms((prev) => {
+      const currentForm = prev[exerciseId];
+
+      if (!currentForm) {
+        return prev;
+      }
+
+      const updatedSets = currentForm.sets.map((setRow, rowIndex) => {
+        if (rowIndex !== index) {
+          return setRow;
+        }
+
+        return {
+          ...setRow,
+          [field]: value,
+        };
+      });
+
+      return {
+        ...prev,
+        [exerciseId]: {
+          ...currentForm,
+          sets: updatedSets,
+        },
+      };
+    });
+  }
+
+  function updateSetFormField(exerciseId, field, value) {
+    setSetLogForms((prev) => {
+      const currentForm = prev[exerciseId];
+
+      if (!currentForm) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [exerciseId]: {
+          ...currentForm,
+          [field]: value,
+        },
+      };
+    });
+  }
+
+  function addSetRow(exerciseId) {
+    setSetLogForms((prev) => {
+      const currentForm = prev[exerciseId];
+
+      if (!currentForm) {
+        return prev;
+      }
+
+      const nextSetNumber = currentForm.sets.length + 1;
+
+      return {
+        ...prev,
+        [exerciseId]: {
+          ...currentForm,
+          sets: [
+            ...currentForm.sets,
+            {
+              set_number: nextSetNumber,
+              load: "",
+              reps: "",
+            },
+          ],
+        },
+      };
+    });
+  }
+
+  function removeSetRow(exerciseId, index) {
+    setSetLogForms((prev) => {
+      const currentForm = prev[exerciseId];
+
+      if (!currentForm || currentForm.sets.length <= 1) {
+        return prev;
+      }
+
+      const updatedSets = currentForm.sets
+        .filter((_, rowIndex) => rowIndex !== index)
+        .map((setRow, rowIndex) => ({
+          ...setRow,
+          set_number: rowIndex + 1,
+        }));
+
+      return {
+        ...prev,
+        [exerciseId]: {
+          ...currentForm,
+          sets: updatedSets,
+        },
+      };
+    });
+  }
+
+  async function markExerciseCompletedAfterSetLog(exercise) {
+    const existingProgress = progress.find(
+      (item) => item.exercise_id === exercise.id,
+    );
+
+    if (existingProgress) {
+      if (existingProgress.completed) {
+        return;
+      }
+
+      const { data, error } = await updateWorkoutProgress(
+        existingProgress.id,
+        {
+          completed: true,
+          completed_at: new Date().toISOString(),
+        },
+      );
+
+      if (error) {
+        reportError(error);
+        return;
+      }
+
+      setProgress((prev) =>
+        prev.map((item) => (item.id === existingProgress.id ? data : item)),
+      );
+
+      return;
+    }
+
+    const { data, error } = await createWorkoutProgress({
+      user_id: user.id,
+      workout_plan_id: activePlan.id,
+      exercise_id: exercise.id,
+      workout_date: today,
+      completed: true,
+      completed_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      reportError(error);
+      return;
+    }
+
+    setProgress((prev) => [...prev, data]);
+  }
+
+  async function saveExerciseSetLogs(exercise) {
+    if (!activePlan) return;
+
+    if (workoutAlreadyCompletedToday) {
+      toast.error("Today's workout is already completed.");
+      return;
+    }
+
+    const exerciseDay = exercise.workout_day || "Treino A";
+
+    if (exerciseDay !== currentWorkoutDay) {
+      toast.error(`Hoje é dia de ${getDayLabel(currentWorkoutDay)}.`);
+      return;
+    }
+
+    startWorkoutTimer();
+
+    const form = setLogForms[exercise.id];
+
+    if (!form) {
+      toast.error("Open the set logger first.");
+      return;
+    }
+
+    const validSets = form.sets
+      .map((setRow, index) => ({
+        user_id: user.id,
+        workout_plan_id: activePlan.id,
+        exercise_id: exercise.id,
+        workout_date: today,
+        set_number: index + 1,
+        reps: setRow.reps === "" ? null : Number(setRow.reps),
+        load: setRow.load === "" ? null : Number(setRow.load),
+        difficulty: form.difficulty,
+        notes: form.notes?.trim() || null,
+      }))
+      .filter((setRow) => setRow.reps !== null || setRow.load !== null);
+
+    if (validSets.length === 0) {
+      toast.error("Enter at least one load or reps value.");
+      return;
+    }
+
+    const hasInvalidNumbers = validSets.some((setRow) => {
+      const hasInvalidReps =
+        setRow.reps !== null &&
+        (!Number.isFinite(setRow.reps) || setRow.reps < 0);
+      const hasInvalidLoad =
+        setRow.load !== null &&
+        (!Number.isFinite(setRow.load) || setRow.load < 0);
+
+      return hasInvalidReps || hasInvalidLoad;
+    });
+
+    if (hasInvalidNumbers) {
+      toast.error("Use valid positive numbers for load and reps.");
+      return;
+    }
+
+    setSavingSetLogs(true);
+
+    const { error: deleteError } = await deleteWorkoutSetLogsForExerciseDate({
+      exerciseId: exercise.id,
+      userId: user.id,
+      workoutDate: today,
+      workoutPlanId: activePlan.id,
+    });
+
+    if (deleteError) {
+      reportError(deleteError, "Error updating set logs.");
+      setSavingSetLogs(false);
+      return;
+    }
+
+    const { data, error } = await createWorkoutSetLogs(validSets);
+
+    if (error) {
+      reportError(error, "Error saving set logs.");
+      setSavingSetLogs(false);
+      return;
+    }
+
+    const savedLogs = (data || []).sort(
+      (a, b) => a.set_number - b.set_number,
+    );
+
+    setSetLogs((prev) => {
+      const withoutCurrentExercise = prev.filter(
+        (log) =>
+          !(
+            log.exercise_id === exercise.id &&
+            log.workout_date === today &&
+            log.workout_plan_id === activePlan.id
+          ),
+      );
+
+      return [...withoutCurrentExercise, ...savedLogs];
+    });
+
+    setSetLogForms((prev) => ({
+      ...prev,
+      [exercise.id]: {
+        ...form,
+        sets: savedLogs.map((log) => ({
+          set_number: log.set_number,
+          load: log.load ?? "",
+          reps: log.reps ?? "",
+        })),
+      },
+    }));
+
+    await markExerciseCompletedAfterSetLog(exercise);
+
+    toast.success("Exercise performance saved!");
+
+    setSavingSetLogs(false);
   }
 
   if (loading) {
@@ -2477,318 +2833,32 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
         dark:backdrop-blur-xl
       "
     >
-      {/* HEADER */}
-      <div
-        className="
-          flex
-          items-start
-          sm:items-center
-          justify-between
-          flex-col
-          sm:flex-row
-          gap-4
-          mb-6
-        "
-      >
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <div
-            className="
-              w-12
-              h-12
-              sm:w-14
-              sm:h-14
-              rounded-2xl
-              bg-gradient-to-r
-              from-purple-500
-              to-fuchsia-500
-              text-white
-              flex
-              items-center
-              justify-center
-              shrink-0
-            "
-          >
-            <Dumbbell size={24} />
-          </div>
+      <WorkoutHeader
+        activePlan={activePlan}
+        displayWorkoutDay={displayWorkoutDay}
+        getDayLabel={getDayLabel}
+        setShowCreatePlan={setShowCreatePlan}
+        setShowTemplates={setShowTemplates}
+        showCreatePlan={showCreatePlan}
+        showTemplates={showTemplates}
+        workoutAlreadyCompletedToday={workoutAlreadyCompletedToday}
+      />
 
-          <div className="min-w-0">
-            <h2 className="text-2xl sm:text-3xl font-black break-words">
-              Workouts
-            </h2>
-
-            <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base mt-1">
-              {activePlan
-                ? workoutAlreadyCompletedToday
-                  ? `Done today: ${getDayLabel(currentWorkoutDay)}.`
-                  : `Continue with ${getDayLabel(currentWorkoutDay)}.`
-                : "Create your first workout plan."}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <button
-            onClick={() => setShowTemplates((prev) => !prev)}
-            className="
-              w-full
-              sm:w-auto
-              px-5
-              py-3
-              rounded-2xl
-              bg-zinc-950
-              text-white
-              font-bold
-              flex
-              items-center
-              justify-center
-              gap-2
-              hover:scale-[1.02]
-              transition
-
-              dark:bg-white
-              dark:text-black
-            "
-          >
-            {showTemplates ? <X size={18} /> : <Sparkles size={18} />}
-            {showTemplates ? "Close templates" : "Templates"}
-          </button>
-
-          <button
-            onClick={() => setShowCreatePlan((prev) => !prev)}
-            className="
-              w-full
-              sm:w-auto
-              px-5
-              py-3
-              rounded-2xl
-              bg-gradient-to-r
-              from-purple-500
-              to-fuchsia-500
-              text-white
-              font-bold
-              flex
-              items-center
-              justify-center
-              gap-2
-              hover:scale-[1.02]
-              transition
-            "
-          >
-            {showCreatePlan ? <X size={18} /> : <Plus size={18} />}
-            {showCreatePlan ? "Close" : "New workout"}
-          </button>
-        </div>
-      </div>
-
-      {/* WORKOUT TEMPLATES */}
       {showTemplates && (
-        <div
-          className="
-            bg-zinc-50
-            border
-            border-zinc-200
-            rounded-2xl
-            p-4
-            sm:p-5
-            mb-6
-
-            dark:bg-black/30
-            dark:border-white/10
-          "
-        >
-          <div className="mb-5">
-            <h3 className="font-black text-lg sm:text-xl">Workout templates</h3>
-
-            <p className="text-zinc-500 text-sm mt-1">
-              Choose a ready-made plan and customize it later.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            {workoutTemplates.map((template) => (
-              <div
-                key={template.title}
-                className="
-                  bg-white
-                  border
-                  border-zinc-200
-                  rounded-2xl
-                  p-4
-                  flex
-                  flex-col
-                  justify-between
-                  gap-4
-
-                  dark:bg-black/30
-                  dark:border-white/10
-                "
-              >
-                <div>
-                  <div
-                    className="
-                      w-11
-                      h-11
-                      rounded-2xl
-                      bg-purple-500/10
-                      text-purple-500
-                      flex
-                      items-center
-                      justify-center
-                      mb-4
-                    "
-                  >
-                    <ClipboardList size={21} />
-                  </div>
-
-                  <h4 className="font-black text-lg">{template.title}</h4>
-
-                  <p className="text-zinc-500 text-sm mt-2">
-                    {template.description}
-                  </p>
-
-                  <div className="mt-4 space-y-2">
-                    {Object.entries(template.focuses).map(([day, focus]) => (
-                      <div
-                        key={day}
-                        className="
-                          text-xs
-                          px-3
-                          py-2
-                          rounded-xl
-                          bg-zinc-100
-                          text-zinc-600
-
-                          dark:bg-white/5
-                          dark:text-zinc-300
-                        "
-                      >
-                        <strong>{day}</strong> - {focus}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-zinc-500 text-xs mb-3">
-                    {template.exercises.length} exercises included
-                  </p>
-
-                  <button
-                    onClick={() => createWorkoutFromTemplate(template)}
-                    disabled={creatingTemplate}
-                    className="
-                      w-full
-                      px-4
-                      py-3
-                      rounded-2xl
-                      bg-gradient-to-r
-                      from-purple-500
-                      to-fuchsia-500
-                      text-white
-                      font-bold
-                      flex
-                      items-center
-                      justify-center
-                      gap-2
-                      disabled:opacity-50
-                      hover:scale-[1.02]
-                      transition
-                    "
-                  >
-                    {creatingTemplate ? (
-                      <Loader2 className="animate-spin" size={18} />
-                    ) : (
-                      <Plus size={18} />
-                    )}
-                    Use template
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <WorkoutTemplatesPanel
+          creatingTemplate={creatingTemplate}
+          onCreateTemplate={createWorkoutFromTemplate}
+          templates={workoutTemplates}
+        />
       )}
 
-      {/* CREATE PLAN */}
-      {showCreatePlan && (
-        <div
-          className="
-            bg-zinc-50
-            border
-            border-zinc-200
-            rounded-2xl
-            p-4
-            sm:p-5
-            mb-6
-
-            dark:bg-black/30
-            dark:border-white/10
-          "
-        >
-          <h3 className="font-black text-lg sm:text-xl mb-4">
-            Create workout plan
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
-            <input
-              type="text"
-              placeholder="Ex: Treino ABC - Hipertrofia"
-              value={newPlan.title}
-              onChange={(e) =>
-                setNewPlan((prev) => ({
-                  ...prev,
-                  title: e.target.value,
-                }))
-              }
-              className="WorkoutInput"
-            />
-
-            <input
-              type="text"
-              placeholder="Descrição opcional"
-              value={newPlan.description}
-              onChange={(e) =>
-                setNewPlan((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
-              className="WorkoutInput"
-            />
-
-            <button
-              onClick={createWorkoutPlan}
-              disabled={creatingPlan}
-              className="
-                w-full
-                md:w-auto
-                px-5
-                py-3
-                rounded-2xl
-                bg-zinc-950
-                text-white
-                font-bold
-                flex
-                items-center
-                justify-center
-                gap-2
-                disabled:opacity-50
-
-                dark:bg-white
-                dark:text-black
-              "
-            >
-              {creatingPlan ? (
-                <Loader2 className="animate-spin" size={18} />
-              ) : (
-                <Plus size={18} />
-              )}
-              Create
-            </button>
-          </div>
-        </div>
-      )}
-
+      <CreateWorkoutPlanForm
+        createWorkoutPlan={createWorkoutPlan}
+        creatingPlan={creatingPlan}
+        newPlan={newPlan}
+        setNewPlan={setNewPlan}
+        showCreatePlan={showCreatePlan}
+      />
       {/* PLANS */}
       {plans.length > 0 && (
         <div
@@ -2906,7 +2976,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                     </button>
 
                     <button
-                      onClick={() => deleteWorkoutPlan(plan.id)}
+                      onClick={() => archiveWorkoutPlan(plan.id)}
                       disabled={deletingPlan}
                       className="
                         w-8
@@ -2920,9 +2990,9 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                         transition
                         disabled:opacity-50
                       "
-                      title="Delete workout plan"
+                      title="Archive workout plan"
                     >
-                      <Trash2 size={16} />
+                      <Archive size={16} />
                     </button>
                   </>
                 )}
@@ -3058,277 +3128,37 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
       {activePlan && (
         <>
-          {/* CURRENT WORKOUT CARD */}
-          <div
-            className="
-              bg-gradient-to-r
-              from-purple-600
-              to-fuchsia-600
-              rounded-2xl
-              sm:rounded-3xl
-              p-5
-              sm:p-6
-              text-white
-              mb-6
-            "
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-white/70 text-sm">
-                  {workoutAlreadyCompletedToday
-                    ? getDayLabel(todayCompletedLog.workout_day)
-                    : getDayLabel(currentWorkoutDay)}
-                </p>
+          <CurrentWorkoutCard
+            activePlan={activePlan}
+            displayNextWorkoutDay={displayNextWorkoutDay}
+            displayWorkoutCompletedCount={displayWorkoutCompletedCount}
+            displayWorkoutDay={displayWorkoutDay}
+            displayWorkoutProgressPercent={displayWorkoutProgressPercent}
+            displayWorkoutTotalExercises={displayWorkoutTotalExercises}
+            elapsedWorkoutSeconds={elapsedWorkoutSeconds}
+            formatWorkoutDate={formatWorkoutDate}
+            formatWorkoutDuration={formatWorkoutDuration}
+            getDayLabel={getDayLabel}
+            lastCompletedWorkoutDay={lastCompletedWorkoutDay}
+            lastCompletedWorkoutLog={lastCompletedWorkoutLog}
+            startWorkoutTimer={startWorkoutTimer}
+            todayCompletedLog={todayCompletedLog}
+            todayTotalExercises={todayTotalExercises}
+            workoutAlreadyCompletedToday={workoutAlreadyCompletedToday}
+            workoutTimerRunning={workoutTimerRunning}
+          />
 
-                <h3 className="text-2xl sm:text-3xl font-black mt-1 break-words">
-                  {getDayLabel(currentWorkoutDay)}
-                </h3>
-
-                <p className="text-white/80 mt-2 break-words">
-                  {workoutAlreadyCompletedToday
-                    ? "You already finished today's workout."
-                    : `From plan: ${activePlan.title}`}
-                </p>
-              </div>
-
-              <div
-                className="
-                  px-4
-                  py-2
-                  rounded-full
-                  bg-white/15
-                  border
-                  border-white/20
-                  text-white
-                  font-bold
-                  text-xs
-                  sm:text-sm
-                  shrink-0
-                "
-              >
-                {workoutAlreadyCompletedToday
-                  ? "Done"
-                  : `${todayCompletedCount}/${todayTotalExercises}`}
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <div className="flex justify-between text-sm mb-2">
-                <span>Today's progress</span>
-                <span>{todayProgressPercent}%</span>
-              </div>
-
-              <div className="h-3 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-white rounded-full transition-all"
-                  style={{
-                    width: `${todayProgressPercent}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* WORKOUT SEQUENCE */}
-            <div
-              className="
-                mt-5
-                grid
-                grid-cols-1
-                sm:grid-cols-3
-                gap-3
-              "
-            >
-              <div
-                className="
-                  rounded-2xl
-                  bg-white/10
-                  border
-                  border-white/15
-                  p-4
-                "
-              >
-                <p className="text-white/60 text-xs font-bold uppercase tracking-wide">
-                  Last
-                </p>
-
-                <h4 className="font-black mt-2 break-words">
-                  {lastCompletedWorkoutDay
-                    ? getDayLabel(lastCompletedWorkoutDay)
-                    : "No workout yet"}
-                </h4>
-
-                <p className="text-white/60 text-xs mt-2">
-                  {lastCompletedWorkoutLog
-                    ? formatWorkoutDate(lastCompletedWorkoutLog.workout_date)
-                    : "Start your sequence"}
-                </p>
-              </div>
-
-              <div
-                className="
-                  rounded-2xl
-                  bg-white
-                  text-purple-700
-                  border
-                  border-white
-                  p-4
-                  shadow-lg
-                "
-              >
-                <p className="text-purple-500 text-xs font-black uppercase tracking-wide">
-                  Current
-                </p>
-
-                <h4 className="font-black mt-2 break-words">
-                  {getDayLabel(currentWorkoutDay)}
-                </h4>
-
-                <p className="text-purple-500 text-xs mt-2">
-                  {workoutAlreadyCompletedToday
-                    ? "Completed today"
-                    : "Do this workout now"}
-                </p>
-              </div>
-
-              <div
-                className="
-                  rounded-2xl
-                  bg-white/10
-                  border
-                  border-white/15
-                  p-4
-                "
-              >
-                <p className="text-white/60 text-xs font-bold uppercase tracking-wide">
-                  Next
-                </p>
-
-                <h4 className="font-black mt-2 break-words">
-                  {getDayLabel(displayNextWorkoutDay)}
-                </h4>
-
-                <p className="text-white/60 text-xs mt-2">
-                  After current workout
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* QUICK TOOLS */}
-          <div
-            className="
-              grid
-              grid-cols-1
-              sm:grid-cols-2
-              lg:grid-cols-4
-              gap-3
-              mb-6
-            "
-          >
-            <button
-              onClick={skipWorkout}
-              disabled={workoutAlreadyCompletedToday || finishingWorkout}
-              className="
-                px-4
-                py-3
-                rounded-2xl
-                bg-orange-500/10
-                border
-                border-orange-500/20
-                text-orange-500
-                font-bold
-                flex
-                items-center
-                justify-center
-                gap-2
-                hover:bg-orange-500/20
-                disabled:opacity-40
-                disabled:hover:bg-orange-500/10
-                transition
-              "
-            >
-              <X size={18} />
-              Skip workout
-            </button>
-
-            <button
-              onClick={() => setShowFocusEditor((prev) => !prev)}
-              className="
-                px-4
-                py-3
-                rounded-2xl
-                bg-zinc-50
-                border
-                border-zinc-200
-                text-zinc-700
-                font-bold
-                flex
-                items-center
-                justify-center
-                gap-2
-                hover:border-purple-500
-                transition
-
-                dark:bg-black/30
-                dark:border-white/10
-                dark:text-zinc-300
-              "
-            >
-              {showFocusEditor ? <X size={18} /> : <Pencil size={18} />}
-              Workout focuses
-            </button>
-
-            <button
-              onClick={() => setShowAddExercise((prev) => !prev)}
-              className="
-                px-4
-                py-3
-                rounded-2xl
-                bg-zinc-50
-                border
-                border-zinc-200
-                text-zinc-700
-                font-bold
-                flex
-                items-center
-                justify-center
-                gap-2
-                hover:border-purple-500
-                transition
-
-                dark:bg-black/30
-                dark:border-white/10
-                dark:text-zinc-300
-              "
-            >
-              {showAddExercise ? <X size={18} /> : <Plus size={18} />}
-              Add exercise
-            </button>
-
-            <button
-              onClick={() => setSelectedWorkoutDay(currentWorkoutDay)}
-              className="
-                px-4
-                py-3
-                rounded-2xl
-                bg-zinc-950
-                text-white
-                font-bold
-                flex
-                items-center
-                justify-center
-                gap-2
-                hover:scale-[1.02]
-                transition
-
-                dark:bg-white
-                dark:text-black
-              "
-            >
-              <Dumbbell size={18} />
-              Today's checklist
-            </button>
-          </div>
+          <WorkoutQuickTools
+            displayWorkoutDay={displayWorkoutDay}
+            finishingWorkout={finishingWorkout}
+            setSelectedWorkoutDay={setSelectedWorkoutDay}
+            setShowAddExercise={setShowAddExercise}
+            setShowFocusEditor={setShowFocusEditor}
+            showAddExercise={showAddExercise}
+            showFocusEditor={showFocusEditor}
+            skipWorkout={skipWorkout}
+            workoutAlreadyCompletedToday={workoutAlreadyCompletedToday}
+          />
 
           {/* DAY FOCUSES */}
           {showFocusEditor && (
@@ -3920,13 +3750,16 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                     const completed = isExerciseCompleted(exercise.id);
                     const isEditingCurrentExercise =
                       editingExercise?.id === exercise.id;
+                    const exerciseWorkoutDay =
+                      exercise.workout_day || "Treino A";
                     const isCurrentExercise =
-                      (exercise.workout_day || "Treino A") ===
-                      currentWorkoutDay;
+                      exerciseWorkoutDay === currentWorkoutDay;
+                    const isDisplayWorkoutExercise =
+                      exerciseWorkoutDay === displayWorkoutDay;
 
                     return (
-                      <motion.div
-                        key={exercise.id}
+                      <div key={exercise.id} className="space-y-3">
+                        <motion.div
                         initial={{
                           opacity: 0,
                           y: 12,
@@ -3959,32 +3792,36 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                           }
 
                           ${
-                            !isCurrentExercise || workoutAlreadyCompletedToday
+                            (!isCurrentExercise &&
+                              !workoutAlreadyCompletedToday) ||
+                            (workoutAlreadyCompletedToday &&
+                              !isDisplayWorkoutExercise)
                               ? "opacity-70"
                               : ""
                           }
                         `}
                       >
-                        <button
-                          onClick={() => toggleExercise(exercise)}
+                        <div
                           className="
-                            flex
-                            items-center
-                            gap-4
-                            flex-1
-                            min-w-0
-                            text-left
-                          "
+    flex
+    items-center
+    gap-4
+    flex-1
+    min-w-0
+    text-left
+  "
                         >
-                          <div
+                          <button
+                            type="button"
+                            onClick={() => toggleExercise(exercise)}
                             className={`
-                              w-11
-                              h-11
-                              rounded-2xl
-                              flex
-                              items-center
-                              justify-center
-                              shrink-0
+    w-11
+    h-11
+    rounded-2xl
+    flex
+    items-center
+    justify-center
+    shrink-0
 
                               ${
                                 completed
@@ -4001,7 +3838,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                             ) : (
                               <Circle size={22} />
                             )}
-                          </div>
+                          </button>
 
                           <div className="min-w-0">
                             <h4
@@ -4022,21 +3859,62 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                               {exercise.reps || "-"} reps
                               {exercise.load ? ` • ${exercise.load}` : ""}
                             </p>
+                            <div className="flex items-center gap-2 mt-3 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openSetLogger(exercise);
+                                }}
+                                disabled={
+                                  !isCurrentExercise ||
+                                  workoutAlreadyCompletedToday
+                                }
+                                className="
+      px-3
+      py-2
+      rounded-xl
+      bg-purple-500/10
+      text-purple-500
+      border
+      border-purple-500/20
+      text-xs
+      font-bold
+      hover:bg-purple-500/20
+      disabled:opacity-40
+      disabled:hover:bg-purple-500/10
+      transition
+    "
+                              >
+                                {expandedSetLoggerId === exercise.id
+                                  ? "Close log"
+                                  : "Log sets"}
+                              </button>
 
-                            {!isCurrentExercise && (
+                              {getTodayExerciseSetLogs(exercise.id).length >
+                                0 && (
+                                <span className="text-xs text-green-500 font-bold">
+                                  {getTodayExerciseSetLogs(exercise.id).length}{" "}
+                                  sets logged
+                                </span>
+                              )}
+                            </div>
+
+                            {!isCurrentExercise &&
+                              !workoutAlreadyCompletedToday && (
                               <p className="text-xs text-zinc-400 mt-1">
                                 Not current in sequence
                               </p>
                             )}
 
                             {workoutAlreadyCompletedToday &&
-                              isCurrentExercise && (
+                              isDisplayWorkoutExercise && (
                                 <p className="text-xs text-green-500 mt-1">
                                   This workout was completed today
                                 </p>
                               )}
                           </div>
-                        </button>
+                        </div>
 
                         {showPlanTools && (
                           <div className="flex items-center gap-2 shrink-0">
@@ -4081,7 +3959,233 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                             </button>
                           </div>
                         )}
-                      </motion.div>
+                        </motion.div>
+
+                        {expandedSetLoggerId === exercise.id && (
+                          <div
+                            className="
+                          mt-3
+                          rounded-2xl
+                          border
+                          border-purple-500/20
+                          bg-purple-500/5
+                          p-4
+                          sm:p-5
+
+                          dark:bg-purple-500/10
+                        "
+                          >
+    <div className="flex items-start justify-between gap-4 mb-4">
+      <div>
+        <h4 className="font-black text-base sm:text-lg">
+          Log performance
+        </h4>
+
+        <p className="text-zinc-500 text-sm mt-1">
+          Register load and reps for this exercise today.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => addSetRow(exercise.id)}
+        className="
+          px-3
+          py-2
+          rounded-xl
+          bg-white
+          border
+          border-zinc-200
+          text-zinc-700
+          font-bold
+          text-xs
+          hover:border-purple-500
+          transition
+
+          dark:bg-black/30
+          dark:border-white/10
+          dark:text-white
+        "
+      >
+        + Set
+      </button>
+    </div>
+
+    <div className="space-y-3">
+      {(setLogForms[exercise.id]?.sets || []).map((setRow, index) => (
+        <div
+          key={`${exercise.id}-set-${index}`}
+          className="
+            grid
+            grid-cols-[auto_1fr_1fr_auto]
+            gap-2
+            items-center
+          "
+        >
+          <div
+            className="
+              w-10
+              h-10
+              rounded-xl
+              bg-purple-500
+              text-white
+              font-black
+              flex
+              items-center
+              justify-center
+              text-sm
+            "
+          >
+            {index + 1}
+          </div>
+
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.5"
+            placeholder="Load"
+            value={setRow.load}
+            onChange={(event) =>
+              updateSetRow(exercise.id, index, "load", event.target.value)
+            }
+            className="WorkoutInput"
+          />
+
+          <input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            step="1"
+            placeholder="Reps"
+            value={setRow.reps}
+            onChange={(event) =>
+              updateSetRow(exercise.id, index, "reps", event.target.value)
+            }
+            className="WorkoutInput"
+          />
+
+          <button
+            type="button"
+            onClick={() => removeSetRow(exercise.id, index)}
+            className="
+              w-10
+              h-10
+              rounded-xl
+              bg-red-500/10
+              text-red-500
+              flex
+              items-center
+              justify-center
+              hover:bg-red-500/20
+              transition
+            "
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ))}
+    </div>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+      <select
+        value={setLogForms[exercise.id]?.difficulty || "moderate"}
+        onChange={(event) =>
+          updateSetFormField(exercise.id, "difficulty", event.target.value)
+        }
+        className="WorkoutInput"
+      >
+        <option value="light">Light</option>
+        <option value="moderate">Moderate</option>
+        <option value="heavy">Heavy</option>
+        <option value="failure">Failure</option>
+      </select>
+
+      <input
+        type="text"
+        placeholder="Notes"
+        value={setLogForms[exercise.id]?.notes || ""}
+        onChange={(event) =>
+          updateSetFormField(exercise.id, "notes", event.target.value)
+        }
+        className="WorkoutInput"
+      />
+    </div>
+
+    {getTodayExerciseSetLogs(exercise.id).length > 0 && (
+      <div
+        className="
+          mt-4
+          rounded-2xl
+          bg-white
+          border
+          border-zinc-200
+          p-4
+
+          dark:bg-black/30
+          dark:border-white/10
+        "
+      >
+        <p className="text-xs font-black text-zinc-500 uppercase tracking-wide mb-2">
+          Saved today
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+          {getTodayExerciseSetLogs(exercise.id).map((log) => (
+            <span
+              key={log.id}
+              className="
+                px-3
+                py-2
+                rounded-xl
+                bg-green-500/10
+                text-green-500
+                text-xs
+                font-bold
+              "
+            >
+              Set {log.set_number}: {log.load ?? "-"}kg x {log.reps ?? "-"}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <button
+      type="button"
+      onClick={() => saveExerciseSetLogs(exercise)}
+      disabled={savingSetLogs}
+      className="
+        w-full
+        mt-4
+        px-5
+        py-3
+        rounded-2xl
+        bg-gradient-to-r
+        from-purple-500
+        to-fuchsia-500
+        text-white
+        font-bold
+        flex
+        items-center
+        justify-center
+        gap-2
+        disabled:opacity-50
+        hover:scale-[1.01]
+        transition
+      "
+    >
+      {savingSetLogs ? (
+        <Loader2 className="animate-spin" size={18} />
+      ) : (
+        <Save size={18} />
+      )}
+      Save performance
+    </button>
+                          </div>
+                        )}
+
+                      </div>
                     );
                   })}
                 </div>
@@ -4249,6 +4353,13 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
                           {isSkipped ? "Skipped on" : "Completed on"}{" "}
                           {formatWorkoutDate(log.workout_date)}
                         </p>
+
+                        {!isSkipped && Number(log.duration_seconds) > 0 && (
+                          <p className="text-zinc-500 text-xs mt-1">
+                            Duration:{" "}
+                            {formatWorkoutDuration(log.duration_seconds)}
+                          </p>
+                        )}
                       </div>
 
                       <div

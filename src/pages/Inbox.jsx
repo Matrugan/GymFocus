@@ -16,6 +16,7 @@ import {
 import { motion } from "framer-motion";
 
 import ThemeToggle from "../components/layout/ThemeToggle";
+import { reportError } from "../utils/errorHandler";
 
 function Inbox() {
   const { user } = useAuth();
@@ -68,7 +69,7 @@ function Inbox() {
       .eq("user_id", user.id);
 
     if (error) {
-      console.log(error);
+      reportError(error);
       setLoading(false);
       return;
     }
@@ -90,7 +91,7 @@ function Inbox() {
       .neq("user_id", user.id);
 
     if (participantsError) {
-      console.log(participantsError);
+      reportError(participantsError);
       setLoading(false);
       return;
     }
@@ -109,7 +110,7 @@ function Inbox() {
       .in("id", userIds);
 
     if (profilesError) {
-      console.log(profilesError);
+      reportError(profilesError);
       setLoading(false);
       return;
     }
@@ -123,7 +124,7 @@ function Inbox() {
       });
 
     if (messagesError) {
-      console.log(messagesError);
+      reportError(messagesError);
       setLoading(false);
       return;
     }

@@ -1,7 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
-
-import { supabase } from "../lib/supabase";
+import { useMemo, useState } from "react";
 
 import {
   Flame,
@@ -25,6 +23,8 @@ import {
 import { Link } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
+import useProfile from "../hooks/useProfile";
+import useWorkoutData from "../hooks/useWorkoutData";
 
 import Leaderboard from "../components/ranking/Leaderboard";
 import WeeklyRanking from "../components/ranking/WeeklyRanking";
@@ -40,64 +40,37 @@ import WorkoutManager from "../workout/WorkoutManager";
 import ProgressAnalytics from "../components/analytics/ProgressAnalytics";
 
 import NotificationBell from "../components/notifications/NotificationBell";
+import LevelProgressCard from "../components/level/LevelProgressCard";
 
 import Achievements from "../components/achievements/Achievements";
 import Challenges from "../components/challenges/Challenges";
 
 import ThemeToggle from "../components/layout/ThemeToggle";
 
-import {
-  getLevel,
-  getXPForNextLevel,
-  getLevelProgress,
-} from "../utils/levelSystem";
-
 function Dashboard() {
   const { user, signOut } = useAuth();
 
-  const [profile, setProfile] = useState(null);
   const [activeTab, setActiveTab] = useState("home");
   const [showSearch, setShowSearch] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [feedRefreshKey, setFeedRefreshKey] = useState(0);
-  const [dashboardWorkout, setDashboardWorkout] = useState({
-    value: "Start",
-    desktopValue: "Workout",
+  const { profile, setProfile } = useProfile({
+    enabled: Boolean(user?.id),
+    userId: user?.id,
   });
-
-  useEffect(() => {
-    if (user) {
-      getProfile();
-      getDashboardCurrentWorkout();
-    }
-  }, [user]);
-
-  async function getProfile() {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (error) {
-      console.log(error);
-      return;
-    }
-
-    setProfile(data);
-  }
+  const {
+    activePlan: dashboardActivePlan,
+    exercises: dashboardExercises,
+    refetch: refetchDashboardWorkout,
+    workoutLogs: dashboardWorkoutLogs,
+  } = useWorkoutData({
+    enabled: Boolean(user?.id),
+    userId: user?.id,
+  });
 
   function handleMobileMenuTab(tab) {
     setActiveTab(tab);
     setShowMobileMenu(false);
-  }
-
-  function getLocalDateString(date = new Date()) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
   }
 
   function sortWorkoutLogs(logs) {
@@ -190,86 +163,35 @@ function Dashboard() {
     return `${day} - ${focus}`;
   }
 
-  async function getDashboardCurrentWorkout() {
-    if (!user?.id) return;
-
-    const { data: plansData, error: plansError } = await supabase
-      .from("workout_plans")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (plansError) {
-      console.log(plansError);
-      return;
-    }
-
-    const activePlan = plansData?.[0] || null;
-
-    if (!activePlan) {
-      setDashboardWorkout({
+  const dashboardWorkout = useMemo(() => {
+    if (!dashboardActivePlan) {
+      return {
         value: "Start",
         desktopValue: "Workout",
-      });
-
-      return;
+      };
     }
 
-    const { data: exercisesData, error: exercisesError } = await supabase
-      .from("workout_exercises")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_plan_id", activePlan.id)
-      .order("workout_day", { ascending: true })
-      .order("sort_order", { ascending: true });
-
-    if (exercisesError) {
-      console.log(exercisesError);
-      return;
-    }
-
-    const exercises = exercisesData || [];
-
-    if (exercises.length === 0) {
-      setDashboardWorkout({
+    if (dashboardExercises.length === 0) {
+      return {
         value: "Empty",
         desktopValue: "Add exercises",
-      });
-
-      return;
+      };
     }
 
-    const { data: logsData, error: logsError } = await supabase
-      .from("workout_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_plan_id", activePlan.id)
-      .order("workout_date", { ascending: false })
-      .order("created_at", { ascending: false });
-
-    if (logsError) {
-      console.log(logsError);
-      return;
-    }
-
-    const logs = logsData || [];
-    const currentWorkoutDay = getDashboardCurrentWorkoutDay(exercises, logs);
+    const currentWorkoutDay = getDashboardCurrentWorkoutDay(
+      dashboardExercises,
+      dashboardWorkoutLogs,
+    );
     const currentWorkoutLabel = getDashboardWorkoutLabel(
-      activePlan,
+      dashboardActivePlan,
       currentWorkoutDay,
     );
 
-    setDashboardWorkout({
+    return {
       value: currentWorkoutLabel,
       desktopValue: currentWorkoutLabel,
-    });
-  }
-
-  const level = getLevel(profile?.xp || 0);
-  const nextLevelXP = getXPForNextLevel(level);
-  const progress = getLevelProgress(profile?.xp || 0);
+    };
+  }, [dashboardActivePlan, dashboardExercises, dashboardWorkoutLogs]);
 
   const displayName =
     profile?.username ||
@@ -883,84 +805,8 @@ function Dashboard() {
                 })}
               </div>
 
-              {/* LEVEL PROGRESS */}
-              <div
-                className="
-                  mt-5
-                  sm:mt-10
-                  bg-white
-                  border
-                  border-zinc-200
-                  rounded-2xl
-                  sm:rounded-3xl
-                  p-4
-                  sm:p-8
-                  shadow-sm
-                  min-w-0
-                  relative
-                  z-10
-
-                  dark:bg-white/5
-                  dark:border-white/10
-                "
-              >
-                <div
-                  className="
-                    flex
-                    flex-col
-                    sm:flex-row
-                    sm:justify-between
-                    mb-4
-                    gap-2
-                    sm:gap-3
-                  "
-                >
-                  <div>
-                    <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base">
-                      Progress to Level {level + 1}
-                    </p>
-
-                    <h3 className="text-2xl sm:text-3xl font-black mt-1 sm:mt-2">
-                      {Math.floor(progress)}%
-                    </h3>
-                  </div>
-
-                  <div className="text-purple-500 font-bold text-sm sm:text-base">
-                    {profile?.xp || 0} / {nextLevelXP} XP
-                  </div>
-                </div>
-
-                <div
-                  className="
-                    w-full
-                    h-3
-                    sm:h-5
-                    bg-zinc-200
-                    rounded-full
-                    overflow-hidden
-
-                    dark:bg-zinc-800
-                  "
-                >
-                  <motion.div
-                    initial={{
-                      width: 0,
-                    }}
-                    animate={{
-                      width: `${progress}%`,
-                    }}
-                    transition={{
-                      duration: 1.5,
-                    }}
-                    className="
-                      h-full
-                      rounded-full
-                      bg-gradient-to-r
-                      from-purple-500
-                      to-fuchsia-500
-                    "
-                  />
-                </div>
+              <div className="mt-5 sm:mt-10 relative z-10">
+                <LevelProgressCard xp={profile?.xp || 0} />
               </div>
 
               <DashboardBlock>
@@ -981,7 +827,7 @@ function Dashboard() {
                 profile={profile}
                 onProfileUpdated={(updatedProfile) => {
                   setProfile(updatedProfile);
-                  getDashboardCurrentWorkout();
+                  refetchDashboardWorkout();
                 }}
               />
 
@@ -1290,13 +1136,19 @@ function MobileMenuButton({ active, onClick, icon, text }) {
 }
 
 function WorkoutSummaryCard({ user }) {
-  const [activePlan, setActivePlan] = useState(null);
-  const [exercises, setExercises] = useState([]);
-  const [logs, setLogs] = useState([]);
-  const [progress, setProgress] = useState([]);
-  const [loading, setLoading] = useState(true);
-
   const today = new Date().toISOString().split("T")[0];
+  const {
+    activePlan,
+    exercises,
+    loading,
+    progress,
+    workoutLogs: logs,
+  } = useWorkoutData({
+    enabled: Boolean(user?.id),
+    includeProgress: true,
+    today,
+    userId: user?.id,
+  });
 
   const workoutDayOptions = [
     "Treino A",
@@ -1306,12 +1158,6 @@ function WorkoutSummaryCard({ user }) {
     "Treino E",
     "Full Body",
   ];
-
-  useEffect(() => {
-    if (user?.id) {
-      loadWorkoutSummary();
-    }
-  }, [user?.id]);
 
   function getOrderedWorkoutDaysFromExercises(exerciseList) {
     const daysFromExercises = exerciseList.map(
@@ -1382,82 +1228,6 @@ function WorkoutSummaryCard({ user }) {
     }
 
     return `${day} - ${focus}`;
-  }
-
-  async function loadWorkoutSummary() {
-    setLoading(true);
-
-    const { data: plansData, error: plansError } = await supabase
-      .from("workout_plans")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (plansError) {
-      console.log(plansError);
-      setLoading(false);
-      return;
-    }
-
-    const plan = plansData?.[0] || null;
-
-    setActivePlan(plan);
-
-    if (!plan) {
-      setExercises([]);
-      setLogs([]);
-      setProgress([]);
-      setLoading(false);
-      return;
-    }
-
-    const { data: exercisesData, error: exercisesError } = await supabase
-      .from("workout_exercises")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_plan_id", plan.id)
-      .order("workout_day", { ascending: true })
-      .order("sort_order", { ascending: true });
-
-    if (exercisesError) {
-      console.log(exercisesError);
-      setLoading(false);
-      return;
-    }
-
-    const { data: logsData, error: logsError } = await supabase
-      .from("workout_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_plan_id", plan.id)
-      .order("workout_date", { ascending: false })
-      .order("created_at", { ascending: false });
-
-    if (logsError) {
-      console.log(logsError);
-      setLoading(false);
-      return;
-    }
-
-    const { data: progressData, error: progressError } = await supabase
-      .from("daily_workout_progress")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("workout_plan_id", plan.id)
-      .eq("workout_date", today);
-
-    if (progressError) {
-      console.log(progressError);
-      setLoading(false);
-      return;
-    }
-
-    setExercises(exercisesData || []);
-    setLogs(logsData || []);
-    setProgress(progressData || []);
-    setLoading(false);
   }
 
   const currentWorkoutDay = useMemo(() => {

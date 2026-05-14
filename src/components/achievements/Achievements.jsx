@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 
 import { motion } from "framer-motion";
 
+import { reportError } from "../../utils/errorHandler";
 import {
   Award,
   Trophy,
@@ -34,7 +35,7 @@ function Achievements({ user }) {
       });
 
     if (error) {
-      console.log(error);
+      reportError(error);
 
       setLoading(false);
 

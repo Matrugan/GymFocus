@@ -23,6 +23,7 @@ import toast from "react-hot-toast";
 import { formatDistanceToNow } from "date-fns";
 
 import { createNotification } from "../../utils/notificationSystem";
+import { reportError } from "../../utils/errorHandler";
 
 function Feed({ user, profile, refreshKey }) {
   const [posts, setPosts] = useState([]);
@@ -93,7 +94,7 @@ function Feed({ user, profile, refreshKey }) {
         .eq("follower_id", user.id);
 
       if (followingError) {
-        console.log(followingError);
+        reportError(followingError);
         setLoading(false);
         return;
       }
@@ -116,7 +117,7 @@ function Feed({ user, profile, refreshKey }) {
         });
 
       if (error) {
-        console.log(error);
+        reportError(error);
         setLoading(false);
         return;
       }
@@ -134,7 +135,7 @@ function Feed({ user, profile, refreshKey }) {
       });
 
     if (error) {
-      console.log(error);
+      reportError(error);
       setLoading(false);
       return;
     }
@@ -147,7 +148,7 @@ function Feed({ user, profile, refreshKey }) {
     const { data, error } = await supabase.from("likes").select("*");
 
     if (error) {
-      console.log(error);
+      reportError(error);
       return;
     }
 
@@ -168,7 +169,7 @@ function Feed({ user, profile, refreshKey }) {
         .eq("id", existingLike.id);
 
       if (error) {
-        console.log(error);
+        reportError(error);
         return;
       }
     } else {
@@ -180,7 +181,7 @@ function Feed({ user, profile, refreshKey }) {
       ]);
 
       if (error) {
-        console.log(error);
+        reportError(error);
         return;
       }
 
@@ -197,7 +198,7 @@ function Feed({ user, profile, refreshKey }) {
       }
 
       if (error) {
-        console.log(error);
+        reportError(error);
         return;
       }
     }
@@ -213,7 +214,7 @@ function Feed({ user, profile, refreshKey }) {
     const { error } = await supabase.from("posts").delete().eq("id", postId);
 
     if (error) {
-      console.log(error);
+      reportError(error);
       return;
     }
 
@@ -236,7 +237,7 @@ function Feed({ user, profile, refreshKey }) {
       .eq("id", postId);
 
     if (error) {
-      console.log(error);
+      reportError(error);
       return;
     }
 

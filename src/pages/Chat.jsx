@@ -28,6 +28,7 @@ import ThemeToggle from "../components/layout/ThemeToggle";
 import toast from "react-hot-toast";
 
 import { createNotification } from "../utils/notificationSystem";
+import { reportError } from "../utils/errorHandler";
 
 function Chat() {
   const { user } = useAuth();
@@ -110,7 +111,7 @@ function Chat() {
       .neq("user_id", user.id);
 
     if (error) {
-      console.log(error);
+      reportError(error);
       return;
     }
 
@@ -125,7 +126,7 @@ function Chat() {
       .single();
 
     if (profileError) {
-      console.log(profileError);
+      reportError(profileError);
       return;
     }
 
@@ -144,7 +145,7 @@ function Chat() {
       });
 
     if (error) {
-      console.log(error);
+      reportError(error);
       setLoading(false);
       return;
     }
@@ -200,8 +201,7 @@ function Chat() {
       });
 
     if (uploadError) {
-      console.log(uploadError);
-      toast.error("Erro ao enviar imagem.");
+      reportError(uploadError, "Erro ao enviar imagem.");
       return null;
     }
 
@@ -247,8 +247,7 @@ function Chat() {
     ]);
 
     if (error) {
-      console.log(error);
-      toast.error("Erro ao enviar mensagem.");
+      reportError(error, "Erro ao enviar mensagem.");
       setSending(false);
       return;
     }

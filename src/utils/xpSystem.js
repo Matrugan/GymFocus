@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { reportError } from "./errorHandler";
 
 export async function logXP(userId, amount, reason) {
   if (!userId || !amount) return;
@@ -14,6 +15,6 @@ export async function logXP(userId, amount, reason) {
     ]);
 
   if (error) {
-    console.log("Error logging XP:", error);
+    reportError("Error logging XP:", error);
   }
 }

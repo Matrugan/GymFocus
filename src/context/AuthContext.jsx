@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import { supabase } from "../lib/supabase";
+import { reportError } from "../utils/errorHandler";
 
 const AuthContext = createContext();
 
@@ -25,7 +26,7 @@ async function clearBrokenAuthSession() {
       scope: "local",
     });
   } catch (error) {
-    console.log("Erro ao limpar sessão local:", error);
+    reportError("Erro ao limpar sessão local:", error);
   }
 
   const keysToRemove = [];
@@ -65,11 +66,11 @@ export function AuthProvider({ children }) {
         .eq("id", userId);
 
       if (error) {
-        console.log("Erro ao atualizar online:", error);
+        reportError("Erro ao atualizar online:", error);
       }
     } catch (err) {
       // Não bloquear login/roteamento por falha de status online.
-      console.log("Erro inesperado ao atualizar online:", err);
+      reportError("Erro inesperado ao atualizar online:", err);
     }
   }
 
@@ -91,7 +92,7 @@ export function AuthProvider({ children }) {
             return;
           }
 
-          console.log("Erro ao carregar sessão:", error);
+          reportError("Erro ao carregar sessão:", error);
         }
 
         const session = data?.session ?? null;
@@ -105,7 +106,7 @@ export function AuthProvider({ children }) {
           setUserOnlineStatus(session.user.id, true);
         }
       } catch (err) {
-        console.log("Erro ao carregar sessão:", err);
+        reportError("Erro ao carregar sessão:", err);
 
         if (isInvalidRefreshTokenError(err)) {
           await clearBrokenAuthSession();
@@ -170,7 +171,7 @@ export function AuthProvider({ children }) {
     });
 
     if (error) {
-      console.log("Erro no cadastro:", error.message);
+      reportError("Erro no cadastro:", error.message);
 
       return {
         error: {
@@ -200,7 +201,7 @@ export function AuthProvider({ children }) {
         ]);
 
       if (profileError) {
-        console.log("Erro ao criar profile:", profileError);
+        reportError("Erro ao criar profile:", profileError);
 
         return {
           error: {
@@ -228,7 +229,7 @@ export function AuthProvider({ children }) {
       });
 
     if (error) {
-      console.log("Erro no login:", error.message);
+      reportError("Erro no login:", error.message);
 
       return {
         error: {

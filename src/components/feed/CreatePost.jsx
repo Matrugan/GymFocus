@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { unlockAchievement } from "../../utils/achievementSystem";
 
 import ImageUploader from "../upload/ImageUploader";
+import { reportError } from "../../utils/errorHandler";
 
 function CreatePost({ user, profile, onPostCreated }) {
   const [content, setContent] = useState("");
@@ -65,9 +66,7 @@ function CreatePost({ user, profile, onPostCreated }) {
         });
 
       if (uploadError) {
-        console.log(uploadError);
-
-        toast.error("Error uploading image.");
+        reportError(uploadError, "Error uploading image.");
 
         setLoading(false);
         setUploadProgress(0);
@@ -95,9 +94,7 @@ function CreatePost({ user, profile, onPostCreated }) {
     ]);
 
     if (error) {
-      console.log(error);
-
-      toast.error("Error publishing post.");
+      reportError(error, "Error publishing post.");
 
       setLoading(false);
       setUploadProgress(0);

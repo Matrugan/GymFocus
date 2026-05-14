@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 import { unlockAchievement } from "../../utils/achievementSystem";
 
 import { logXP } from "../../utils/xpSystem";
+import { reportError } from "../../utils/errorHandler";
 
 function Challenges({ user, profile, onProfileUpdated }) {
   const [challenges, setChallenges] = useState([]);
@@ -43,7 +44,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
       });
 
     if (challengesError) {
-      console.log(challengesError);
+      reportError(challengesError);
       setLoading(false);
       return;
     }
@@ -55,7 +56,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
         .eq("user_id", user.id);
 
     if (userChallengesError) {
-      console.log(userChallengesError);
+      reportError(userChallengesError);
       setLoading(false);
       return;
     }
@@ -66,7 +67,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
       .eq("user_id", user.id);
 
     if (workoutError) {
-      console.log(workoutError);
+      reportError(workoutError);
       setLoading(false);
       return;
     }
@@ -114,8 +115,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
     ]);
 
     if (error) {
-      console.log(error);
-      toast.error("Error joining challenge.");
+      reportError(error, "Error joining challenge.");
       return;
     }
 
@@ -154,8 +154,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
       .eq("id", user.id);
 
     if (profileError) {
-      console.log(profileError);
-      toast.error("Error updating XP.");
+      reportError(profileError, "Error updating XP.");
       return;
     }
 
@@ -168,8 +167,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
       .eq("id", userChallenge.id);
 
     if (challengeError) {
-      console.log(challengeError);
-      toast.error("Error claiming challenge.");
+      reportError(challengeError, "Error claiming challenge.");
       return;
     }
 

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import toast from "react-hot-toast";
+import { reportError } from "../../utils/errorHandler";
 
 function ImageUploader({
   image,
@@ -42,9 +43,7 @@ function ImageUploader({
 
       setImage(compressedImage);
     } catch (error) {
-      console.log(error);
-
-      toast.error("Error processing image.");
+      reportError(error, "Error processing image.");
     } finally {
       setCompressing(false);
     }

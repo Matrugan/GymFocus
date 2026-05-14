@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Link } from "react-router-dom";
+import { reportError } from "../../utils/errorHandler";
 
 function NotificationBell({ user }) {
   const [notifications, setNotifications] = useState([]);
@@ -66,7 +67,7 @@ function NotificationBell({ user }) {
       .limit(20);
 
     if (error) {
-      console.log(error);
+      reportError(error);
       return;
     }
 
@@ -82,7 +83,7 @@ function NotificationBell({ user }) {
       .eq("id", notificationId);
 
     if (error) {
-      console.log(error);
+      reportError(error);
       return;
     }
 
@@ -99,7 +100,7 @@ function NotificationBell({ user }) {
       .eq("is_read", false);
 
     if (error) {
-      console.log(error);
+      reportError(error);
       return;
     }
 
@@ -113,7 +114,7 @@ function NotificationBell({ user }) {
       .eq("id", notificationId);
 
     if (error) {
-      console.log(error);
+      reportError(error);
       return;
     }
 

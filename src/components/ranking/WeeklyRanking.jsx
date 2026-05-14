@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Crown, Medal, Trophy, Dumbbell } from "lucide-react";
 
 import { Link } from "react-router-dom";
+import { reportError } from "../../utils/errorHandler";
 
 const workoutDayOptions = [
   "Treino A",
@@ -119,7 +120,7 @@ function WeeklyRanking() {
       .order("created_at", { ascending: false });
 
     if (plansError) {
-      console.log(plansError);
+      reportError(plansError);
       return {};
     }
 
@@ -146,7 +147,7 @@ function WeeklyRanking() {
       .order("sort_order", { ascending: true });
 
     if (exercisesError) {
-      console.log(exercisesError);
+      reportError(exercisesError);
       return {};
     }
 
@@ -159,7 +160,7 @@ function WeeklyRanking() {
       .order("created_at", { ascending: false });
 
     if (logsError) {
-      console.log(logsError);
+      reportError(logsError);
       return {};
     }
 
@@ -211,7 +212,7 @@ function WeeklyRanking() {
       .gte("created_at", sevenDaysAgo.toISOString());
 
     if (logsError) {
-      console.log(logsError);
+      reportError(logsError);
 
       setLoading(false);
 
@@ -244,7 +245,7 @@ function WeeklyRanking() {
       .in("id", userIds);
 
     if (profilesError) {
-      console.log(profilesError);
+      reportError(profilesError);
 
       setLoading(false);
 

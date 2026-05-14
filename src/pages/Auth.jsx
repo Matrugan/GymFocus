@@ -11,6 +11,7 @@ import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 
 import ThemeToggle from "../components/layout/ThemeToggle";
+import { reportError } from "../utils/errorHandler";
 
 function Auth() {
   const navigate = useNavigate();
@@ -70,8 +71,7 @@ function Auth() {
       navigate("/dashboard");
       setLoading(false);
     } catch (error) {
-      console.log(error);
-      toast.error("Erro inesperado. Tente novamente.");
+      reportError(error, "Erro inesperado. Tente novamente.");
       setLoading(false);
     }
   }

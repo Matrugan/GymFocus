@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { reportError } from "./errorHandler";
 
 export async function createNotification({
   userId,
@@ -25,6 +26,6 @@ export async function createNotification({
   ]);
 
   if (error) {
-    console.log("Notification error:", error);
+    reportError("Notification error:", error);
   }
 }

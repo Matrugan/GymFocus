@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { motion } from "framer-motion";
+import { reportError } from "../../utils/errorHandler";
 
 function SearchUsers() {
   const [search, setSearch] = useState("");
@@ -37,7 +38,7 @@ function SearchUsers() {
       .limit(8);
 
     if (error) {
-      console.log(error);
+      reportError(error);
       setLoading(false);
       return;
     }

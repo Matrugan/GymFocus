@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import toast from "react-hot-toast";
+import { reportError } from "../../utils/errorHandler";
 
 function ProfileSettings({ profile, user }) {
   const [bio, setBio] = useState("");
@@ -63,9 +64,7 @@ function ProfileSettings({ profile, user }) {
       });
 
     if (uploadError) {
-      console.log(uploadError);
-
-      toast.error("Error uploading avatar.");
+      reportError(uploadError, "Error uploading avatar.");
 
       setLoadingAvatar(false);
 
@@ -86,9 +85,7 @@ function ProfileSettings({ profile, user }) {
       .eq("id", user.id);
 
     if (error) {
-      console.log(error);
-
-      toast.error("Error updating avatar.");
+      reportError(error, "Error updating avatar.");
 
       setLoadingAvatar(false);
 
@@ -122,9 +119,7 @@ function ProfileSettings({ profile, user }) {
       });
 
     if (uploadError) {
-      console.log(uploadError);
-
-      toast.error("Error uploading banner.");
+      reportError(uploadError, "Error uploading banner.");
 
       setLoadingBanner(false);
 
@@ -145,9 +140,7 @@ function ProfileSettings({ profile, user }) {
       .eq("id", user.id);
 
     if (error) {
-      console.log(error);
-
-      toast.error("Error updating banner.");
+      reportError(error, "Error updating banner.");
 
       setLoadingBanner(false);
 
@@ -179,9 +172,7 @@ function ProfileSettings({ profile, user }) {
       .eq("id", user.id);
 
     if (error) {
-      console.log(error);
-
-      toast.error("Error updating bio.");
+      reportError(error, "Error updating bio.");
 
       setLoadingBio(false);
 
