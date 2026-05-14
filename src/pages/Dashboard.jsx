@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { supabase } from "../lib/supabase";
 
@@ -7,6 +7,8 @@ import {
   Flame,
   Trophy,
   Dumbbell,
+  CheckCircle,
+  Loader2,
   LogOut,
   Search,
   Home,
@@ -88,6 +90,14 @@ function Dashboard() {
   const level = getLevel(profile?.xp || 0);
   const nextLevelXP = getXPForNextLevel(level);
   const progress = getLevelProgress(profile?.xp || 0);
+
+  const displayName =
+    profile?.username ||
+    profile?.name ||
+    profile?.full_name ||
+    profile?.display_name ||
+    user?.email?.split("@")[0] ||
+    "User";
 
   const isMoreActive =
     activeTab === "rankings" ||
@@ -304,7 +314,7 @@ function Dashboard() {
                   leading-tight
                 "
               >
-                {user?.email?.split("@")[0]}
+                {displayName}
               </h1>
             </div>
 
@@ -780,6 +790,10 @@ function Dashboard() {
               </div>
 
               <DashboardBlock>
+                <WorkoutSummaryCard user={user} />
+              </DashboardBlock>
+
+              <DashboardBlock>
                 <Achievements user={user} />
               </DashboardBlock>
             </>
@@ -1105,6 +1119,302 @@ function MobileMenuButton({ active, onClick, icon, text }) {
       {icon}
       {text}
     </button>
+  );
+}
+
+
+function WorkoutSummaryCard({ user }) {
+  const [activePlan, setActivePlan] = useState(null);
+  const [exercises, setExercises] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [progress, setProgress] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const workoutDayOptions = [
+    "Treino A",
+    "Treino B",
+    "Treino C",
+    "Treino D",
+    "Treino E",
+    "Full Body",
+  ];
+
+  useEffect(() => {
+    if (user?.id) {
+      loadWorkoutSummary();
+    }
+  }, [user?.id]);
+
+  function getOrderedWorkoutDaysFromExercises(exerciseList) {
+    const daysFromExercises = exerciseList.map(
+      (exercise) => exercise.workout_day || "Treino A"
+    );
+
+    const uniqueDays = [...new Set(daysFromExercises)];
+
+    return workoutDayOptions.filter((day) => uniqueDays.includes(day));
+  }
+
+  function getNextWorkoutDayAfter(day, exerciseList) {
+    const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
+
+    if (orderedDays.length === 0) {
+      return "Treino A";
+    }
+
+    const currentIndex = orderedDays.indexOf(day);
+
+    if (currentIndex === -1) {
+      return orderedDays[0];
+    }
+
+    const nextIndex = (currentIndex + 1) % orderedDays.length;
+
+    return orderedDays[nextIndex];
+  }
+
+  function getTodayCompletedLog(logList) {
+    return (
+      logList.find((log) => {
+        const status = log.status || "completed";
+
+        return log.workout_date === today && status === "completed";
+      }) || null
+    );
+  }
+
+  function getCurrentWorkoutDay(exerciseList, logList) {
+    const todayCompletedLog = getTodayCompletedLog(logList);
+
+    if (todayCompletedLog?.workout_day) {
+      return todayCompletedLog.workout_day;
+    }
+
+    const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
+
+    if (orderedDays.length === 0) {
+      return "Treino A";
+    }
+
+    const validLogs = logList.filter((log) => {
+      const status = log.status || "completed";
+
+      return (
+        orderedDays.includes(log.workout_day) &&
+        ["completed", "skipped"].includes(status)
+      );
+    });
+
+    if (validLogs.length === 0) {
+      return orderedDays[0];
+    }
+
+    return getNextWorkoutDayAfter(validLogs[0].workout_day, exerciseList);
+  }
+
+  function getDayLabel(day) {
+    const focus = activePlan?.day_focuses?.[day];
+
+    if (!focus) {
+      return day;
+    }
+
+    return `${day} - ${focus}`;
+  }
+
+  async function loadWorkoutSummary() {
+    setLoading(true);
+
+    const { data: plansData, error: plansError } = await supabase
+      .from("workout_plans")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (plansError) {
+      console.log(plansError);
+      setLoading(false);
+      return;
+    }
+
+    const plan = plansData?.[0] || null;
+
+    setActivePlan(plan);
+
+    if (!plan) {
+      setExercises([]);
+      setLogs([]);
+      setProgress([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data: exercisesData, error: exercisesError } = await supabase
+      .from("workout_exercises")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("workout_plan_id", plan.id)
+      .order("workout_day", { ascending: true })
+      .order("sort_order", { ascending: true });
+
+    if (exercisesError) {
+      console.log(exercisesError);
+      setLoading(false);
+      return;
+    }
+
+    const { data: logsData, error: logsError } = await supabase
+      .from("workout_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("workout_plan_id", plan.id)
+      .order("workout_date", { ascending: false });
+
+    if (logsError) {
+      console.log(logsError);
+      setLoading(false);
+      return;
+    }
+
+    const { data: progressData, error: progressError } = await supabase
+      .from("daily_workout_progress")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("workout_plan_id", plan.id)
+      .eq("workout_date", today);
+
+    if (progressError) {
+      console.log(progressError);
+      setLoading(false);
+      return;
+    }
+
+    setExercises(exercisesData || []);
+    setLogs(logsData || []);
+    setProgress(progressData || []);
+    setLoading(false);
+  }
+
+  const currentWorkoutDay = useMemo(() => {
+    return getCurrentWorkoutDay(exercises, logs);
+  }, [exercises, logs]);
+
+  const currentExercises = useMemo(() => {
+    return exercises.filter(
+      (exercise) => (exercise.workout_day || "Treino A") === currentWorkoutDay
+    );
+  }, [exercises, currentWorkoutDay]);
+
+  const completedToday = useMemo(() => {
+    return currentExercises.filter((exercise) =>
+      progress.some(
+        (item) => item.exercise_id === exercise.id && item.completed
+      )
+    ).length;
+  }, [currentExercises, progress]);
+
+  const totalToday = currentExercises.length;
+
+  const todayCompletedLog = useMemo(() => {
+    return getTodayCompletedLog(logs);
+  }, [logs]);
+
+  const workoutCompletedToday = Boolean(todayCompletedLog);
+
+  const progressPercent =
+    totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
+
+  if (loading) {
+    return (
+      <div className="bg-white border border-zinc-200 rounded-2xl sm:rounded-3xl p-5 shadow-sm dark:bg-white/5 dark:border-white/10">
+        <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
+          <Loader2 className="animate-spin" size={20} />
+          Loading workout...
+        </div>
+      </div>
+    );
+  }
+
+  if (!activePlan) {
+    return (
+      <div className="bg-white border border-zinc-200 rounded-2xl sm:rounded-3xl p-5 shadow-sm dark:bg-white/5 dark:border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
+            <Dumbbell size={22} />
+          </div>
+
+          <div>
+            <h3 className="font-black text-lg">Today's workout</h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Create a workout plan to start tracking.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-zinc-200 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm dark:bg-white/5 dark:border-white/10">
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white flex items-center justify-center shrink-0">
+            <Dumbbell size={22} />
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-purple-500 uppercase tracking-wide">
+              Today's workout
+            </p>
+
+            <h3 className="font-black text-xl truncate">
+              {getDayLabel(currentWorkoutDay)}
+            </h3>
+
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">
+              {activePlan.title}
+            </p>
+          </div>
+        </div>
+
+        {workoutCompletedToday && (
+          <div className="w-10 h-10 rounded-xl bg-green-500/10 text-green-500 flex items-center justify-center shrink-0">
+            <CheckCircle size={21} />
+          </div>
+        )}
+      </div>
+
+      <div className="mb-4">
+        <div className="flex justify-between text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2">
+          <span>
+            {workoutCompletedToday
+              ? "Completed today"
+              : `${completedToday}/${totalToday} exercises`}
+          </span>
+
+          <span>{workoutCompletedToday ? "100%" : `${progressPercent}%`}</span>
+        </div>
+
+        <div className="h-3 rounded-full bg-zinc-100 overflow-hidden dark:bg-white/10">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-500 transition-all"
+            style={{
+              width: workoutCompletedToday ? "100%" : `${progressPercent}%`,
+            }}
+          />
+        </div>
+      </div>
+
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        {workoutCompletedToday
+          ? "You already completed today's workout."
+          : "Continue your current workout sequence."}
+      </p>
+    </div>
   );
 }
 

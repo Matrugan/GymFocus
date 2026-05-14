@@ -1303,6 +1303,14 @@ const workoutTemplates = [
   },
 ];
 
+function getLocalDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function WorkoutManager({ user, profile, onProfileUpdated }) {
   const [plans, setPlans] = useState([]);
   const [activePlan, setActivePlan] = useState(null);
@@ -1360,7 +1368,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     load: "",
   });
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
 
   const workoutDayOptions = [
     "Treino A",
