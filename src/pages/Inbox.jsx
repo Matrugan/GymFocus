@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 
 import { Link, useNavigate } from "react-router-dom";
 
-import { supabase } from "../lib/supabase";
-
 import { useAuth } from "../context/AuthContext";
 
 import {
@@ -17,6 +15,11 @@ import { motion } from "framer-motion";
 
 import ThemeToggle from "../components/layout/ThemeToggle";
 import { reportError } from "../utils/errorHandler";
+import {
+  fetchConversationsForUser,
+  subscribeToInboxMessages,
+  unsubscribeFromRealtime,
+} from "../services/chatService";
 
 function Inbox() {
   const { user } = useAuth();
@@ -38,23 +41,12 @@ function Inbox() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase
-      .channel(`inbox-messages-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-        },
-        () => {
-          getConversations();
-        }
-      )
-      .subscribe();
+    const channel = subscribeToInboxMessages(user.id, () => {
+      getConversations();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribeFromRealtime(channel);
     };
   }, [user?.id]);
 
@@ -63,10 +55,7 @@ function Inbox() {
 
     setLoading(true);
 
-    const { data: participations, error } = await supabase
-      .from("conversation_participants")
-      .select("*")
-      .eq("user_id", user.id);
+    const { data, error } = await fetchConversationsForUser(user.id);
 
     if (error) {
       reportError(error);
@@ -74,98 +63,7 @@ function Inbox() {
       return;
     }
 
-    if (!participations?.length) {
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
-
-    const conversationIds = participations.map(
-      (item) => item.conversation_id
-    );
-
-    const { data: participants, error: participantsError } = await supabase
-      .from("conversation_participants")
-      .select("*")
-      .in("conversation_id", conversationIds)
-      .neq("user_id", user.id);
-
-    if (participantsError) {
-      reportError(participantsError);
-      setLoading(false);
-      return;
-    }
-
-    if (!participants?.length) {
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
-
-    const userIds = participants.map((item) => item.user_id);
-
-    const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("*")
-      .in("id", userIds);
-
-    if (profilesError) {
-      reportError(profilesError);
-      setLoading(false);
-      return;
-    }
-
-    const { data: messages, error: messagesError } = await supabase
-      .from("messages")
-      .select("*")
-      .in("conversation_id", conversationIds)
-      .order("created_at", {
-        ascending: false,
-      });
-
-    if (messagesError) {
-      reportError(messagesError);
-      setLoading(false);
-      return;
-    }
-
-    const formatted = participants.map((participant) => {
-      const profile = profiles?.find(
-        (item) => item.id === participant.user_id
-      );
-
-      const conversationMessages =
-        messages?.filter(
-          (message) => message.conversation_id === participant.conversation_id
-        ) || [];
-
-      const lastMessage = conversationMessages[0];
-
-      const unreadCount = conversationMessages.filter(
-        (message) => message.user_id !== user.id && !message.is_read
-      ).length;
-
-      return {
-        conversationId: participant.conversation_id,
-        profile,
-        lastMessage,
-        unreadCount,
-      };
-    });
-
-    const sorted = formatted.sort((a, b) => {
-      const dateA = a.lastMessage?.created_at
-        ? new Date(a.lastMessage.created_at)
-        : new Date(0);
-
-      const dateB = b.lastMessage?.created_at
-        ? new Date(b.lastMessage.created_at)
-        : new Date(0);
-
-      return dateB - dateA;
-    });
-
-    setConversations(sorted);
+    setConversations(data || []);
 
     setLoading(false);
   }

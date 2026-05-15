@@ -32,9 +32,16 @@ import LevelProgressCard from "../components/level/LevelProgressCard";
 import { getLevel, getRankInfo } from "../utils/levelSystem";
 
 import ThemeToggle from "../components/layout/ThemeToggle";
+import { useLanguage } from "../context/LanguageContext";
 import { reportError } from "../utils/errorHandler";
+import {
+  getCurrentWorkoutDay,
+  getWorkoutLabel,
+  sortWorkoutLogs,
+} from "../workout/workoutSequence";
 
 function Profile() {
+  const { translate } = useLanguage();
   const { username } = useParams();
 
   const { user } = useAuth();
@@ -242,7 +249,7 @@ function Profile() {
             "
           >
             <ArrowLeft size={19} />
-            Back
+            {translate("Back")}
           </button>
 
           <ThemeToggle />
@@ -356,7 +363,7 @@ function Profile() {
               </span>
 
               <span className="font-bold">
-                {rank.name} · Level {level}
+                {translate(rank.name)} - {translate("Level")} {level}
               </span>
             </div>
           </div>
@@ -954,26 +961,29 @@ function Profile() {
 
                 <div className="min-w-0">
                   <h2 className="text-xl sm:text-2xl font-black">
-                    Athlete Info
+                    {translate("Athlete Info")}
                   </h2>
 
                   <p className="text-zinc-500 text-sm">
-                    Fitness profile
+                    {translate("Fitness profile")}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <InfoRow
-                  label="Total XP"
+                  label={translate("Total XP")}
                   value={`${profile.xp || 0} XP`}
                 />
 
-                <InfoRow label="Level" value={`Level ${level}`} />
+                <InfoRow
+                  label={translate("Level")}
+                  value={`${translate("Level")} ${level}`}
+                />
 
                 <InfoRow
-                  label="Streak"
-                  value={`${profile.streak || 0} days`}
+                  label={translate("Streak")}
+                  value={`${profile.streak || 0} ${translate("days")}`}
                 />
               </div>
             </div>
@@ -986,6 +996,7 @@ function Profile() {
 
 
 function WorkoutSummaryCard({ profileUserId }) {
+  const { translate } = useLanguage();
   const [activePlan, setActivePlan] = useState(null);
   const [exercises, setExercises] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -994,52 +1005,15 @@ function WorkoutSummaryCard({ profileUserId }) {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const workoutDayOptions = [
-    "Treino A",
-    "Treino B",
-    "Treino C",
-    "Treino D",
-    "Treino E",
-    "Full Body",
-  ];
-
   useEffect(() => {
     if (profileUserId) {
       loadWorkoutSummary();
     }
   }, [profileUserId]);
 
-  function getOrderedWorkoutDaysFromExercises(exerciseList) {
-    const daysFromExercises = exerciseList.map(
-      (exercise) => exercise.workout_day || "Treino A"
-    );
-
-    const uniqueDays = [...new Set(daysFromExercises)];
-
-    return workoutDayOptions.filter((day) => uniqueDays.includes(day));
-  }
-
-  function getNextWorkoutDayAfter(day, exerciseList) {
-    const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
-
-    if (orderedDays.length === 0) {
-      return "Treino A";
-    }
-
-    const currentIndex = orderedDays.indexOf(day);
-
-    if (currentIndex === -1) {
-      return orderedDays[0];
-    }
-
-    const nextIndex = (currentIndex + 1) % orderedDays.length;
-
-    return orderedDays[nextIndex];
-  }
-
   function getTodayCompletedLog(logList) {
     return (
-      logList.find((log) => {
+      sortWorkoutLogs(logList).find((log) => {
         const status = log.status || "completed";
 
         return log.workout_date === today && status === "completed";
@@ -1047,43 +1021,8 @@ function WorkoutSummaryCard({ profileUserId }) {
     );
   }
 
-  function getCurrentWorkoutDay(exerciseList, logList) {
-    const todayCompletedLog = getTodayCompletedLog(logList);
-
-    if (todayCompletedLog?.workout_day) {
-      return todayCompletedLog.workout_day;
-    }
-
-    const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
-
-    if (orderedDays.length === 0) {
-      return "Treino A";
-    }
-
-    const validLogs = logList.filter((log) => {
-      const status = log.status || "completed";
-
-      return (
-        orderedDays.includes(log.workout_day) &&
-        ["completed", "skipped"].includes(status)
-      );
-    });
-
-    if (validLogs.length === 0) {
-      return orderedDays[0];
-    }
-
-    return getNextWorkoutDayAfter(validLogs[0].workout_day, exerciseList);
-  }
-
   function getDayLabel(day) {
-    const focus = activePlan?.day_focuses?.[day];
-
-    if (!focus) {
-      return day;
-    }
-
-    return `${day} - ${focus}`;
+    return translate(getWorkoutLabel(activePlan, day));
   }
 
   async function loadWorkoutSummary() {
@@ -1161,9 +1100,13 @@ function WorkoutSummaryCard({ profileUserId }) {
     setLoading(false);
   }
 
+  const todayCompletedLog = useMemo(() => {
+    return getTodayCompletedLog(logs);
+  }, [logs]);
+
   const currentWorkoutDay = useMemo(() => {
-    return getCurrentWorkoutDay(exercises, logs);
-  }, [exercises, logs]);
+    return todayCompletedLog?.workout_day || getCurrentWorkoutDay(exercises, logs);
+  }, [exercises, logs, todayCompletedLog]);
 
   const currentExercises = useMemo(() => {
     return exercises.filter(
@@ -1180,10 +1123,6 @@ function WorkoutSummaryCard({ profileUserId }) {
   }, [currentExercises, progress]);
 
   const totalToday = currentExercises.length;
-
-  const todayCompletedLog = useMemo(() => {
-    return getTodayCompletedLog(logs);
-  }, [logs]);
 
   const workoutCompletedToday = Boolean(todayCompletedLog);
 
@@ -1248,9 +1187,9 @@ function WorkoutSummaryCard({ profileUserId }) {
           </div>
 
           <div>
-            <h3 className="font-black text-lg">Today's workout</h3>
+            <h3 className="font-black text-lg">{translate("Today's workout")}</h3>
             <p className="text-sm text-zinc-500">
-              No active workout plan yet.
+              {translate("No active workout plan yet.")}
             </p>
           </div>
         </div>
@@ -1295,7 +1234,7 @@ function WorkoutSummaryCard({ profileUserId }) {
 
           <div className="min-w-0">
             <p className="text-xs font-bold text-purple-500 uppercase tracking-wide">
-              Today's workout
+              {translate("Today's workout")}
             </p>
 
             <h3 className="font-black text-lg sm:text-xl truncate">
@@ -1303,7 +1242,7 @@ function WorkoutSummaryCard({ profileUserId }) {
             </h3>
 
             <p className="text-sm text-zinc-500 truncate">
-              {activePlan.title}
+              {translate(activePlan.title)}
             </p>
           </div>
         </div>
@@ -1319,8 +1258,8 @@ function WorkoutSummaryCard({ profileUserId }) {
         <div className="flex justify-between text-xs font-bold text-zinc-500 mb-2">
           <span>
             {workoutCompletedToday
-              ? "Completed today"
-              : `${completedToday}/${totalToday} exercises`}
+              ? translate("Completed today")
+              : `${completedToday}/${totalToday} ${translate("exercises")}`}
           </span>
 
           <span>{workoutCompletedToday ? "100%" : `${progressPercent}%`}</span>
@@ -1338,8 +1277,8 @@ function WorkoutSummaryCard({ profileUserId }) {
 
       <p className="text-sm text-zinc-500">
         {workoutCompletedToday
-          ? "This workout was completed today."
-          : "Current workout based on the real sequence."}
+          ? translate("This workout was completed today.")
+          : translate("Current workout based on the real sequence.")}
       </p>
     </div>
   );

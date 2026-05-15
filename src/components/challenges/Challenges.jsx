@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../../lib/supabase";
-
 import { motion } from "framer-motion";
 
 import {
@@ -17,8 +15,19 @@ import { unlockAchievement } from "../../utils/achievementSystem";
 
 import { logXP } from "../../utils/xpSystem";
 import { reportError } from "../../utils/errorHandler";
+import {
+  createUserChallenge,
+  fetchChallenges,
+  fetchUserChallenges,
+  fetchUserWorkoutLogCount,
+  markUserChallengeClaimed,
+} from "../../services/challengeService";
+import { updateProfileStats } from "../../services/profileService";
+import { useLanguage } from "../../context/LanguageContext";
 
 function Challenges({ user, profile, onProfileUpdated }) {
+  const { language, t, translate } = useLanguage();
+
   const [challenges, setChallenges] = useState([]);
 
   const [userChallenges, setUserChallenges] = useState([]);
@@ -36,12 +45,8 @@ function Challenges({ user, profile, onProfileUpdated }) {
   async function getData() {
     setLoading(true);
 
-    const { data: challengesData, error: challengesError } = await supabase
-      .from("challenges")
-      .select("*")
-      .order("created_at", {
-        ascending: true,
-      });
+    const { data: challengesData, error: challengesError } =
+      await fetchChallenges();
 
     if (challengesError) {
       reportError(challengesError);
@@ -50,10 +55,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
     }
 
     const { data: userChallengesData, error: userChallengesError } =
-      await supabase
-        .from("user_challenges")
-        .select("*")
-        .eq("user_id", user.id);
+      await fetchUserChallenges(user.id);
 
     if (userChallengesError) {
       reportError(userChallengesError);
@@ -61,10 +63,8 @@ function Challenges({ user, profile, onProfileUpdated }) {
       return;
     }
 
-    const { data: workoutLogs, error: workoutError } = await supabase
-      .from("workout_logs")
-      .select("*")
-      .eq("user_id", user.id);
+    const { data: workoutLogs, error: workoutError } =
+      await fetchUserWorkoutLogCount(user.id);
 
     if (workoutError) {
       reportError(workoutError);
@@ -102,24 +102,59 @@ function Challenges({ user, profile, onProfileUpdated }) {
     return Math.min(percent, 100);
   }
 
+  function getChallengeTitle(challenge) {
+    if (language !== "pt") {
+      return challenge.title;
+    }
+
+    if (challenge.type === "workouts") {
+      return `Desafio de ${challenge.target} treinos`;
+    }
+
+    if (challenge.type === "streak") {
+      return `Sequencia de ${challenge.target} dias`;
+    }
+
+    if (challenge.type === "xp") {
+      return `Meta de ${challenge.target} XP`;
+    }
+
+    return translate(challenge.title);
+  }
+
+  function getChallengeDescription(challenge) {
+    if (language !== "pt") {
+      return challenge.description;
+    }
+
+    if (challenge.type === "workouts") {
+      return `Complete ${challenge.target} treinos para ganhar XP e desbloquear recompensas.`;
+    }
+
+    if (challenge.type === "streak") {
+      return `Mantenha uma sequencia de ${challenge.target} dias para concluir este desafio.`;
+    }
+
+    if (challenge.type === "xp") {
+      return `Acumule ${challenge.target} XP para concluir este desafio.`;
+    }
+
+    return translate(challenge.description);
+  }
+
   function getUserChallenge(challengeId) {
     return userChallenges.find((item) => item.challenge_id === challengeId);
   }
 
   async function joinChallenge(challengeId) {
-    const { error } = await supabase.from("user_challenges").insert([
-      {
-        user_id: user.id,
-        challenge_id: challengeId,
-      },
-    ]);
+    const { error } = await createUserChallenge(user.id, challengeId);
 
     if (error) {
-      reportError(error, "Error joining challenge.");
+      reportError(error, translate("Error joining challenge."));
       return;
     }
 
-    toast.success("Challenge joined!");
+    toast.success(translate("Challenge joined!"));
 
     getData();
   }
@@ -128,46 +163,39 @@ function Challenges({ user, profile, onProfileUpdated }) {
     const userChallenge = getUserChallenge(challenge.id);
 
     if (!userChallenge) {
-      toast.error("Join this challenge first.");
+      toast.error(translate("Join this challenge first."));
       return;
     }
 
     if (userChallenge.claimed) {
-      toast.error("Reward already claimed.");
+      toast.error(translate("Reward already claimed."));
       return;
     }
 
     const progress = getProgress(challenge);
 
     if (progress < challenge.target) {
-      toast.error("Challenge not completed yet.");
+      toast.error(translate("Challenge not completed yet."));
       return;
     }
 
     const newXP = (profile?.xp || 0) + challenge.xp_reward;
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        xp: newXP,
-      })
-      .eq("id", user.id);
+    const { error: profileError } = await updateProfileStats(user.id, {
+      xp: newXP,
+    });
 
     if (profileError) {
-      reportError(profileError, "Error updating XP.");
+      reportError(profileError, translate("Error updating XP."));
       return;
     }
 
-    const { error: challengeError } = await supabase
-      .from("user_challenges")
-      .update({
-        completed: true,
-        claimed: true,
-      })
-      .eq("id", userChallenge.id);
+    const { error: challengeError } = await markUserChallengeClaimed(
+      userChallenge.id,
+    );
 
     if (challengeError) {
-      reportError(challengeError, "Error claiming challenge.");
+      reportError(challengeError, translate("Error claiming challenge."));
       return;
     }
 
@@ -175,9 +203,17 @@ function Challenges({ user, profile, onProfileUpdated }) {
       await unlockAchievement(user.id, challenge.badge);
     }
 
-    await logXP(user.id, challenge.xp_reward, `challenge: ${challenge.title}`);
+    await logXP(
+      user.id,
+      challenge.xp_reward,
+      `challenge: ${getChallengeTitle(challenge)}`,
+    );
 
-    toast.success(`Challenge completed! +${challenge.xp_reward} XP`);
+    toast.success(
+      language === "pt"
+        ? `Desafio concluido! +${challenge.xp_reward} XP`
+        : `Challenge completed! +${challenge.xp_reward} XP`,
+    );
 
     onProfileUpdated?.({
       ...profile,
@@ -285,7 +321,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
               break-words
             "
           >
-            Fitness Challenges
+            {t("challenges.title")}
           </h2>
 
           <p
@@ -298,7 +334,9 @@ function Challenges({ user, profile, onProfileUpdated }) {
               dark:text-zinc-500
             "
           >
-            Complete challenges and earn rewards.
+            {language === "pt"
+              ? "Complete desafios e ganhe recompensas."
+              : "Complete challenges and earn rewards."}
           </p>
         </div>
       </div>
@@ -415,7 +453,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
                         break-words
                       "
                     >
-                      {challenge.title}
+                      {getChallengeTitle(challenge)}
                     </h3>
 
                     <p
@@ -429,7 +467,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
                         dark:text-zinc-500
                       "
                     >
-                      {challenge.description}
+                      {getChallengeDescription(challenge)}
                     </p>
                   </div>
                 </div>
@@ -470,7 +508,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
                   "
                 >
                   <span className="text-zinc-600 dark:text-zinc-400">
-                    Progress
+                    {language === "pt" ? "Progresso" : "Progress"}
                   </span>
 
                   <span className="font-bold text-purple-500 shrink-0">
@@ -526,7 +564,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
               >
                 <div>
                   <p className="text-zinc-500 text-sm">
-                    Reward
+                    {language === "pt" ? "Recompensa" : "Reward"}
                   </p>
 
                   <p className="font-bold">
@@ -564,7 +602,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
                     "
                   >
                     <Lock size={18} />
-                    Join
+                    {language === "pt" ? "Entrar" : "Join"}
                   </button>
                 )}
 
@@ -595,7 +633,13 @@ function Challenges({ user, profile, onProfileUpdated }) {
                   >
                     <Gift size={18} />
 
-                    {completed ? "Claim" : "In Progress"}
+                    {completed
+                      ? language === "pt"
+                        ? "Resgatar"
+                        : "Claim"
+                      : language === "pt"
+                        ? "Em progresso"
+                        : "In Progress"}
                   </button>
                 )}
 
@@ -615,7 +659,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
                       font-bold
                     "
                   >
-                    Completed
+                    {language === "pt" ? "Concluido" : "Completed"}
                   </span>
                 )}
               </div>
@@ -644,7 +688,9 @@ function Challenges({ user, profile, onProfileUpdated }) {
             dark:border-white/10
           "
         >
-          No challenges available yet.
+          {language === "pt"
+            ? "Nenhum desafio disponivel ainda."
+            : "No challenges available yet."}
         </div>
       )}
     </div>

@@ -10,6 +10,7 @@ import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
 
 import { ThemeProvider } from "./context/ThemeContext";
+import { LanguageProvider } from "./context/LanguageContext";
 
 import "./index.css";
 
@@ -17,20 +18,22 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        <AuthProvider>
-          <App />
+        <LanguageProvider>
+          <AuthProvider>
+            <App />
 
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: "#18181b",
-                color: "#fff",
-                border: "1px solid rgba(255,255,255,0.1)",
-              },
-            }}
-          />
-        </AuthProvider>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: "#18181b",
+                  color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                },
+              }}
+            />
+          </AuthProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </BrowserRouter>
   </React.StrictMode>

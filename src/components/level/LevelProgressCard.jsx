@@ -9,8 +9,10 @@ import {
   getRankInfo,
   getXPForNextLevel,
 } from "../../utils/levelSystem";
+import { useLanguage } from "../../context/LanguageContext";
 
 function LevelProgressCard({ xp = 0, compact = false }) {
+  const { language, translate } = useLanguage();
   const level = getLevel(xp);
   const nextLevelXP = getXPForNextLevel(level);
   const progress = getLevelProgress(xp);
@@ -114,7 +116,7 @@ function LevelProgressCard({ xp = 0, compact = false }) {
               dark:text-black
             "
           >
-            LEVEL UP
+            {language === "pt" ? "SUBIU DE NIVEL" : "LEVEL UP"}
           </motion.div>
         )}
       </AnimatePresence>
@@ -195,12 +197,12 @@ function LevelProgressCard({ xp = 0, compact = false }) {
                   ${rank.text}
                 `}
               >
-                {rank.name}
+                {translate(rank.name)}
               </span>
 
               <span className="flex items-center gap-1 text-xs font-bold text-zinc-500">
                 <Trophy size={14} />
-                Level {level}
+                {language === "pt" ? "Nivel" : "Level"} {level}
               </span>
             </div>
 
@@ -212,11 +214,14 @@ function LevelProgressCard({ xp = 0, compact = false }) {
                 ${compact ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"}
               `}
             >
-              Progress to Level {level + 1}
+              {language === "pt" ? "Progresso para o nivel" : "Progress to Level"}{" "}
+              {level + 1}
             </h3>
 
             <p className="mt-1 text-sm text-zinc-500">
-              {xpToNextLevel} XP left to unlock the next badge.
+              {language === "pt"
+                ? `${xpToNextLevel} XP restantes para desbloquear a proxima insignia.`
+                : `${xpToNextLevel} XP left to unlock the next badge.`}
             </p>
           </div>
         </div>
@@ -224,14 +229,14 @@ function LevelProgressCard({ xp = 0, compact = false }) {
         <div className="grid grid-cols-2 gap-2 sm:min-w-[210px]">
           <div className="rounded-2xl bg-zinc-50 p-3 dark:bg-black/30">
             <p className="text-[10px] font-black uppercase tracking-wide text-zinc-500">
-              Total XP
+              {language === "pt" ? "XP total" : "Total XP"}
             </p>
             <p className="mt-1 text-lg font-black">{xp}</p>
           </div>
 
           <div className="rounded-2xl bg-zinc-50 p-3 dark:bg-black/30">
             <p className="text-[10px] font-black uppercase tracking-wide text-zinc-500">
-              Next
+              {language === "pt" ? "Proximo" : "Next"}
             </p>
             <p className="mt-1 text-lg font-black">{nextLevelXP}</p>
           </div>
@@ -242,7 +247,7 @@ function LevelProgressCard({ xp = 0, compact = false }) {
         <div className="mb-2 flex items-center justify-between text-xs font-bold text-zinc-500">
           <span className="flex items-center gap-1">
             <Sparkles size={14} />
-            Rank progress
+            {language === "pt" ? "Progresso de categoria" : "Rank progress"}
           </span>
           <span>{Math.floor(progress)}%</span>
         </div>
@@ -305,7 +310,7 @@ function LevelProgressCard({ xp = 0, compact = false }) {
                 }
               `}
             >
-              {rankName}
+              {translate(rankName)}
             </div>
           );
         })}
@@ -313,7 +318,9 @@ function LevelProgressCard({ xp = 0, compact = false }) {
 
       <div className="relative mt-4 flex items-center gap-2 text-xs font-bold text-zinc-500">
         <ChevronUp size={14} className={rank.text} />
-        Complete workouts and challenges to climb faster.
+        {language === "pt"
+          ? "Complete treinos e desafios para subir mais rapido."
+          : "Complete workouts and challenges to climb faster."}
       </div>
     </motion.div>
   );

@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-import { supabase } from "../lib/supabase";
-
 import { useAuth } from "../context/AuthContext";
 
 import { useNavigate, useParams, Link } from "react-router-dom";
@@ -29,6 +27,15 @@ import toast from "react-hot-toast";
 
 import { createNotification } from "../utils/notificationSystem";
 import { reportError } from "../utils/errorHandler";
+import {
+  createMessage,
+  fetchConversationMessages,
+  fetchConversationPeer,
+  markConversationMessagesAsRead,
+  subscribeToConversationMessages,
+  unsubscribeFromRealtime,
+  uploadChatImage as uploadChatImageFile,
+} from "../services/chatService";
 
 function Chat() {
   const { user } = useAuth();
@@ -70,63 +77,30 @@ function Chat() {
   useEffect(() => {
     if (!id) return;
 
-    const channel = supabase
-      .channel(`chat-messages-${id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${id}`,
-        },
-        (payload) => {
-          setMessages((prev) => {
-            const exists = prev.some(
-              (message) => message.id === payload.new.id,
-            );
+    const channel = subscribeToConversationMessages(id, (payload) => {
+      setMessages((prev) => {
+        const exists = prev.some((message) => message.id === payload.new.id);
 
-            if (exists) return prev;
+        if (exists) return prev;
 
-            return [...prev, payload.new];
-          });
+        return [...prev, payload.new];
+      });
 
-          if (payload.new.user_id !== user?.id) {
-            markMessagesAsRead();
-          }
-        },
-      )
-      .subscribe();
+      if (payload.new.user_id !== user?.id) {
+        markMessagesAsRead();
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribeFromRealtime(channel);
     };
   }, [id, user?.id]);
 
   async function getSelectedUser() {
-    const { data: participants, error } = await supabase
-      .from("conversation_participants")
-      .select("*")
-      .eq("conversation_id", id)
-      .neq("user_id", user.id);
+    const { data: profile, error } = await fetchConversationPeer(id, user.id);
 
     if (error) {
       reportError(error);
-      return;
-    }
-
-    const otherParticipant = participants?.[0];
-
-    if (!otherParticipant) return;
-
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", otherParticipant.user_id)
-      .single();
-
-    if (profileError) {
-      reportError(profileError);
       return;
     }
 
@@ -136,13 +110,7 @@ function Chat() {
   async function getMessages() {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("conversation_id", id)
-      .order("created_at", {
-        ascending: true,
-      });
+    const { data, error } = await fetchConversationMessages(id);
 
     if (error) {
       reportError(error);
@@ -158,13 +126,7 @@ function Chat() {
   async function markMessagesAsRead() {
     if (!user?.id || !id) return;
 
-    await supabase
-      .from("messages")
-      .update({
-        is_read: true,
-      })
-      .eq("conversation_id", id)
-      .neq("user_id", user.id);
+    await markConversationMessagesAsRead(id, user.id);
   }
 
   function handleImageChange(e) {
@@ -188,33 +150,22 @@ function Chat() {
   async function uploadChatImage() {
     if (!image) return null;
 
-    const fileExt = image.name.split(".").pop();
-
-    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-
-    const filePath = fileName;
-
-    const { error: uploadError } = await supabase.storage
-      .from("chat-images")
-      .upload(filePath, image, {
-        upsert: false,
-      });
+    const { data: publicUrl, error: uploadError } = await uploadChatImageFile(
+      user.id,
+      image,
+    );
 
     if (uploadError) {
       reportError(uploadError, "Erro ao enviar imagem.");
       return null;
     }
 
-    const { data } = supabase.storage
-      .from("chat-images")
-      .getPublicUrl(filePath);
-
-    if (!data?.publicUrl) {
+    if (!publicUrl) {
       toast.error("Não foi possível gerar o link da imagem.");
       return null;
     }
 
-    return data.publicUrl;
+    return publicUrl;
   }
 
   async function sendMessage() {
@@ -235,16 +186,14 @@ function Chat() {
       }
     }
 
-    const { error } = await supabase.from("messages").insert([
-      {
-        conversation_id: id,
-        user_id: user.id,
-        username: user.email,
-        content: newMessage.trim(),
-        image_url,
-        is_read: false,
-      },
-    ]);
+    const { error } = await createMessage({
+      conversation_id: id,
+      user_id: user.id,
+      username: user.email,
+      content: newMessage.trim(),
+      image_url,
+      is_read: false,
+    });
 
     if (error) {
       reportError(error, "Erro ao enviar mensagem.");

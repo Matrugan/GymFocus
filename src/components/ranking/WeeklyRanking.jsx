@@ -8,97 +8,14 @@ import { Crown, Medal, Trophy, Dumbbell } from "lucide-react";
 
 import { Link } from "react-router-dom";
 import { reportError } from "../../utils/errorHandler";
-
-const workoutDayOptions = [
-  "Treino A",
-  "Treino B",
-  "Treino C",
-  "Treino D",
-  "Treino E",
-  "Full Body",
-];
-
-function sortWorkoutLogs(logs) {
-  return [...logs].sort((a, b) => {
-    const dateA = String(a.workout_date || "").split("T")[0];
-    const dateB = String(b.workout_date || "").split("T")[0];
-
-    if (dateA !== dateB) {
-      return dateB.localeCompare(dateA);
-    }
-
-    return String(b.created_at || "").localeCompare(String(a.created_at || ""));
-  });
-}
-
-function getOrderedWorkoutDaysFromExercises(exerciseList) {
-  const daysFromExercises = exerciseList.map(
-    (exercise) => exercise.workout_day || "Treino A",
-  );
-
-  const uniqueDays = [...new Set(daysFromExercises)];
-
-  return workoutDayOptions.filter((day) => uniqueDays.includes(day));
-}
-
-function getNextWorkoutDayAfter(day, exerciseList) {
-  const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
-
-  if (orderedDays.length === 0) {
-    return "Treino A";
-  }
-
-  const currentIndex = orderedDays.indexOf(day);
-
-  if (currentIndex === -1) {
-    return orderedDays[0];
-  }
-
-  const nextIndex = (currentIndex + 1) % orderedDays.length;
-
-  return orderedDays[nextIndex];
-}
-
-function getCurrentWorkoutDay(exerciseList, logs) {
-  const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
-
-  if (orderedDays.length === 0) {
-    return null;
-  }
-
-  const sortedLogs = sortWorkoutLogs(logs);
-
-  const validLogs = sortedLogs.filter((log) => {
-    const status = log.status || "completed";
-
-    return (
-      orderedDays.includes(log.workout_day) &&
-      ["completed", "skipped"].includes(status)
-    );
-  });
-
-  if (validLogs.length === 0) {
-    return orderedDays[0];
-  }
-
-  return getNextWorkoutDayAfter(validLogs[0].workout_day, exerciseList);
-}
-
-function getWorkoutLabel(plan, day) {
-  if (!day) {
-    return "No workout";
-  }
-
-  const focus = plan?.day_focuses?.[day];
-
-  if (!focus) {
-    return day;
-  }
-
-  return `${day} - ${focus}`;
-}
+import {
+  getCurrentWorkoutDay,
+  getWorkoutLabel,
+} from "../../workout/workoutSequence";
+import { useLanguage } from "../../context/LanguageContext";
 
 function WeeklyRanking() {
+  const { language, translate } = useLanguage();
   const [ranking, setRanking] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -413,7 +330,7 @@ function WeeklyRanking() {
                 break-words
               "
             >
-              Weekly Ranking
+              {language === "pt" ? "Ranking semanal" : "Weekly Ranking"}
             </h2>
 
             <p
@@ -426,7 +343,7 @@ function WeeklyRanking() {
                 dark:text-zinc-400
               "
             >
-              XP earned in the last 7 days
+              {language === "pt" ? "XP ganho nos ultimos 7 dias" : "XP earned in the last 7 days"}
             </p>
           </div>
         </div>
@@ -446,7 +363,7 @@ function WeeklyRanking() {
             shrink-0
           "
         >
-          Last 7 days
+          {translate("Last 7 days")}
         </div>
       </div>
 
@@ -469,7 +386,9 @@ function WeeklyRanking() {
             dark:border-white/10
           "
         >
-          No weekly XP yet. Complete workouts or challenges to appear here.
+          {language === "pt"
+            ? "Sem XP semanal ainda. Complete treinos ou desafios para aparecer aqui."
+            : "No weekly XP yet. Complete workouts or challenges to appear here."}
         </div>
       )}
 
@@ -616,7 +535,7 @@ function WeeklyRanking() {
                     >
                       <Dumbbell size={14} className="shrink-0" />
                       <span className="truncate">
-                        {item.currentWorkout}
+                        {translate(item.currentWorkout)}
                       </span>
                     </p>
                   </div>
@@ -685,8 +604,9 @@ function WeeklyRanking() {
         <Trophy size={20} className="text-purple-500 shrink-0 mt-0.5 sm:mt-0" />
 
         <p className="text-sm">
-          Weekly XP is calculated from workouts and completed challenges in the
-          last 7 days.
+          {language === "pt"
+            ? "O XP semanal e calculado a partir de treinos e desafios concluidos nos ultimos 7 dias."
+            : "Weekly XP is calculated from workouts and completed challenges in the last 7 days."}
         </p>
       </div>
     </motion.div>

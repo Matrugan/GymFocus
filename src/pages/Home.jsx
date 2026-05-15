@@ -16,8 +16,13 @@ import {
 } from "lucide-react";
 
 import ThemeToggle from "../components/layout/ThemeToggle";
+import BrandLogo from "../components/layout/BrandLogo";
+import LanguageToggle from "../components/layout/LanguageToggle";
+import { useLanguage } from "../context/LanguageContext";
 
 function Home() {
+  const { t } = useLanguage();
+
   const features = [
     {
       title: "Track Workouts",
@@ -120,32 +125,12 @@ function Home() {
           justify-between
         "
       >
-        <Link to="/" className="flex items-center gap-3">
-          <div
-            className="
-              w-12
-              h-12
-              rounded-2xl
-              bg-gradient-to-r
-              from-purple-500
-              to-fuchsia-500
-              text-white
-              flex
-              items-center
-              justify-center
-              shadow-lg
-              shadow-purple-500/30
-            "
-          >
-            <Dumbbell size={24} />
-          </div>
-
-          <span className="text-2xl font-black">
-            Gym<span className="text-purple-500">Focus</span>
-          </span>
+        <Link to="/" className="flex items-center">
+          <BrandLogo size="sm" />
         </Link>
 
         <div className="flex items-center gap-3">
+          <LanguageToggle />
           <ThemeToggle />
 
           <Link
@@ -170,7 +155,7 @@ function Home() {
               dark:border-white/10
             "
           >
-            Login
+            {t("home.login")}
           </Link>
 
           <Link
@@ -191,7 +176,7 @@ function Home() {
               gap-2
             "
           >
-            Get Started
+            {t("home.start")}
             <ArrowRight size={18} />
           </Link>
         </div>
@@ -246,7 +231,7 @@ function Home() {
             "
           >
             <Flame size={16} />
-            Fitness social network
+            {t("home.badge")}
           </div>
 
           <h1
@@ -257,9 +242,7 @@ function Home() {
               leading-tight
             "
           >
-            Train harder.
-            <br />
-            Earn XP.
+            {t("home.heroTitle")}
             <br />
             <span
               className="
@@ -270,7 +253,7 @@ function Home() {
                 text-transparent
               "
             >
-              Compete socially.
+              GymFocus
             </span>
           </h1>
 
@@ -286,9 +269,7 @@ function Home() {
               dark:text-zinc-400
             "
           >
-            GymFocus turns your fitness journey into a social game. Complete
-            workouts, unlock badges, share progress and climb the weekly
-            ranking.
+            {t("home.heroCopy")}
           </p>
 
           <div className="flex flex-wrap gap-4 mt-10">
@@ -311,7 +292,7 @@ function Home() {
                 gap-3
               "
             >
-              Start for free
+              {t("home.start")}
               <ArrowRight size={20} />
             </Link>
 
@@ -962,7 +943,7 @@ function Home() {
           dark:border-white/10
         "
       >
-        <p>GymFocus — Fitness, gamification and community.</p>
+        <p>{t("home.footer")}</p>
       </footer>
     </main>
   );

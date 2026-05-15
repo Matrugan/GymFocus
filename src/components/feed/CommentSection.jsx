@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../../lib/supabase";
-
 import { Send, Trash2, MessageCircle } from "lucide-react";
 
 import toast from "react-hot-toast";
 
 import { createNotification } from "../../utils/notificationSystem";
 import { reportError } from "../../utils/errorHandler";
+import {
+  createComment,
+  deleteCommentById,
+  fetchCommentsByPostId,
+  fetchPostOwner,
+} from "../../services/feedService";
+import { useLanguage } from "../../context/LanguageContext";
 
 function CommentSection({ postId, user, profile }) {
+  const { language, translate } = useLanguage();
   const [comments, setComments] = useState([]);
 
   const [comment, setComment] = useState("");
@@ -23,13 +29,7 @@ function CommentSection({ postId, user, profile }) {
   }, [postId]);
 
   async function getComments() {
-    const { data, error } = await supabase
-      .from("comments")
-      .select("*")
-      .eq("post_id", postId)
-      .order("created_at", {
-        ascending: true,
-      });
+    const { data, error } = await fetchCommentsByPostId(postId);
 
     if (error) {
       reportError(error);
@@ -41,38 +41,32 @@ function CommentSection({ postId, user, profile }) {
 
   async function addComment() {
     if (!comment.trim()) {
-      toast.error("Write a comment first.");
+      toast.error(translate("Write a comment first."));
       return;
     }
 
     if (!user || !profile) {
-      toast.error("User profile not loaded.");
+      toast.error(translate("User profile not loaded."));
       return;
     }
 
     setLoading(true);
 
-    const { error } = await supabase.from("comments").insert([
-      {
-        post_id: postId,
-        user_id: user.id,
-        username: profile.username,
-        avatar_url: profile.avatar_url,
-        content: comment.trim(),
-      },
-    ]);
+    const { error } = await createComment({
+      post_id: postId,
+      user_id: user.id,
+      username: profile.username,
+      avatar_url: profile.avatar_url,
+      content: comment.trim(),
+    });
 
     if (error) {
-      reportError(error, "Error adding comment.");
+      reportError(error, translate("Error adding comment."));
       setLoading(false);
       return;
     }
 
-    const { data: postData } = await supabase
-      .from("posts")
-      .select("user_id")
-      .eq("id", postId)
-      .single();
+    const { data: postData } = await fetchPostOwner(postId);
 
     if (postData) {
       await createNotification({
@@ -90,28 +84,27 @@ function CommentSection({ postId, user, profile }) {
   }
 
   async function deleteComment(commentId) {
-    const confirmDelete = confirm("Delete this comment?");
+    const confirmDelete = confirm(
+      language === "pt" ? "Excluir este comentario?" : "Delete this comment?",
+    );
 
     if (!confirmDelete) return;
 
-    const { error } = await supabase
-      .from("comments")
-      .delete()
-      .eq("id", commentId);
+    const { error } = await deleteCommentById(commentId);
 
     if (error) {
-      reportError(error, "Error deleting comment.");
+      reportError(error, translate("Error deleting comment."));
       return;
     }
 
-    toast.success("Comment deleted.");
+    toast.success(translate("Comment deleted."));
     getComments();
   }
 
   function formatTime(date) {
     if (!date) return "";
 
-    return new Date(date).toLocaleDateString([], {
+    return new Date(date).toLocaleDateString(language === "pt" ? "pt-BR" : "en-US", {
       day: "2-digit",
       month: "short",
     });
@@ -143,7 +136,8 @@ function CommentSection({ postId, user, profile }) {
         <MessageCircle size={18} />
 
         <span className="font-bold">
-          {comments.length} {comments.length === 1 ? "Comment" : "Comments"}
+          {comments.length}{" "}
+          {comments.length === 1 ? translate("Comment") : translate("Comments")}
         </span>
       </div>
 
@@ -268,7 +262,7 @@ function CommentSection({ postId, user, profile }) {
               dark:border-white/10
             "
           >
-            No comments yet. Be the first to comment.
+            {translate("No comments yet. Be the first to comment.")}
           </div>
         )}
       </div>
@@ -312,7 +306,7 @@ function CommentSection({ postId, user, profile }) {
 
         <input
           type="text"
-          placeholder="Write a comment..."
+          placeholder={translate("Write a comment...")}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           onKeyDown={(e) => {

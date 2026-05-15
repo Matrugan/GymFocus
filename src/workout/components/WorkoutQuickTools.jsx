@@ -1,4 +1,5 @@
 import { Dumbbell, Pencil, Plus, X } from "lucide-react";
+import { useLanguage } from "../../context/LanguageContext";
 
 function WorkoutQuickTools({
   displayWorkoutDay,
@@ -11,6 +12,8 @@ function WorkoutQuickTools({
   skipWorkout,
   workoutAlreadyCompletedToday,
 }) {
+  const { translate } = useLanguage();
+
   return (
     <div
       className="
@@ -45,7 +48,7 @@ function WorkoutQuickTools({
         "
       >
         <X size={18} />
-        Skip workout
+        {translate("Skip workout")}
       </button>
 
       <button
@@ -72,7 +75,7 @@ function WorkoutQuickTools({
         "
       >
         {showFocusEditor ? <X size={18} /> : <Pencil size={18} />}
-        Workout focuses
+        {translate("Workout focuses")}
       </button>
 
       <button
@@ -99,7 +102,7 @@ function WorkoutQuickTools({
         "
       >
         {showAddExercise ? <X size={18} /> : <Plus size={18} />}
-        Add exercise
+        {translate("Add exercise")}
       </button>
 
       <button
@@ -123,7 +126,7 @@ function WorkoutQuickTools({
         "
       >
         <Dumbbell size={18} />
-        Today's checklist
+        {translate("Today's checklist")}
       </button>
     </div>
   );

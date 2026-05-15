@@ -9,6 +9,15 @@ export function fetchActiveWorkoutPlans(userId) {
     .order("created_at", { ascending: false });
 }
 
+export function fetchArchivedWorkoutPlans(userId) {
+  return supabase
+    .from("workout_plans")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_active", false)
+    .order("created_at", { ascending: false });
+}
+
 export function fetchWorkoutExercises(userId, workoutPlanId) {
   return supabase
     .from("workout_exercises")
@@ -25,6 +34,15 @@ export function fetchWorkoutLogs(userId, workoutPlanId) {
     .select("*")
     .eq("user_id", userId)
     .eq("workout_plan_id", workoutPlanId)
+    .order("workout_date", { ascending: false })
+    .order("created_at", { ascending: false });
+}
+
+export function fetchUserWorkoutLogs(userId) {
+  return supabase
+    .from("workout_logs")
+    .select("*")
+    .eq("user_id", userId)
     .order("workout_date", { ascending: false })
     .order("created_at", { ascending: false });
 }
@@ -70,6 +88,16 @@ export function archiveWorkoutPlanRecord(planId, userId) {
     .update({ is_active: false })
     .eq("id", planId)
     .eq("user_id", userId);
+}
+
+export function restoreWorkoutPlanRecord(planId, userId) {
+  return supabase
+    .from("workout_plans")
+    .update({ is_active: true })
+    .eq("id", planId)
+    .eq("user_id", userId)
+    .select()
+    .single();
 }
 
 export function createWorkoutExercises(records) {
@@ -184,4 +212,24 @@ export function deleteWorkoutSetLogsForExerciseDate({
 
 export function createWorkoutSetLogs(records) {
   return supabase.from("workout_set_logs").insert(records).select();
+}
+
+export function subscribeToUserWorkoutLogs(userId, onChange) {
+  return supabase
+    .channel(`workout-calendar-${userId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "workout_logs",
+        filter: `user_id=eq.${userId}`,
+      },
+      onChange,
+    )
+    .subscribe();
+}
+
+export function unsubscribeFromWorkoutRealtime(channel) {
+  return supabase.removeChannel(channel);
 }

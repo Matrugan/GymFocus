@@ -8,97 +8,14 @@ import { motion } from "framer-motion";
 
 import { Link } from "react-router-dom";
 import { reportError } from "../../utils/errorHandler";
-
-const workoutDayOptions = [
-  "Treino A",
-  "Treino B",
-  "Treino C",
-  "Treino D",
-  "Treino E",
-  "Full Body",
-];
-
-function sortWorkoutLogs(logs) {
-  return [...logs].sort((a, b) => {
-    const dateA = String(a.workout_date || "").split("T")[0];
-    const dateB = String(b.workout_date || "").split("T")[0];
-
-    if (dateA !== dateB) {
-      return dateB.localeCompare(dateA);
-    }
-
-    return String(b.created_at || "").localeCompare(String(a.created_at || ""));
-  });
-}
-
-function getOrderedWorkoutDaysFromExercises(exerciseList) {
-  const daysFromExercises = exerciseList.map(
-    (exercise) => exercise.workout_day || "Treino A",
-  );
-
-  const uniqueDays = [...new Set(daysFromExercises)];
-
-  return workoutDayOptions.filter((day) => uniqueDays.includes(day));
-}
-
-function getNextWorkoutDayAfter(day, exerciseList) {
-  const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
-
-  if (orderedDays.length === 0) {
-    return null;
-  }
-
-  const currentIndex = orderedDays.indexOf(day);
-
-  if (currentIndex === -1) {
-    return orderedDays[0];
-  }
-
-  const nextIndex = (currentIndex + 1) % orderedDays.length;
-
-  return orderedDays[nextIndex];
-}
-
-function getCurrentWorkoutDay(exerciseList, logs) {
-  const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
-
-  if (orderedDays.length === 0) {
-    return null;
-  }
-
-  const sortedLogs = sortWorkoutLogs(logs);
-
-  const validLogs = sortedLogs.filter((log) => {
-    const status = log.status || "completed";
-
-    return (
-      orderedDays.includes(log.workout_day) &&
-      ["completed", "skipped"].includes(status)
-    );
-  });
-
-  if (validLogs.length === 0) {
-    return orderedDays[0];
-  }
-
-  return getNextWorkoutDayAfter(validLogs[0].workout_day, exerciseList);
-}
-
-function getWorkoutLabel(plan, day) {
-  if (!day) {
-    return "No workout";
-  }
-
-  const focus = plan?.day_focuses?.[day];
-
-  if (!focus) {
-    return day;
-  }
-
-  return `${day} - ${focus}`;
-}
+import {
+  getCurrentWorkoutDay,
+  getWorkoutLabel,
+} from "../../workout/workoutSequence";
+import { useLanguage } from "../../context/LanguageContext";
 
 function Leaderboard() {
+  const { language, translate } = useLanguage();
   const [users, setUsers] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -383,7 +300,7 @@ function Leaderboard() {
                 break-words
               "
             >
-              Global Ranking
+              {language === "pt" ? "Ranking global" : "Global Ranking"}
             </h2>
 
             <p
@@ -396,7 +313,7 @@ function Leaderboard() {
                 dark:text-zinc-400
               "
             >
-              Top athletes by total XP
+              {language === "pt" ? "Top atletas por XP total" : "Top athletes by total XP"}
             </p>
           </div>
         </div>
@@ -438,7 +355,7 @@ function Leaderboard() {
             dark:border-white/10
           "
         >
-          No athletes ranked yet.
+          {language === "pt" ? "Nenhum atleta ranqueado ainda." : "No athletes ranked yet."}
         </div>
       )}
 
@@ -586,7 +503,7 @@ function Leaderboard() {
                       <Dumbbell size={14} className="shrink-0" />
 
                       <span className="truncate">
-                        {rankingUser.currentWorkoutLabel}
+                        {translate(rankingUser.currentWorkoutLabel)}
                       </span>
                     </p>
                   </div>
@@ -655,8 +572,9 @@ function Leaderboard() {
         <Trophy size={20} className="text-purple-500 shrink-0 mt-0.5 sm:mt-0" />
 
         <p className="text-sm">
-          Earn XP by completing workouts, finishing challenges and staying
-          consistent.
+          {language === "pt"
+            ? "Ganhe XP completando treinos, finalizando desafios e mantendo consistencia."
+            : "Earn XP by completing workouts, finishing challenges and staying consistent."}
         </p>
       </div>
     </motion.div>

@@ -13,8 +13,8 @@ class IntersectionObserverMock {
   disconnect() {}
 }
 
-global.ResizeObserver = ResizeObserverMock;
-global.IntersectionObserver = IntersectionObserverMock;
+globalThis.ResizeObserver = ResizeObserverMock;
+globalThis.IntersectionObserver = IntersectionObserverMock;
 
 window.matchMedia =
   window.matchMedia ||

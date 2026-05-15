@@ -9,6 +9,7 @@ import {
 
 import toast from "react-hot-toast";
 import { reportError } from "../../utils/errorHandler";
+import { useLanguage } from "../../context/LanguageContext";
 
 function ImageUploader({
   image,
@@ -17,6 +18,7 @@ function ImageUploader({
   maxSizeMB = 5,
   previewHeight = "max-h-[300px]",
 }) {
+  const { translate } = useLanguage();
   const inputRef = useRef(null);
 
   const [dragActive, setDragActive] = useState(false);
@@ -27,12 +29,14 @@ function ImageUploader({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image.");
+      toast.error(translate("Please select a valid image."));
       return;
     }
 
     if (file.size > maxSizeMB * 1024 * 1024) {
-      toast.error(`Image is too large. Maximum size is ${maxSizeMB}MB.`);
+      toast.error(
+        translate(`Image is too large. Maximum size is ${maxSizeMB}MB.`),
+      );
       return;
     }
 
@@ -43,7 +47,7 @@ function ImageUploader({
 
       setImage(compressedImage);
     } catch (error) {
-      reportError(error, "Error processing image.");
+      reportError(error, translate("Error processing image."));
     } finally {
       setCompressing(false);
     }
@@ -197,15 +201,15 @@ function ImageUploader({
           )}
 
           <h3 className="font-bold text-zinc-950 dark:text-white">
-            {compressing ? "Processing image..." : label}
+            {compressing ? translate("Processing image...") : label}
           </h3>
 
           <p className="text-sm text-zinc-500 mt-1">
-            Click or drag an image here
+            {translate("Click or drag an image here")}
           </p>
 
           <p className="text-xs text-zinc-400 mt-2">
-            JPG, PNG or WEBP up to {maxSizeMB}MB
+            {translate("JPG, PNG or WEBP up to")} {maxSizeMB}MB
           </p>
 
           <input
@@ -235,7 +239,7 @@ function ImageUploader({
         >
           <img
             src={URL.createObjectURL(image)}
-            alt="Preview"
+            alt={translate("Preview")}
             className={`
               w-full
               ${previewHeight}
@@ -283,7 +287,7 @@ function ImageUploader({
             "
           >
             <ImagePlus size={14} />
-            Preview ready
+            {translate("Preview ready")}
           </div>
         </div>
       )}

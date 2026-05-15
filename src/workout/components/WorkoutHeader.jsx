@@ -1,5 +1,7 @@
 import { Dumbbell, Plus, Sparkles, X } from "lucide-react";
 
+import { useLanguage } from "../../context/LanguageContext";
+
 function WorkoutHeader({
   activePlan,
   displayWorkoutDay,
@@ -10,6 +12,8 @@ function WorkoutHeader({
   showTemplates,
   workoutAlreadyCompletedToday,
 }) {
+  const { t } = useLanguage();
+
   return (
     <div
       className="
@@ -46,15 +50,19 @@ function WorkoutHeader({
 
         <div className="min-w-0">
           <h2 className="text-2xl sm:text-3xl font-black break-words">
-            Workouts
+            {t("workout.title")}
           </h2>
 
           <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base mt-1">
             {activePlan
               ? workoutAlreadyCompletedToday
-                ? `Done today: ${getDayLabel(displayWorkoutDay)}.`
-                : `Continue with ${getDayLabel(displayWorkoutDay)}.`
-              : "Create your first workout plan."}
+                ? t("workout.doneToday", {
+                    workout: getDayLabel(displayWorkoutDay),
+                  })
+                : t("workout.continueWith", {
+                    workout: getDayLabel(displayWorkoutDay),
+                  })
+              : t("workout.createFirst")}
           </p>
         </div>
       </div>
@@ -83,7 +91,7 @@ function WorkoutHeader({
           "
         >
           {showTemplates ? <X size={18} /> : <Sparkles size={18} />}
-          {showTemplates ? "Close templates" : "Templates"}
+          {showTemplates ? t("workout.closeTemplates") : t("workout.templates")}
         </button>
 
         <button
@@ -108,7 +116,7 @@ function WorkoutHeader({
           "
         >
           {showCreatePlan ? <X size={18} /> : <Plus size={18} />}
-          {showCreatePlan ? "Close" : "New workout"}
+          {showCreatePlan ? t("common.close") : t("workout.newWorkout")}
         </button>
       </div>
     </div>

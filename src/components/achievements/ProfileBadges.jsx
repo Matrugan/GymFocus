@@ -6,8 +6,10 @@ import { motion } from "framer-motion";
 
 import { Award, Sparkles, Trophy } from "lucide-react";
 import { reportError } from "../../utils/errorHandler";
+import { useLanguage } from "../../context/LanguageContext";
 
 function ProfileBadges({ profileId }) {
+  const { language, translate } = useLanguage();
   const [badges, setBadges] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ function ProfileBadges({ profileId }) {
   function formatDate(date) {
     if (!date) return "";
 
-    return new Date(date).toLocaleDateString("en-US", {
+    return new Date(date).toLocaleDateString(language === "pt" ? "pt-BR" : "en-US", {
       day: "2-digit",
       month: "short",
     });
@@ -158,11 +160,11 @@ function ProfileBadges({ profileId }) {
 
           <div>
             <h2 className="text-2xl font-black">
-              Badges
+              {language === "pt" ? "Insignias" : "Badges"}
             </h2>
 
             <p className="text-zinc-500 text-sm">
-              Recent achievements
+              {language === "pt" ? "Conquistas recentes" : "Recent achievements"}
             </p>
           </div>
         </div>
@@ -219,11 +221,13 @@ function ProfileBadges({ profileId }) {
           </div>
 
           <h3 className="text-xl font-black">
-            No badges yet
+            {language === "pt" ? "Nenhuma insignia ainda" : "No badges yet"}
           </h3>
 
           <p className="text-zinc-500 text-sm mt-2">
-            Complete workouts and challenges to unlock badges.
+            {language === "pt"
+              ? "Complete treinos e desafios para desbloquear insignias."
+              : "Complete workouts and challenges to unlock badges."}
           </p>
         </div>
       )}
@@ -291,11 +295,16 @@ function ProfileBadges({ profileId }) {
                     truncate
                   "
                 >
-                  {badge.badge || "Achievement"}
+                  {badge.badge
+                    ? translate(badge.badge)
+                    : language === "pt"
+                      ? "Conquista"
+                      : "Achievement"}
                 </h3>
 
                 <p className="text-zinc-500 text-sm mt-1">
-                  Unlocked {formatDate(badge.created_at)}
+                  {language === "pt" ? "Desbloqueado" : "Unlocked"}{" "}
+                  {formatDate(badge.created_at)}
                 </p>
               </div>
 

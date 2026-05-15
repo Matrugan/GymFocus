@@ -11,8 +11,10 @@ import {
   Sparkles,
   CalendarDays,
 } from "lucide-react";
+import { useLanguage } from "../../context/LanguageContext";
 
 function Achievements({ user }) {
+  const { language, translate } = useLanguage();
   const [achievements, setAchievements] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ function Achievements({ user }) {
   function formatDate(date) {
     if (!date) return "";
 
-    return new Date(date).toLocaleDateString("en-US", {
+    return new Date(date).toLocaleDateString(language === "pt" ? "pt-BR" : "en-US", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -204,7 +206,7 @@ function Achievements({ user }) {
                 break-words
               "
             >
-              Achievements
+              {language === "pt" ? "Conquistas" : "Achievements"}
             </h2>
 
             <p
@@ -217,7 +219,9 @@ function Achievements({ user }) {
                 dark:text-zinc-400
               "
             >
-              Badges unlocked through your fitness journey
+              {language === "pt"
+                ? "Insignias desbloqueadas na sua jornada fitness"
+                : "Badges unlocked through your fitness journey"}
             </p>
           </div>
         </div>
@@ -237,7 +241,7 @@ function Achievements({ user }) {
             shrink-0
           "
         >
-          {achievements.length} unlocked
+          {achievements.length} {language === "pt" ? "desbloqueadas" : "unlocked"}
         </div>
       </div>
 
@@ -287,7 +291,7 @@ function Achievements({ user }) {
               font-black
             "
           >
-            No achievements yet
+            {language === "pt" ? "Nenhuma conquista ainda" : "No achievements yet"}
           </h3>
 
           <p
@@ -302,8 +306,9 @@ function Achievements({ user }) {
               dark:text-zinc-400
             "
           >
-            Complete workouts, join challenges and earn XP to unlock your first
-            badge.
+            {language === "pt"
+              ? "Complete treinos, entre em desafios e ganhe XP para desbloquear sua primeira insignia."
+              : "Complete workouts, join challenges and earn XP to unlock your first badge."}
           </p>
         </div>
       )}
@@ -390,7 +395,7 @@ function Achievements({ user }) {
                   break-words
                 "
               >
-                {achievement.badge}
+                {translate(achievement.badge)}
               </h3>
 
               <div
@@ -408,7 +413,8 @@ function Achievements({ user }) {
                 <CalendarDays size={15} className="shrink-0" />
 
                 <span className="truncate">
-                  Unlocked {formatDate(achievement.created_at)}
+                  {language === "pt" ? "Desbloqueado" : "Unlocked"}{" "}
+                  {formatDate(achievement.created_at)}
                 </span>
               </div>
 
@@ -431,7 +437,7 @@ function Achievements({ user }) {
                 "
               >
                 <Sparkles size={14} />
-                Achievement
+                {language === "pt" ? "Conquista" : "Achievement"}
               </div>
             </motion.div>
           ))}
@@ -463,8 +469,9 @@ function Achievements({ user }) {
         <Award size={20} className="text-purple-500 shrink-0 mt-0.5 sm:mt-0" />
 
         <p className="text-sm">
-          Achievements are unlocked automatically when you reach important
-          milestones.
+          {language === "pt"
+            ? "Conquistas sao desbloqueadas automaticamente quando voce atinge marcos importantes."
+            : "Achievements are unlocked automatically when you reach important milestones."}
         </p>
       </div>
     </motion.div>

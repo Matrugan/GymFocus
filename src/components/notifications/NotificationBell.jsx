@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../../lib/supabase";
-
 import {
   Bell,
   Heart,
@@ -16,6 +14,14 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { Link } from "react-router-dom";
 import { reportError } from "../../utils/errorHandler";
+import {
+  deleteNotificationById,
+  fetchNotifications,
+  markNotificationAsRead,
+  markUserNotificationsAsRead,
+  subscribeToNotifications,
+  unsubscribeFromNotifications,
+} from "../../services/notificationService";
 
 function NotificationBell({ user }) {
   const [notifications, setNotifications] = useState([]);
@@ -26,45 +32,17 @@ function NotificationBell({ user }) {
 
     getNotifications();
 
-    const channel = supabase
-      .channel(`notifications-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          getNotifications();
-        }
-      )
-      .subscribe();
+    const channel = subscribeToNotifications(user.id, () => {
+      getNotifications();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribeFromNotifications(channel);
     };
   }, [user?.id]);
 
   async function getNotifications() {
-    const { data, error } = await supabase
-      .from("notifications")
-      .select(
-        `
-        *,
-        actor:profiles!notifications_actor_id_fkey (
-          id,
-          username,
-          avatar_url
-        )
-      `
-      )
-      .eq("user_id", user.id)
-      .order("created_at", {
-        ascending: false,
-      })
-      .limit(20);
+    const { data, error } = await fetchNotifications(user.id);
 
     if (error) {
       reportError(error);
@@ -75,12 +53,7 @@ function NotificationBell({ user }) {
   }
 
   async function markAsRead(notificationId) {
-    const { error } = await supabase
-      .from("notifications")
-      .update({
-        is_read: true,
-      })
-      .eq("id", notificationId);
+    const { error } = await markNotificationAsRead(notificationId);
 
     if (error) {
       reportError(error);
@@ -91,13 +64,7 @@ function NotificationBell({ user }) {
   }
 
   async function markAllAsRead() {
-    const { error } = await supabase
-      .from("notifications")
-      .update({
-        is_read: true,
-      })
-      .eq("user_id", user.id)
-      .eq("is_read", false);
+    const { error } = await markUserNotificationsAsRead(user.id);
 
     if (error) {
       reportError(error);
@@ -108,10 +75,7 @@ function NotificationBell({ user }) {
   }
 
   async function deleteNotification(notificationId) {
-    const { error } = await supabase
-      .from("notifications")
-      .delete()
-      .eq("id", notificationId);
+    const { error } = await deleteNotificationById(notificationId);
 
     if (error) {
       reportError(error);

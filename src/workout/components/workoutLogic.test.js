@@ -4,8 +4,10 @@ import {
   getCurrentWorkoutDay,
   getNextWorkoutDayAfter,
   getOrderedWorkoutDaysFromExercises,
+  getWorkoutLabel,
+  formatWorkoutDate,
   sortWorkoutLogs,
-} from "./workoutLogic";
+} from "../workoutSequence";
 
 const exercisesABC = [
   {
@@ -119,5 +121,23 @@ describe("workoutLogic", () => {
     expect(getNextWorkoutDayAfter("Treino A", exercisesABC)).toBe("Treino B");
     expect(getNextWorkoutDayAfter("Treino B", exercisesABC)).toBe("Treino C");
     expect(getNextWorkoutDayAfter("Treino C", exercisesABC)).toBe("Treino A");
+  });
+
+  it("formats workout labels with plan focus", () => {
+    expect(
+      getWorkoutLabel(
+        {
+          day_focuses: {
+            "Treino A": "Peito e triceps",
+          },
+        },
+        "Treino A",
+      ),
+    ).toBe("Treino A - Peito e triceps");
+  });
+
+  it("formats workout dates from date keys or timestamps", () => {
+    expect(formatWorkoutDate("2026-05-14")).toBe("14/05/2026");
+    expect(formatWorkoutDate("2026-05-14T10:00:00Z")).toBe("14/05/2026");
   });
 });

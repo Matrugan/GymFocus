@@ -46,9 +46,17 @@ import Achievements from "../components/achievements/Achievements";
 import Challenges from "../components/challenges/Challenges";
 
 import ThemeToggle from "../components/layout/ThemeToggle";
+import BrandLogo from "../components/layout/BrandLogo";
+import LanguageToggle from "../components/layout/LanguageToggle";
+import { useLanguage } from "../context/LanguageContext";
+import {
+  getCurrentWorkoutDay,
+  getWorkoutLabel,
+} from "../workout/workoutSequence";
 
 function Dashboard() {
   const { user, signOut } = useAuth();
+  const { t, translate } = useLanguage();
 
   const [activeTab, setActiveTab] = useState("home");
   const [showSearch, setShowSearch] = useState(false);
@@ -73,125 +81,34 @@ function Dashboard() {
     setShowMobileMenu(false);
   }
 
-  function sortWorkoutLogs(logs) {
-    return [...logs].sort((a, b) => {
-      const dateA = String(a.workout_date || "").split("T")[0];
-      const dateB = String(b.workout_date || "").split("T")[0];
-
-      if (dateA !== dateB) {
-        return dateB.localeCompare(dateA);
-      }
-
-      return String(b.created_at || "").localeCompare(
-        String(a.created_at || ""),
-      );
-    });
-  }
-
-  const dashboardWorkoutDayOptions = [
-    "Treino A",
-    "Treino B",
-    "Treino C",
-    "Treino D",
-    "Treino E",
-    "Full Body",
-  ];
-
-  function getDashboardOrderedWorkoutDays(exerciseList) {
-    const daysFromExercises = exerciseList.map(
-      (exercise) => exercise.workout_day || "Treino A",
-    );
-
-    const uniqueDays = [...new Set(daysFromExercises)];
-
-    return dashboardWorkoutDayOptions.filter((day) => uniqueDays.includes(day));
-  }
-
-  function getDashboardNextWorkoutDayAfter(day, exerciseList) {
-    const orderedDays = getDashboardOrderedWorkoutDays(exerciseList);
-
-    if (orderedDays.length === 0) {
-      return "Treino A";
-    }
-
-    const currentIndex = orderedDays.indexOf(day);
-
-    if (currentIndex === -1) {
-      return orderedDays[0];
-    }
-
-    const nextIndex = (currentIndex + 1) % orderedDays.length;
-
-    return orderedDays[nextIndex];
-  }
-
-  function getDashboardCurrentWorkoutDay(exerciseList, logs) {
-    const orderedDays = getDashboardOrderedWorkoutDays(exerciseList);
-
-    if (orderedDays.length === 0) {
-      return "Treino A";
-    }
-
-    const sortedLogs = sortWorkoutLogs(logs);
-
-    const validLogs = sortedLogs.filter((log) => {
-      const status = log.status || "completed";
-
-      return (
-        orderedDays.includes(log.workout_day) &&
-        ["completed", "skipped"].includes(status)
-      );
-    });
-
-    if (validLogs.length === 0) {
-      return orderedDays[0];
-    }
-
-    return getDashboardNextWorkoutDayAfter(
-      validLogs[0].workout_day,
-      exerciseList,
-    );
-  }
-
-  function getDashboardWorkoutLabel(plan, day) {
-    const focus = plan?.day_focuses?.[day];
-
-    if (!focus) {
-      return day;
-    }
-
-    return `${day} - ${focus}`;
-  }
-
   const dashboardWorkout = useMemo(() => {
     if (!dashboardActivePlan) {
       return {
-        value: "Start",
-        desktopValue: "Workout",
+        value: t("dashboard.workout.start"),
+        desktopValue: t("dashboard.stats.workout"),
       };
     }
 
     if (dashboardExercises.length === 0) {
       return {
-        value: "Empty",
-        desktopValue: "Add exercises",
+        value: t("dashboard.workout.empty"),
+        desktopValue: t("dashboard.workout.addExercises"),
       };
     }
 
-    const currentWorkoutDay = getDashboardCurrentWorkoutDay(
+    const currentWorkoutDay = getCurrentWorkoutDay(
       dashboardExercises,
       dashboardWorkoutLogs,
     );
-    const currentWorkoutLabel = getDashboardWorkoutLabel(
-      dashboardActivePlan,
-      currentWorkoutDay,
+    const currentWorkoutLabel = translate(
+      getWorkoutLabel(dashboardActivePlan, currentWorkoutDay),
     );
 
     return {
       value: currentWorkoutLabel,
       desktopValue: currentWorkoutLabel,
     };
-  }, [dashboardActivePlan, dashboardExercises, dashboardWorkoutLogs]);
+  }, [dashboardActivePlan, dashboardExercises, dashboardWorkoutLogs, t, translate]);
 
   const displayName =
     profile?.username ||
@@ -208,22 +125,22 @@ function Dashboard() {
 
   const stats = [
     {
-      title: "Streak",
-      desktopTitle: "Current Streak",
+      title: t("dashboard.stats.streak"),
+      desktopTitle: t("dashboard.stats.currentStreak"),
       value: `${profile?.streak || 0}d`,
-      desktopValue: `${profile?.streak || 0} Days`,
+      desktopValue: `${profile?.streak || 0}d`,
       icon: Flame,
     },
     {
-      title: "XP",
-      desktopTitle: "Total XP",
+      title: t("dashboard.stats.xp"),
+      desktopTitle: t("dashboard.stats.totalXp"),
       value: profile?.xp || 0,
       desktopValue: profile?.xp || 0,
       icon: Trophy,
     },
     {
-      title: "Workout",
-      desktopTitle: "Current Workout",
+      title: t("dashboard.stats.workout"),
+      desktopTitle: t("dashboard.stats.currentWorkout"),
       value: dashboardWorkout.value,
       desktopValue: dashboardWorkout.desktopValue,
       icon: Dumbbell,
@@ -267,61 +184,51 @@ function Dashboard() {
         "
       >
         <div>
-          <h1
-            className="
-              text-4xl
-              font-black
-              bg-gradient-to-r
-              from-purple-500
-              to-fuchsia-500
-              bg-clip-text
-              text-transparent
-            "
-          >
-            GymFocus
-          </h1>
+          <div className="flex w-full justify-center">
+            <BrandLogo layout="stacked" size="md" showTagline />
+          </div>
 
           <div className="mt-14 space-y-3">
             <SidebarButton
               active={activeTab === "home"}
               onClick={() => setActiveTab("home")}
               icon={<Home size={20} />}
-              text="Dashboard"
+              text={t("dashboard.nav.dashboard")}
             />
 
             <SidebarButton
               active={activeTab === "workouts"}
               onClick={() => setActiveTab("workouts")}
               icon={<Dumbbell size={20} />}
-              text="Workouts"
+              text={t("dashboard.nav.workouts")}
             />
 
             <SidebarButton
               active={activeTab === "progress"}
               onClick={() => setActiveTab("progress")}
               icon={<Activity size={20} />}
-              text="Progress"
+              text={t("dashboard.nav.progress")}
             />
 
             <SidebarButton
               active={activeTab === "rankings"}
               onClick={() => setActiveTab("rankings")}
               icon={<Medal size={20} />}
-              text="Rankings"
+              text={t("dashboard.nav.rankings")}
             />
 
             <SidebarButton
               active={activeTab === "feed"}
               onClick={() => setActiveTab("feed")}
               icon={<Users size={20} />}
-              text="Feed"
+              text={t("dashboard.nav.feed")}
             />
 
             <SidebarButton
               active={activeTab === "challenges"}
               onClick={() => setActiveTab("challenges")}
               icon={<Target size={20} />}
-              text="Challenges"
+              text={t("dashboard.nav.challenges")}
             />
 
             <div className="pt-2">
@@ -329,7 +236,7 @@ function Dashboard() {
                 active={activeTab === "settings"}
                 onClick={() => setActiveTab("settings")}
                 icon={<Settings size={20} />}
-                text="Settings"
+                text={t("dashboard.nav.settings")}
               />
             </div>
           </div>
@@ -355,7 +262,7 @@ function Dashboard() {
           "
         >
           <LogOut size={18} />
-          Logout
+          {t("dashboard.logout")}
         </button>
       </aside>
 
@@ -401,7 +308,7 @@ function Dashboard() {
           >
             <div className="min-w-0 w-full">
               <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base">
-                Welcome back
+                {t("dashboard.welcomeBack")}
               </p>
 
               <h1
@@ -434,6 +341,10 @@ function Dashboard() {
                 overflow-visible
               "
             >
+              <div className="relative z-50">
+                <LanguageToggle />
+              </div>
+
               <div className="relative z-50">
                 <ThemeToggle />
               </div>
@@ -627,7 +538,7 @@ function Dashboard() {
                   "
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-black text-lg">More options</h3>
+                    <h3 className="font-black text-lg">Menu</h3>
 
                     <button
                       onClick={() => setShowMobileMenu(false)}
@@ -655,21 +566,21 @@ function Dashboard() {
                       active={activeTab === "rankings"}
                       onClick={() => handleMobileMenuTab("rankings")}
                       icon={<Medal size={20} />}
-                      text="Rankings"
+                      text={t("dashboard.nav.rankings")}
                     />
 
                     <MobileMenuButton
                       active={activeTab === "challenges"}
                       onClick={() => handleMobileMenuTab("challenges")}
                       icon={<Target size={20} />}
-                      text="Challenges"
+                      text={t("dashboard.nav.challenges")}
                     />
 
                     <MobileMenuButton
                       active={activeTab === "settings"}
                       onClick={() => handleMobileMenuTab("settings")}
                       icon={<Settings size={20} />}
-                      text="Settings"
+                      text={t("dashboard.nav.settings")}
                     />
 
                     <button
@@ -692,7 +603,7 @@ function Dashboard() {
                       "
                     >
                       <LogOut size={20} />
-                      Logout
+                      {t("dashboard.logout")}
                     </button>
                   </div>
                 </motion.div>
@@ -878,7 +789,11 @@ function Dashboard() {
           {/* SETTINGS TAB */}
           {activeTab === "settings" && (
             <div className="mt-6 sm:mt-10 relative z-10">
-              <ProfileSettings profile={profile} user={user} />
+              <ProfileSettings
+                profile={profile}
+                user={user}
+                onProfileUpdated={setProfile}
+              />
             </div>
           )}
         </div>
@@ -951,28 +866,28 @@ function Dashboard() {
           active={activeTab === "home"}
           onClick={() => setActiveTab("home")}
           icon={<Home size={21} />}
-          text="Home"
+          text={t("dashboard.nav.dashboard")}
         />
 
         <MobileNavButton
           active={activeTab === "workouts"}
           onClick={() => setActiveTab("workouts")}
           icon={<Dumbbell size={21} />}
-          text="Workout"
+          text={t("dashboard.nav.workouts")}
         />
 
         <MobileNavButton
           active={activeTab === "progress"}
           onClick={() => setActiveTab("progress")}
           icon={<Activity size={21} />}
-          text="Progress"
+          text={t("dashboard.nav.progress")}
         />
 
         <MobileNavButton
           active={activeTab === "feed"}
           onClick={() => setActiveTab("feed")}
           icon={<Users size={21} />}
-          text="Feed"
+          text={t("dashboard.nav.feed")}
         />
 
         <MobileNavButton
@@ -1136,6 +1051,7 @@ function MobileMenuButton({ active, onClick, icon, text }) {
 }
 
 function WorkoutSummaryCard({ user }) {
+  const { translate } = useLanguage();
   const today = new Date().toISOString().split("T")[0];
   const {
     activePlan,
@@ -1150,43 +1066,6 @@ function WorkoutSummaryCard({ user }) {
     userId: user?.id,
   });
 
-  const workoutDayOptions = [
-    "Treino A",
-    "Treino B",
-    "Treino C",
-    "Treino D",
-    "Treino E",
-    "Full Body",
-  ];
-
-  function getOrderedWorkoutDaysFromExercises(exerciseList) {
-    const daysFromExercises = exerciseList.map(
-      (exercise) => exercise.workout_day || "Treino A",
-    );
-
-    const uniqueDays = [...new Set(daysFromExercises)];
-
-    return workoutDayOptions.filter((day) => uniqueDays.includes(day));
-  }
-
-  function getNextWorkoutDayAfter(day, exerciseList) {
-    const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
-
-    if (orderedDays.length === 0) {
-      return "Treino A";
-    }
-
-    const currentIndex = orderedDays.indexOf(day);
-
-    if (currentIndex === -1) {
-      return orderedDays[0];
-    }
-
-    const nextIndex = (currentIndex + 1) % orderedDays.length;
-
-    return orderedDays[nextIndex];
-  }
-
   function getTodayCompletedLog(logList) {
     return (
       logList.find((log) => {
@@ -1197,37 +1076,8 @@ function WorkoutSummaryCard({ user }) {
     );
   }
 
-  function getCurrentWorkoutDay(exerciseList, logList) {
-    const orderedDays = getOrderedWorkoutDaysFromExercises(exerciseList);
-
-    if (orderedDays.length === 0) {
-      return "Treino A";
-    }
-
-    const validLogs = logList.filter((log) => {
-      const status = log.status || "completed";
-
-      return (
-        orderedDays.includes(log.workout_day) &&
-        ["completed", "skipped"].includes(status)
-      );
-    });
-
-    if (validLogs.length === 0) {
-      return orderedDays[0];
-    }
-
-    return getNextWorkoutDayAfter(validLogs[0].workout_day, exerciseList);
-  }
-
   function getDayLabel(day) {
-    const focus = activePlan?.day_focuses?.[day];
-
-    if (!focus) {
-      return day;
-    }
-
-    return `${day} - ${focus}`;
+    return translate(getWorkoutLabel(activePlan, day));
   }
 
   const currentWorkoutDay = useMemo(() => {
@@ -1264,7 +1114,7 @@ function WorkoutSummaryCard({ user }) {
       <div className="bg-white border border-zinc-200 rounded-2xl sm:rounded-3xl p-5 shadow-sm dark:bg-white/5 dark:border-white/10">
         <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
           <Loader2 className="animate-spin" size={20} />
-          Loading workout...
+          {translate("Loading workout...")}
         </div>
       </div>
     );
@@ -1279,9 +1129,9 @@ function WorkoutSummaryCard({ user }) {
           </div>
 
           <div>
-            <h3 className="font-black text-lg">Today's workout</h3>
+            <h3 className="font-black text-lg">{translate("Today's workout")}</h3>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Create a workout plan to start tracking.
+              {translate("Create a workout plan to start tracking.")}
             </p>
           </div>
         </div>
@@ -1299,7 +1149,7 @@ function WorkoutSummaryCard({ user }) {
 
           <div className="min-w-0">
             <p className="text-xs font-bold text-purple-500 uppercase tracking-wide">
-              Today's workout
+              {translate("Today's workout")}
             </p>
 
             <h3 className="font-black text-xl truncate">
@@ -1307,7 +1157,7 @@ function WorkoutSummaryCard({ user }) {
             </h3>
 
             <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">
-              {activePlan.title}
+              {translate(activePlan.title)}
             </p>
           </div>
         </div>
@@ -1323,8 +1173,8 @@ function WorkoutSummaryCard({ user }) {
         <div className="flex justify-between text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2">
           <span>
             {workoutCompletedToday
-              ? "Completed today"
-              : `${completedToday}/${totalToday} exercises`}
+              ? translate("Completed today")
+              : `${completedToday}/${totalToday} ${translate("exercises")}`}
           </span>
 
           <span>{workoutCompletedToday ? "100%" : `${progressPercent}%`}</span>
@@ -1342,8 +1192,8 @@ function WorkoutSummaryCard({ user }) {
 
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         {workoutCompletedToday
-          ? "You already completed today's workout."
-          : "Continue your current workout sequence."}
+          ? translate("You already completed today's workout.")
+          : translate("Continue your current workout sequence.")}
       </p>
     </div>
   );

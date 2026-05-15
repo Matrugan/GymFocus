@@ -1,7 +1,5 @@
 import { useState } from "react";
 
-import { supabase } from "../../lib/supabase";
-
 import { Send, Loader2 } from "lucide-react";
 
 import toast from "react-hot-toast";
@@ -10,8 +8,11 @@ import { unlockAchievement } from "../../utils/achievementSystem";
 
 import ImageUploader from "../upload/ImageUploader";
 import { reportError } from "../../utils/errorHandler";
+import { createPost, uploadPostImage } from "../../services/feedService";
+import { useLanguage } from "../../context/LanguageContext";
 
 function CreatePost({ user, profile, onPostCreated }) {
+  const { language, translate } = useLanguage();
   const [content, setContent] = useState("");
 
   const [image, setImage] = useState(null);
@@ -22,12 +23,12 @@ function CreatePost({ user, profile, onPostCreated }) {
 
   async function handlePost() {
     if (!content.trim()) {
-      toast.error("Write something before publishing.");
+      toast.error(translate("Write something before publishing."));
       return;
     }
 
     if (!user || !profile) {
-      toast.error("Profile not loaded yet.");
+      toast.error(translate("Profile not loaded yet."));
       return;
     }
 
@@ -38,14 +39,14 @@ function CreatePost({ user, profile, onPostCreated }) {
 
     if (image) {
       if (!image.type.startsWith("image/")) {
-        toast.error("Please select a valid image.");
+        toast.error(translate("Please select a valid image."));
         setLoading(false);
         setUploadProgress(0);
         return;
       }
 
       if (image.size > 5 * 1024 * 1024) {
-        toast.error("Image is too large. Maximum size is 5MB.");
+        toast.error(translate("Image is too large. Maximum size is 5MB."));
         setLoading(false);
         setUploadProgress(0);
         return;
@@ -53,20 +54,13 @@ function CreatePost({ user, profile, onPostCreated }) {
 
       setUploadProgress(20);
 
-      const fileExt = image.name.split(".").pop();
-
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-
-      const filePath = fileName;
-
-      const { error: uploadError } = await supabase.storage
-        .from("post-images")
-        .upload(filePath, image, {
-          upsert: false,
-        });
+      const { data: publicUrl, error: uploadError } = await uploadPostImage(
+        user.id,
+        image,
+      );
 
       if (uploadError) {
-        reportError(uploadError, "Error uploading image.");
+        reportError(uploadError, translate("Error uploading image."));
 
         setLoading(false);
         setUploadProgress(0);
@@ -76,25 +70,19 @@ function CreatePost({ user, profile, onPostCreated }) {
 
       setUploadProgress(70);
 
-      const { data } = supabase.storage
-        .from("post-images")
-        .getPublicUrl(filePath);
-
-      image_url = data.publicUrl;
+      image_url = publicUrl;
     }
 
-    const { error } = await supabase.from("posts").insert([
-      {
-        user_id: user.id,
-        username: profile.username,
-        avatar_url: profile.avatar_url,
-        content: content.trim(),
-        image_url,
-      },
-    ]);
+    const { error } = await createPost({
+      user_id: user.id,
+      username: profile.username,
+      avatar_url: profile.avatar_url,
+      content: content.trim(),
+      image_url,
+    });
 
     if (error) {
-      reportError(error, "Error publishing post.");
+      reportError(error, translate("Error publishing post."));
 
       setLoading(false);
       setUploadProgress(0);
@@ -111,7 +99,7 @@ function CreatePost({ user, profile, onPostCreated }) {
 
     onPostCreated?.();
 
-    toast.success("Post published!");
+    toast.success(translate("Post published!"));
 
     setTimeout(() => {
       setUploadProgress(0);
@@ -175,7 +163,7 @@ function CreatePost({ user, profile, onPostCreated }) {
               truncate
             "
           >
-            Share your progress
+            {language === "pt" ? "Compartilhe seu progresso" : "Share your progress"}
           </h2>
 
           <p
@@ -189,7 +177,9 @@ function CreatePost({ user, profile, onPostCreated }) {
               dark:text-zinc-400
             "
           >
-            Inspire other athletes today
+            {language === "pt"
+              ? "Inspire outros atletas hoje"
+              : "Inspire other athletes today"}
           </p>
         </div>
       </div>
@@ -198,7 +188,11 @@ function CreatePost({ user, profile, onPostCreated }) {
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="Completed Push Day today 🔥"
+        placeholder={
+          language === "pt"
+            ? "Completei o treino de push hoje 🔥"
+            : "Completed Push Day today 🔥"
+        }
         className="
           w-full
           h-28
@@ -230,7 +224,7 @@ function CreatePost({ user, profile, onPostCreated }) {
         <ImageUploader
           image={image}
           setImage={setImage}
-          label="Add image to your post"
+          label={language === "pt" ? "Adicionar imagem ao post" : "Add image to your post"}
           maxSizeMB={5}
           previewHeight="max-h-[260px] sm:max-h-[350px]"
         />
@@ -241,7 +235,13 @@ function CreatePost({ user, profile, onPostCreated }) {
         <div className="mt-4">
           <div className="flex justify-between text-xs text-zinc-500 mb-2">
             <span>
-              {uploadProgress < 100 ? "Uploading..." : "Upload complete"}
+              {uploadProgress < 100
+                ? language === "pt"
+                  ? "Enviando..."
+                  : "Uploading..."
+                : language === "pt"
+                  ? "Upload concluido"
+                  : "Upload complete"}
             </span>
 
             <span>{uploadProgress}%</span>
@@ -323,12 +323,12 @@ function CreatePost({ user, profile, onPostCreated }) {
           {loading ? (
             <>
               <Loader2 className="animate-spin" size={20} />
-              Publishing...
+              {language === "pt" ? "Publicando..." : "Publishing..."}
             </>
           ) : (
             <>
               <Send size={20} />
-              Publish Post
+              {language === "pt" ? "Publicar post" : "Publish Post"}
             </>
           )}
         </button>

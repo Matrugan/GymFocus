@@ -26,8 +26,14 @@ import { motion } from "framer-motion";
 
 import { useTheme } from "../../context/ThemeContext";
 import { reportError } from "../../utils/errorHandler";
+import {
+  formatWorkoutDate,
+  getWorkoutDateKey,
+} from "../../workout/workoutSequence";
+import { useLanguage } from "../../context/LanguageContext";
 
 function ProgressAnalytics({ user }) {
+  const { language, t, translate } = useLanguage();
   const { theme } = useTheme();
 
   const isDark = theme === "dark";
@@ -48,7 +54,7 @@ function ProgressAnalytics({ user }) {
     if (user) {
       getAnalytics();
     }
-  }, [user]);
+  }, [user, language]);
 
   async function getAnalytics() {
     setLoading(true);
@@ -174,7 +180,7 @@ function ProgressAnalytics({ user }) {
 
       return {
         date: dateKey,
-        day: date.toLocaleDateString("en-US", {
+        day: date.toLocaleDateString(language === "pt" ? "pt-BR" : "en-US", {
           weekday: "short",
         }),
         xp: 0,
@@ -202,24 +208,6 @@ function ProgressAnalytics({ user }) {
     setBestDay(topDay);
 
     setLoading(false);
-  }
-
-  function getWorkoutDateKey(workoutDate) {
-    if (!workoutDate) {
-      return "";
-    }
-
-    return String(workoutDate).split("T")[0];
-  }
-
-  function formatWorkoutDate(dateString) {
-    if (!dateString) {
-      return "";
-    }
-
-    const [year, month, day] = dateString.split("-");
-
-    return `${day}/${month}/${year}`;
   }
 
   function formatWorkoutDuration(totalSeconds) {
@@ -375,9 +363,10 @@ function ProgressAnalytics({ user }) {
   function getProgressionSuggestion(exercise, historySessions) {
     if (!exercise || historySessions.length === 0) {
       return {
-        title: "Start with control",
-        description:
+        title: translate("Start with control"),
+        description: translate(
           "Log your first session. After that, GymFocus will suggest the next progression.",
+        ),
         tone: "neutral",
       };
     }
@@ -408,17 +397,24 @@ function ProgressAnalytics({ user }) {
 
     if (allSetsAtTarget && !hasFailureSet && averageLoad > 0) {
       return {
-        title: `Increase about ${suggestedIncrease}kg next time`,
-        description: `You reached the top of your rep target (${repsTarget.max}) without failure. Try a small load jump.`,
+        title:
+          language === "pt"
+            ? `Aumente cerca de ${suggestedIncrease}kg na proxima vez`
+            : `Increase about ${suggestedIncrease}kg next time`,
+        description:
+          language === "pt"
+            ? `Voce chegou ao topo da meta de repeticoes (${repsTarget.max}) sem falha. Tente um pequeno aumento de carga.`
+            : `You reached the top of your rep target (${repsTarget.max}) without failure. Try a small load jump.`,
         tone: "up",
       };
     }
 
     if (hasFailureSet) {
       return {
-        title: "Hold the load",
-        description:
+        title: translate("Hold the load"),
+        description: translate(
           "You logged a failure set. Repeat this load and aim for cleaner reps before increasing.",
+        ),
         tone: "hold",
       };
     }
@@ -428,27 +424,30 @@ function ProgressAnalytics({ user }) {
 
       if (volumeDelta > 0) {
         return {
-          title: "Keep this load and add reps",
-          description:
+          title: translate("Keep this load and add reps"),
+          description: translate(
             "Your total volume improved. Keep the load and try to add 1 rep in one or two sets.",
+          ),
           tone: "up",
         };
       }
 
       if (volumeDelta < 0) {
         return {
-          title: "Repeat or reduce slightly",
-          description:
+          title: translate("Repeat or reduce slightly"),
+          description: translate(
             "Volume dropped from the previous session. Repeat the same load, or reduce a little if form felt heavy.",
+          ),
           tone: "down",
         };
       }
     }
 
     return {
-      title: "Build one more solid session",
-      description:
+      title: translate("Build one more solid session"),
+      description: translate(
         "Keep the same load and try to reach the planned reps with consistent form.",
+      ),
       tone: "neutral",
     };
   }
@@ -682,7 +681,7 @@ function ProgressAnalytics({ user }) {
                 break-words
               "
             >
-              Progress Analytics
+              {t("analytics.title")}
             </h2>
 
             <p
@@ -695,7 +694,7 @@ function ProgressAnalytics({ user }) {
                 dark:text-zinc-400
               "
             >
-              Your XP evolution over the last 7 days
+              {t("analytics.subtitle")}
             </p>
           </div>
         </div>
@@ -715,7 +714,7 @@ function ProgressAnalytics({ user }) {
             shrink-0
           "
         >
-          Last 7 days
+          {translate("Last 7 days")}
         </div>
       </div>
 
@@ -733,33 +732,33 @@ function ProgressAnalytics({ user }) {
         "
       >
         <AnalyticsCard
-          title="Weekly XP"
+          title={translate("Weekly XP")}
           value={totalXP}
           icon={<TrendingUp size={21} />}
         />
 
         <AnalyticsCard
-          title="Best Day"
+          title={translate("Best Day")}
           value={
             bestDay?.xp > 0
               ? `${bestDay.day} • ${bestDay.xp} XP`
-              : "No XP yet"
+              : translate("No XP yet")
           }
           icon={<Trophy size={21} />}
         />
 
         <AnalyticsCard
-          title="Tracked Days"
-          value="7 Days"
+          title={translate("Tracked Days")}
+          value={translate("7 Days")}
           icon={<CalendarDays size={21} />}
         />
 
         <AnalyticsCard
-          title="Avg Workout Time"
+          title={translate("Avg Workout Time")}
           value={
             workoutDurationStats.sessions > 0
               ? formatWorkoutDuration(workoutDurationStats.averageSeconds)
-              : "No timer yet"
+              : translate("No timer yet")
           }
           icon={<Clock size={21} />}
         />
@@ -886,7 +885,7 @@ function ProgressAnalytics({ user }) {
         <Activity size={20} className="text-purple-500 shrink-0 mt-0.5 sm:mt-0" />
 
         <p className="text-sm">
-          XP is logged from completed workouts and claimed challenge rewards.
+          {translate("XP is logged from completed workouts and claimed challenge rewards.")}
         </p>
       </div>
 
@@ -919,11 +918,11 @@ function ProgressAnalytics({ user }) {
         >
           <div>
             <h3 className="font-black text-lg sm:text-xl">
-              Workout time
+              {translate("Workout time")}
             </h3>
 
             <p className="text-zinc-500 text-sm mt-1">
-              Duration tracked from start workout to completion.
+              {translate("Duration tracked from start workout to completion.")}
             </p>
           </div>
 
@@ -947,13 +946,13 @@ function ProgressAnalytics({ user }) {
               dark:border-white/10
             "
           >
-            Start and complete a timed workout to unlock duration analytics.
+            {translate("Start and complete a timed workout to unlock duration analytics.")}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               <AnalyticsCard
-                title="Average"
+                title={translate("Average")}
                 value={formatWorkoutDuration(
                   workoutDurationStats.averageSeconds,
                 )}
@@ -961,7 +960,7 @@ function ProgressAnalytics({ user }) {
               />
 
               <AnalyticsCard
-                title="Fastest"
+                title={translate("Fastest")}
                 value={formatWorkoutDuration(
                   workoutDurationStats.fastest?.durationSeconds,
                 )}
@@ -969,7 +968,7 @@ function ProgressAnalytics({ user }) {
               />
 
               <AnalyticsCard
-                title="Longest"
+                title={translate("Longest")}
                 value={formatWorkoutDuration(
                   workoutDurationStats.longest?.durationSeconds,
                 )}
@@ -1028,12 +1027,12 @@ function ProgressAnalytics({ user }) {
                       color: tooltipText,
                       fontSize: "12px",
                     }}
-                    formatter={(value) => [`${value} min`, "Duration"]}
+                    formatter={(value) => [`${value} min`, translate("Duration")]}
                   />
                   <Line
                     type="monotone"
                     dataKey="minutes"
-                    name="Duration"
+                    name={translate("Duration")}
                     stroke="#a855f7"
                     strokeWidth={3}
                     dot={{
@@ -1076,11 +1075,11 @@ function ProgressAnalytics({ user }) {
         >
           <div>
             <h3 className="font-black text-lg sm:text-xl">
-              Exercise evolution
+              {translate("Exercise evolution")}
             </h3>
 
             <p className="text-zinc-500 text-sm mt-1">
-              Load and volume history from your logged sets.
+              {translate("Load and volume history from your logged sets.")}
             </p>
           </div>
 
@@ -1090,12 +1089,12 @@ function ProgressAnalytics({ user }) {
             className="WorkoutInput sm:max-w-xs"
           >
             {exercises.length === 0 && (
-              <option value="">No exercises logged yet</option>
+              <option value="">{translate("No exercises logged yet")}</option>
             )}
 
             {exercises.map((exercise) => (
               <option key={exercise.id} value={exercise.id}>
-                {exercise.name}
+                {translate(exercise.name)}
               </option>
             ))}
           </select>
@@ -1116,7 +1115,7 @@ function ProgressAnalytics({ user }) {
               dark:border-white/10
             "
           >
-            Log load and reps in Workouts to unlock exercise evolution charts.
+            {translate("Log load and reps in Workouts to unlock exercise evolution charts.")}
           </div>
         ) : (
           <>
@@ -1137,7 +1136,7 @@ function ProgressAnalytics({ user }) {
               `}
             >
               <p className="text-xs font-black uppercase tracking-wide">
-                Next progression
+                {translate("Next progression")}
               </p>
               <h4 className="font-black text-base sm:text-lg mt-1">
                 {progressionSuggestion.title}
@@ -1149,7 +1148,7 @@ function ProgressAnalytics({ user }) {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               <AnalyticsCard
-                title="Best Load"
+                title={translate("Best Load")}
                 value={`${Math.max(
                   ...selectedExerciseHistory.map((session) => session.maxLoad),
                 )}kg`}
@@ -1157,7 +1156,7 @@ function ProgressAnalytics({ user }) {
               />
 
               <AnalyticsCard
-                title="Best Volume"
+                title={translate("Best Volume")}
                 value={`${Math.max(
                   ...selectedExerciseHistory.map((session) => session.volume),
                 ).toFixed(0)}kg`}
@@ -1165,7 +1164,7 @@ function ProgressAnalytics({ user }) {
               />
 
               <AnalyticsCard
-                title="Sessions"
+                title={translate("Sessions")}
                 value={selectedExerciseHistory.length}
                 icon={<CalendarDays size={21} />}
               />
@@ -1229,7 +1228,7 @@ function ProgressAnalytics({ user }) {
                     yAxisId="left"
                     type="monotone"
                     dataKey="load"
-                    name="Max load"
+                    name={translate("Max load")}
                     stroke="#a855f7"
                     strokeWidth={3}
                     dot={{
@@ -1240,7 +1239,7 @@ function ProgressAnalytics({ user }) {
                     yAxisId="right"
                     type="monotone"
                     dataKey="volume"
-                    name="Volume"
+                    name={translate("Volume")}
                     stroke="#22c55e"
                     strokeWidth={3}
                     dot={{
@@ -1271,8 +1270,9 @@ function ProgressAnalytics({ user }) {
                       {formatWorkoutDate(session.date)}
                     </h4>
                     <p className="text-zinc-500 text-xs">
-                      Max {session.maxLoad}kg | {session.totalReps} reps |
-                      Volume {session.volume.toFixed(0)}kg
+                      {translate("Max")} {session.maxLoad}kg |{" "}
+                      {session.totalReps} {translate("Reps")} |{" "}
+                      {translate("Volume")} {session.volume.toFixed(0)}kg
                     </p>
                   </div>
 
@@ -1290,7 +1290,8 @@ function ProgressAnalytics({ user }) {
                           font-bold
                         "
                       >
-                        Set {log.set_number}: {log.load ?? "-"}kg x{" "}
+                        {translate("Set")} {log.set_number}:{" "}
+                        {log.load ?? "-"}kg x{" "}
                         {log.reps ?? "-"}
                       </span>
                     ))}
@@ -1320,9 +1321,11 @@ function ProgressAnalytics({ user }) {
       >
         <div className="flex items-center justify-between gap-4 mb-5">
           <div>
-            <h3 className="font-black text-lg sm:text-xl">Meus recordes</h3>
+            <h3 className="font-black text-lg sm:text-xl">
+              {translate("Meus recordes")}
+            </h3>
             <p className="text-zinc-500 text-sm mt-1">
-              Best load, reps and volume by exercise.
+              {translate("Best load, reps and volume by exercise.")}
             </p>
           </div>
 
@@ -1346,7 +1349,7 @@ function ProgressAnalytics({ user }) {
               dark:border-white/10
             "
           >
-            No records yet. Log set performance in Workouts first.
+            {translate("No records yet. Log set performance in Workouts first.")}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1370,21 +1373,21 @@ function ProgressAnalytics({ user }) {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                   <RecordMetric
-                    label="Carga max"
+                    label={translate("Carga max")}
                     value={`${record.bestLoad}kg`}
-                    detail={`${record.bestLoadReps} reps | ${formatWorkoutDate(
+                    detail={`${record.bestLoadReps} ${translate("Reps")} | ${formatWorkoutDate(
                       record.bestLoadDate,
                     )}`}
                   />
                   <RecordMetric
-                    label="Reps max"
+                    label={translate("Reps max")}
                     value={record.bestReps}
                     detail={`${record.bestRepsLoad}kg | ${formatWorkoutDate(
                       record.bestRepsDate,
                     )}`}
                   />
                   <RecordMetric
-                    label="Volume max"
+                    label={translate("Volume max")}
                     value={`${record.bestVolume.toFixed(0)}kg`}
                     detail={formatWorkoutDate(record.bestVolumeDate)}
                   />

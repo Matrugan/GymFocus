@@ -48,10 +48,28 @@ async function clearBrokenAuthSession() {
   sessionStorage.clear();
 }
 
+function buildOAuthUsername(user) {
+  const rawName =
+    user?.user_metadata?.user_name ||
+    user?.user_metadata?.preferred_username ||
+    user?.user_metadata?.name ||
+    user?.email?.split("@")?.[0] ||
+    "athlete";
+
+  const normalizedName = rawName
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 20);
+
+  return `${normalizedName || "athlete"}_${user.id.slice(0, 8)}`;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
   const [loading, setLoading] = useState(true);
+  const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
 
   async function setUserOnlineStatus(userId, status) {
     if (!userId) return;
@@ -71,6 +89,45 @@ export function AuthProvider({ children }) {
     } catch (err) {
       // Não bloquear login/roteamento por falha de status online.
       reportError("Erro inesperado ao atualizar online:", err);
+    }
+  }
+
+  async function ensureOAuthProfile(userData) {
+    if (!userData || userData.app_metadata?.provider === "email") return;
+
+    try {
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", userData.id)
+        .maybeSingle();
+
+      if (fetchError) {
+        reportError("Erro ao buscar profile OAuth:", fetchError);
+        return;
+      }
+
+      if (existingProfile) return;
+
+      const { error: insertError } = await supabase.from("profiles").insert([
+        {
+          id: userData.id,
+          username: buildOAuthUsername(userData),
+          xp: 0,
+          streak: 0,
+          current_workout: "Push Day",
+          avatar_url: userData.user_metadata?.avatar_url || "",
+          bio: "",
+          online: true,
+          last_seen: new Date().toISOString(),
+        },
+      ]);
+
+      if (insertError) {
+        reportError("Erro ao criar profile OAuth:", insertError);
+      }
+    } catch (error) {
+      reportError("Erro inesperado ao criar profile OAuth:", error);
     }
   }
 
@@ -136,8 +193,17 @@ export function AuthProvider({ children }) {
       if (
         event === "TOKEN_REFRESHED" ||
         event === "SIGNED_IN" ||
-        event === "INITIAL_SESSION"
+        event === "INITIAL_SESSION" ||
+        event === "PASSWORD_RECOVERY"
       ) {
+        if (event === "PASSWORD_RECOVERY") {
+          setPasswordRecoveryMode(true);
+        }
+
+        if (session?.user) {
+          await ensureOAuthProfile(session.user);
+        }
+
         setUser(session?.user ?? null);
 
         if (session?.user) {
@@ -164,7 +230,7 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  async function signUp(email, password, username) {
+  async function signUp(email, password, username, onboarding = {}) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -195,6 +261,10 @@ export function AuthProvider({ children }) {
             current_workout: "Push Day",
             avatar_url: "",
             bio: "",
+            fitness_goal: onboarding.goal || null,
+            training_level: onboarding.level || null,
+            initial_template: onboarding.templateTitle || null,
+            onboarding_completed: Boolean(onboarding.goal && onboarding.level),
             online: true,
             last_seen: new Date().toISOString(),
           },
@@ -253,6 +323,77 @@ export function AuthProvider({ children }) {
     };
   }
 
+  async function signInWithGoogle() {
+    const redirectTo = window.location.origin;
+
+    sessionStorage.setItem("gymfocus_oauth_redirect", "/dashboard");
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+      },
+    });
+
+    if (error) {
+      reportError("Erro no login com Google:", error.message);
+
+      return {
+        error: {
+          message: "Nao foi possivel entrar com Google.",
+        },
+      };
+    }
+
+    return {
+      data,
+    };
+  }
+
+  async function requestPasswordReset(email) {
+    const redirectTo = `${window.location.origin}/auth?mode=reset-password`;
+
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    if (error) {
+      reportError("Erro ao enviar recuperacao de senha:", error.message);
+
+      return {
+        error: {
+          message: "Nao foi possivel enviar o email de recuperacao.",
+        },
+      };
+    }
+
+    return {
+      data,
+    };
+  }
+
+  async function updatePassword(newPassword) {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      reportError("Erro ao redefinir senha:", error.message);
+
+      return {
+        error: {
+          message: "Nao foi possivel redefinir a senha.",
+        },
+      };
+    }
+
+    setPasswordRecoveryMode(false);
+
+    return {
+      data,
+    };
+  }
+
   async function signOut() {
     if (user) {
       await setUserOnlineStatus(user.id, false);
@@ -270,6 +411,10 @@ export function AuthProvider({ children }) {
         loading,
         signUp,
         signIn,
+        signInWithGoogle,
+        requestPasswordReset,
+        updatePassword,
+        passwordRecoveryMode,
         signOut,
       }}
     >

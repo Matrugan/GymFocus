@@ -1,10 +1,13 @@
 import { ClipboardList, Loader2, Plus } from "lucide-react";
+import { useLanguage } from "../../context/LanguageContext";
 
 function WorkoutTemplatesPanel({
   creatingTemplate,
   onCreateTemplate,
   templates,
 }) {
+  const { translate } = useLanguage();
+
   return (
     <div
       className="
@@ -21,10 +24,12 @@ function WorkoutTemplatesPanel({
       "
     >
       <div className="mb-5">
-        <h3 className="font-black text-lg sm:text-xl">Workout templates</h3>
+        <h3 className="font-black text-lg sm:text-xl">
+          {translate("Workout templates")}
+        </h3>
 
         <p className="text-zinc-500 text-sm mt-1">
-          Choose a ready-made plan and customize it later.
+          {translate("Choose a ready-made plan and customize it later.")}
         </p>
       </div>
 
@@ -64,10 +69,10 @@ function WorkoutTemplatesPanel({
                 <ClipboardList size={21} />
               </div>
 
-              <h4 className="font-black text-lg">{template.title}</h4>
+              <h4 className="font-black text-lg">{translate(template.title)}</h4>
 
               <p className="text-zinc-500 text-sm mt-2">
-                {template.description}
+                {translate(template.description)}
               </p>
 
               <div className="mt-4 space-y-2">
@@ -86,7 +91,7 @@ function WorkoutTemplatesPanel({
                       dark:text-zinc-300
                     "
                   >
-                    <strong>{day}</strong> - {focus}
+                    <strong>{translate(day)}</strong> - {translate(focus)}
                   </div>
                 ))}
               </div>
@@ -94,7 +99,7 @@ function WorkoutTemplatesPanel({
 
             <div>
               <p className="text-zinc-500 text-xs mb-3">
-                {template.exercises.length} exercises included
+                {template.exercises.length} {translate("exercises included")}
               </p>
 
               <button
@@ -124,7 +129,7 @@ function WorkoutTemplatesPanel({
                 ) : (
                   <Plus size={18} />
                 )}
-                Use template
+                {translate("Use template")}
               </button>
             </div>
           </div>

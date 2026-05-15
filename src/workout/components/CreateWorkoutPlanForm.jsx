@@ -1,5 +1,7 @@
 import { Loader2, Plus } from "lucide-react";
 
+import { useLanguage } from "../../context/LanguageContext";
+
 function CreateWorkoutPlanForm({
   createWorkoutPlan,
   creatingPlan,
@@ -7,6 +9,8 @@ function CreateWorkoutPlanForm({
   setNewPlan,
   showCreatePlan,
 }) {
+  const { language, t } = useLanguage();
+
   if (!showCreatePlan) {
     return null;
   }
@@ -27,13 +31,17 @@ function CreateWorkoutPlanForm({
       "
     >
       <h3 className="font-black text-lg sm:text-xl mb-4">
-        Create workout plan
+        {t("workout.createPlan")}
       </h3>
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
         <input
           type="text"
-          placeholder="Ex: Treino ABC - Hipertrofia"
+          placeholder={
+            language === "pt"
+              ? "Ex: Treino ABC - Hipertrofia"
+              : "Ex: ABC Workout - Hypertrophy"
+          }
           value={newPlan.title}
           onChange={(e) =>
             setNewPlan((prev) => ({
@@ -46,7 +54,7 @@ function CreateWorkoutPlanForm({
 
         <input
           type="text"
-          placeholder="DescriÃ§Ã£o opcional"
+          placeholder={t("workout.planDescription")}
           value={newPlan.description}
           onChange={(e) =>
             setNewPlan((prev) => ({
@@ -84,7 +92,7 @@ function CreateWorkoutPlanForm({
           ) : (
             <Plus size={18} />
           )}
-          Create
+          {t("common.create")}
         </button>
       </div>
     </div>

@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../../lib/supabase";
-
 import { motion } from "framer-motion";
 
 import {
@@ -24,8 +22,21 @@ import { formatDistanceToNow } from "date-fns";
 
 import { createNotification } from "../../utils/notificationSystem";
 import { reportError } from "../../utils/errorHandler";
+import {
+  createLike,
+  deleteLike,
+  deletePostById,
+  fetchFeedPosts,
+  fetchLikes,
+  subscribeToFeedChanges,
+  unsubscribeFromFeedChanges,
+  updatePostContent,
+} from "../../services/feedService";
+import { useLanguage } from "../../context/LanguageContext";
 
 function Feed({ user, profile, refreshKey }) {
+  const { language, t, translate } = useLanguage();
+
   const [posts, setPosts] = useState([]);
 
   const [likes, setLikes] = useState([]);
@@ -48,91 +59,23 @@ function Feed({ user, profile, refreshKey }) {
   useEffect(() => {
     if (!user) return;
 
-    const postsChannel = supabase
-      .channel("posts-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "posts",
-        },
-        () => {
-          getPosts();
-        },
-      )
-      .subscribe();
-
-    const likesChannel = supabase
-      .channel("likes-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "likes",
-        },
-        () => {
-          getLikes();
-        },
-      )
-      .subscribe();
+    const channels = subscribeToFeedChanges({
+      onPostsChange: getPosts,
+      onLikesChange: getLikes,
+    });
 
     return () => {
-      supabase.removeChannel(postsChannel);
-      supabase.removeChannel(likesChannel);
+      unsubscribeFromFeedChanges(channels);
     };
   }, [user, activeFeed]);
 
   async function getPosts() {
     setLoading(true);
 
-    if (activeFeed === "following") {
-      const { data: followingData, error: followingError } = await supabase
-        .from("followers")
-        .select("following_id")
-        .eq("follower_id", user.id);
-
-      if (followingError) {
-        reportError(followingError);
-        setLoading(false);
-        return;
-      }
-
-      const followingIds =
-        followingData?.map((item) => item.following_id) || [];
-
-      if (followingIds.length === 0) {
-        setPosts([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("posts")
-        .select("*")
-        .in("user_id", followingIds)
-        .order("created_at", {
-          ascending: false,
-        });
-
-      if (error) {
-        reportError(error);
-        setLoading(false);
-        return;
-      }
-
-      setPosts(data || []);
-      setLoading(false);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", {
-        ascending: false,
-      });
+    const { data, error } = await fetchFeedPosts({
+      activeFeed,
+      userId: user.id,
+    });
 
     if (error) {
       reportError(error);
@@ -145,7 +88,7 @@ function Feed({ user, profile, refreshKey }) {
   }
 
   async function getLikes() {
-    const { data, error } = await supabase.from("likes").select("*");
+    const { data, error } = await fetchLikes();
 
     if (error) {
       reportError(error);
@@ -163,22 +106,14 @@ function Feed({ user, profile, refreshKey }) {
     );
 
     if (existingLike) {
-      const { error } = await supabase
-        .from("likes")
-        .delete()
-        .eq("id", existingLike.id);
+      const { error } = await deleteLike(existingLike.id);
 
       if (error) {
         reportError(error);
         return;
       }
     } else {
-      const { error } = await supabase.from("likes").insert([
-        {
-          post_id: postId,
-          user_id: user.id,
-        },
-      ]);
+      const { error } = await createLike(postId, user.id);
 
       if (error) {
         reportError(error);
@@ -207,41 +142,38 @@ function Feed({ user, profile, refreshKey }) {
   }
 
   async function deletePost(postId) {
-    const confirmDelete = confirm("Delete this post?");
+    const confirmDelete = confirm(
+      language === "pt" ? "Excluir este post?" : "Delete this post?",
+    );
 
     if (!confirmDelete) return;
 
-    const { error } = await supabase.from("posts").delete().eq("id", postId);
+    const { error } = await deletePostById(postId);
 
     if (error) {
       reportError(error);
       return;
     }
 
-    toast.success("Post deleted!");
+    toast.success(translate("Post deleted!"));
 
     getPosts();
   }
 
   async function updatePost(postId) {
     if (!editedContent.trim()) {
-      toast.error("Post cannot be empty.");
+      toast.error(translate("Post cannot be empty."));
       return;
     }
 
-    const { error } = await supabase
-      .from("posts")
-      .update({
-        content: editedContent,
-      })
-      .eq("id", postId);
+    const { error } = await updatePostContent(postId, editedContent);
 
     if (error) {
       reportError(error);
       return;
     }
 
-    toast.success("Post updated!");
+    toast.success(translate("Post updated!"));
 
     setEditingPostId(null);
 
@@ -255,7 +187,7 @@ function Feed({ user, profile, refreshKey }) {
       `${window.location.origin}/profile/${post.username}`,
     );
 
-    toast.success("Profile link copied!");
+    toast.success(translate("Profile link copied!"));
   }
 
   if (loading) {
@@ -351,7 +283,7 @@ function Feed({ user, profile, refreshKey }) {
             }
           `}
         >
-          For You
+          {t("feed.forYou")}
         </button>
 
         <button
@@ -382,7 +314,7 @@ function Feed({ user, profile, refreshKey }) {
             }
           `}
         >
-          Following
+          {t("feed.following")}
         </button>
       </div>
 

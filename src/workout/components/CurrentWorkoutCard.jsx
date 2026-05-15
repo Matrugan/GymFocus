@@ -1,4 +1,5 @@
 import { Clock } from "lucide-react";
+import { useLanguage } from "../../context/LanguageContext";
 
 function CurrentWorkoutCard({
   activePlan,
@@ -19,6 +20,8 @@ function CurrentWorkoutCard({
   workoutAlreadyCompletedToday,
   workoutTimerRunning,
 }) {
+  const { language, translate } = useLanguage();
+
   return (
     <div
       className="
@@ -47,8 +50,10 @@ function CurrentWorkoutCard({
 
           <p className="text-white/80 mt-2 break-words">
             {workoutAlreadyCompletedToday
-              ? "You already finished today's workout."
-              : `From plan: ${activePlan.title}`}
+              ? language === "pt"
+                ? "Voce ja concluiu o treino de hoje."
+                : "You already finished today's workout."
+              : `${language === "pt" ? "Plano" : "From plan"}: ${translate(activePlan.title)}`}
           </p>
         </div>
 
@@ -68,14 +73,16 @@ function CurrentWorkoutCard({
           "
         >
           {workoutAlreadyCompletedToday
-            ? "Done"
+            ? language === "pt"
+              ? "Concluido"
+              : "Done"
             : `${displayWorkoutCompletedCount}/${displayWorkoutTotalExercises}`}
         </div>
       </div>
 
       <div className="mt-5">
         <div className="flex justify-between text-sm mb-2">
-          <span>Today's progress</span>
+          <span>{language === "pt" ? "Progresso de hoje" : "Today's progress"}</span>
           <span>{displayWorkoutProgressPercent}%</span>
         </div>
 
@@ -124,7 +131,7 @@ function CurrentWorkoutCard({
 
           <div className="min-w-0">
             <p className="text-white/60 text-xs font-bold uppercase tracking-wide">
-              Workout timer
+              {language === "pt" ? "Timer do treino" : "Workout timer"}
             </p>
 
             <h4 className="text-2xl font-black mt-1 tabular-nums">
@@ -159,7 +166,13 @@ function CurrentWorkoutCard({
             "
           >
             <Clock size={17} />
-            {workoutTimerRunning ? "Timer running" : "Start workout"}
+            {workoutTimerRunning
+              ? language === "pt"
+                ? "Timer rodando"
+                : "Timer running"
+              : language === "pt"
+                ? "Iniciar treino"
+                : "Start workout"}
           </button>
         )}
       </div>
@@ -183,19 +196,23 @@ function CurrentWorkoutCard({
           "
         >
           <p className="text-white/60 text-xs font-bold uppercase tracking-wide">
-            Last
+            {language === "pt" ? "Ultimo" : "Last"}
           </p>
 
           <h4 className="font-black mt-2 break-words">
             {lastCompletedWorkoutDay
               ? getDayLabel(lastCompletedWorkoutDay)
-              : "No workout yet"}
+              : language === "pt"
+                ? "Nenhum treino ainda"
+                : "No workout yet"}
           </h4>
 
           <p className="text-white/60 text-xs mt-2">
             {lastCompletedWorkoutLog
               ? formatWorkoutDate(lastCompletedWorkoutLog.workout_date)
-              : "Start your sequence"}
+              : language === "pt"
+                ? "Comece sua sequencia"
+                : "Start your sequence"}
           </p>
         </div>
 
@@ -211,7 +228,7 @@ function CurrentWorkoutCard({
           "
         >
           <p className="text-purple-500 text-xs font-black uppercase tracking-wide">
-            Current
+            {language === "pt" ? "Atual" : "Current"}
           </p>
 
           <h4 className="font-black mt-2 break-words">
@@ -220,8 +237,12 @@ function CurrentWorkoutCard({
 
           <p className="text-purple-500 text-xs mt-2">
             {workoutAlreadyCompletedToday
-              ? "Completed today"
-              : "Do this workout now"}
+              ? language === "pt"
+                ? "Concluido hoje"
+                : "Completed today"
+              : language === "pt"
+                ? "Faca este treino agora"
+                : "Do this workout now"}
           </p>
         </div>
 
@@ -235,7 +256,7 @@ function CurrentWorkoutCard({
           "
         >
           <p className="text-white/60 text-xs font-bold uppercase tracking-wide">
-            Next
+            {language === "pt" ? "Proximo" : "Next"}
           </p>
 
           <h4 className="font-black mt-2 break-words">
@@ -243,7 +264,7 @@ function CurrentWorkoutCard({
           </h4>
 
           <p className="text-white/60 text-xs mt-2">
-            After current workout
+            {language === "pt" ? "Depois do treino atual" : "After current workout"}
           </p>
         </div>
       </div>

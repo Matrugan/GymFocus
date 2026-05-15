@@ -1,9 +1,11 @@
 import { Moon, Sun } from "lucide-react";
 
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
 
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
 
   const isDark = theme === "dark";
 
@@ -30,7 +32,7 @@ function ThemeToggle() {
         dark:border-white/10
         dark:hover:border-purple-500
       "
-      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      title={isDark ? t("theme.light") : t("theme.dark")}
     >
       {isDark ? <Sun size={20} /> : <Moon size={20} />}
     </button>

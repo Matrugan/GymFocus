@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { supabase } from "../lib/supabase";
-
 import {
   CalendarDays,
   CheckCircle,
@@ -15,6 +13,12 @@ import {
 
 import { motion } from "framer-motion";
 import { reportError } from "../utils/errorHandler";
+import { useLanguage } from "../context/LanguageContext";
+import {
+  fetchUserWorkoutLogs,
+  subscribeToUserWorkoutLogs,
+  unsubscribeFromWorkoutRealtime,
+} from "../services/workoutService";
 
 function getLocalDateString(date = new Date()) {
   const year = date.getFullYear();
@@ -69,6 +73,7 @@ function getWorkoutDateKey(workoutDate) {
 }
 
 function WorkoutCalendar({ user }) {
+  const { language, translate } = useLanguage();
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -87,24 +92,12 @@ function WorkoutCalendar({ user }) {
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase
-      .channel(`workout-calendar-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "workout_logs",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          getWorkouts(false);
-        },
-      )
-      .subscribe();
+    const channel = subscribeToUserWorkoutLogs(user.id, () => {
+      getWorkouts(false);
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribeFromWorkoutRealtime(channel);
     };
   }, [user?.id]);
 
@@ -139,12 +132,7 @@ function WorkoutCalendar({ user }) {
       setRefreshing(true);
     }
 
-    const { data, error } = await supabase
-      .from("workout_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("workout_date", { ascending: false })
-      .order("created_at", { ascending: false });
+    const { data, error } = await fetchUserWorkoutLogs(user.id);
 
     if (error) {
       reportError(error);
@@ -236,7 +224,7 @@ function WorkoutCalendar({ user }) {
     });
 
     if (completedLog?.workout_day) {
-      return completedLog.workout_day;
+      return translate(completedLog.workout_day);
     }
 
     const skippedLog = logs.find((workout) => {
@@ -244,26 +232,26 @@ function WorkoutCalendar({ user }) {
     });
 
     if (skippedLog?.workout_day) {
-      return skippedLog.workout_day;
+      return translate(skippedLog.workout_day);
     }
 
     return "";
   }
 
   function getDayLabel(date) {
-    return parseDateStringAsLocalDate(date).toLocaleDateString(undefined, {
+    return parseDateStringAsLocalDate(date).toLocaleDateString(locale, {
       weekday: "short",
     });
   }
 
   function getDayNumber(date) {
-    return parseDateStringAsLocalDate(date).toLocaleDateString(undefined, {
+    return parseDateStringAsLocalDate(date).toLocaleDateString(locale, {
       day: "2-digit",
     });
   }
 
   function getMonthLabel(date) {
-    return parseDateStringAsLocalDate(date).toLocaleDateString(undefined, {
+    return parseDateStringAsLocalDate(date).toLocaleDateString(locale, {
       month: "short",
     });
   }
@@ -278,12 +266,17 @@ function WorkoutCalendar({ user }) {
 
   const emptyDays = visibleMonthDates.length - completedDays - skippedDays;
 
-  const visibleMonthLabel = visibleMonth.toLocaleDateString(undefined, {
+  const locale = language === "pt" ? "pt-BR" : "en-US";
+
+  const visibleMonthLabel = visibleMonth.toLocaleDateString(locale, {
     month: "long",
     year: "numeric",
   });
 
-  const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const weekDays =
+    language === "pt"
+      ? ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"]
+      : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   if (loading) {
     return (
@@ -313,7 +306,7 @@ function WorkoutCalendar({ user }) {
           "
         >
           <Loader2 className="animate-spin" size={20} />
-          Loading calendar...
+          {language === "pt" ? "Carregando calendario..." : "Loading calendar..."}
         </div>
 
         <div
@@ -430,7 +423,7 @@ function WorkoutCalendar({ user }) {
                   break-words
                 "
               >
-                Monthly Workouts
+                {language === "pt" ? "Treinos mensais" : "Monthly Workouts"}
               </h2>
 
               {refreshing && (
@@ -456,7 +449,9 @@ function WorkoutCalendar({ user }) {
                 dark:text-zinc-400
               "
             >
-              Your complete workout calendar for {visibleMonthLabel}
+              {language === "pt"
+                ? `Seu calendario completo de treinos de ${visibleMonthLabel}`
+                : `Your complete workout calendar for ${visibleMonthLabel}`}
             </p>
           </div>
         </div>
@@ -496,7 +491,7 @@ function WorkoutCalendar({ user }) {
               dark:border-white/10
               dark:text-zinc-300
             "
-            title="Previous month"
+            title={language === "pt" ? "Mes anterior" : "Previous month"}
           >
             <ChevronLeft size={18} />
           </button>
@@ -519,7 +514,7 @@ function WorkoutCalendar({ user }) {
               dark:text-black
             "
           >
-            Today
+            {language === "pt" ? "Hoje" : "Today"}
           </button>
 
           <button
@@ -545,7 +540,7 @@ function WorkoutCalendar({ user }) {
               dark:border-white/10
               dark:text-zinc-300
             "
-            title="Next month"
+            title={language === "pt" ? "Proximo mes" : "Next month"}
           >
             <ChevronRight size={18} />
           </button>
@@ -567,7 +562,8 @@ function WorkoutCalendar({ user }) {
               sm:block
             "
           >
-            {completedDays}/{visibleMonthDates.length} completed
+            {completedDays}/{visibleMonthDates.length}{" "}
+            {language === "pt" ? "concluidos" : "completed"}
           </div>
 
           <div
@@ -587,7 +583,7 @@ function WorkoutCalendar({ user }) {
               sm:block
             "
           >
-            {skippedDays} skipped
+            {skippedDays} {language === "pt" ? "pulados" : "skipped"}
           </div>
         </div>
       </div>
@@ -707,7 +703,7 @@ function WorkoutCalendar({ user }) {
                     sm:block
                   "
                 >
-                  Today
+                  {language === "pt" ? "Hoje" : "Today"}
                 </div>
               )}
 
@@ -826,7 +822,17 @@ function WorkoutCalendar({ user }) {
                   }
                 `}
               >
-                {completed ? "Completed" : skipped ? "Skipped" : "Rest / Missed"}
+                {completed
+                  ? language === "pt"
+                    ? "Concluido"
+                    : "Completed"
+                  : skipped
+                    ? language === "pt"
+                      ? "Pulado"
+                      : "Skipped"
+                    : language === "pt"
+                      ? "Descanso / perdido"
+                      : "Rest / Missed"}
               </p>
 
               {workoutLabel && (
@@ -880,7 +886,9 @@ function WorkoutCalendar({ user }) {
             dark:border-white/10
           "
         >
-          <p className="text-zinc-500 text-xs">Completed</p>
+          <p className="text-zinc-500 text-xs">
+            {language === "pt" ? "Concluidos" : "Completed"}
+          </p>
 
           <h3 className="text-xl font-black text-purple-500 mt-1">
             {completedDays}
@@ -899,7 +907,9 @@ function WorkoutCalendar({ user }) {
             dark:border-white/10
           "
         >
-          <p className="text-zinc-500 text-xs">Skipped</p>
+          <p className="text-zinc-500 text-xs">
+            {language === "pt" ? "Pulados" : "Skipped"}
+          </p>
 
           <h3 className="text-xl font-black text-orange-500 mt-1">
             {skippedDays}
@@ -918,7 +928,9 @@ function WorkoutCalendar({ user }) {
             dark:border-white/10
           "
         >
-          <p className="text-zinc-500 text-xs">Rest</p>
+          <p className="text-zinc-500 text-xs">
+            {language === "pt" ? "Descanso" : "Rest"}
+          </p>
 
           <h3 className="text-xl font-black text-zinc-500 mt-1">
             {emptyDays}
@@ -953,9 +965,9 @@ function WorkoutCalendar({ user }) {
         />
 
         <p className="text-sm">
-          Complete your daily workout to mark the day as completed. Skipped
-          workouts appear separately and do not count as completed days. Dates
-          follow the local timezone of the device using the app.
+          {language === "pt"
+            ? "Complete seu treino diario para marcar o dia como concluido. Treinos pulados aparecem separados e nao contam como dias concluidos. As datas seguem o fuso horario local do dispositivo."
+            : "Complete your daily workout to mark the day as completed. Skipped workouts appear separately and do not count as completed days. Dates follow the local timezone of the device using the app."}
         </p>
       </div>
     </motion.div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 
 import {
   Plus,
@@ -11,8 +11,8 @@ import {
   Pencil,
   X,
   Settings2,
-  CalendarDays,
   Archive,
+  RotateCcw,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
@@ -32,12 +32,14 @@ import {
   deleteWorkoutExercise,
   deleteWorkoutSetLogsForExerciseDate,
   fetchActiveWorkoutPlans,
+  fetchArchivedWorkoutPlans,
   fetchDailyWorkoutProgress,
   fetchWorkoutExercises,
   fetchWorkoutLogs,
   fetchWorkoutSetLogs,
   findCompletedWorkoutLog,
   findWorkoutLogByDay,
+  restoreWorkoutPlanRecord,
   updateWorkoutExercise,
   updateWorkoutPlanRecord,
   updateWorkoutProgress,
@@ -50,1300 +52,24 @@ import WorkoutHeader from "./components/WorkoutHeader";
 import WorkoutQuickTools from "./components/WorkoutQuickTools";
 import WorkoutTemplatesPanel from "./components/WorkoutTemplatesPanel";
 import { reportError } from "../utils/errorHandler";
+import { useLanguage } from "../context/LanguageContext";
 import {
+  formatWorkoutDate,
   getCurrentWorkoutDay,
+  getLocalDateString,
   getNextWorkoutDayAfter,
   sortWorkoutLogs,
   getWorkoutDateKey,
-} from "./components/workoutLogic";
+  workoutDayOptions,
+} from "./workoutSequence";
 
-const workoutTemplates = [
-  {
-    title: "AB Iniciante",
-    description: "Treino AB simples para quem está começando.",
-    focuses: {
-      "Treino A": "Superiores",
-      "Treino B": "Inferiores e Abdômen",
-    },
-    exercises: [
-      {
-        workout_day: "Treino A",
-        name: "Supino máquina",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Puxada alta",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Desenvolvimento de ombros",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Rosca direta",
-        sets: "2",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Tríceps pulley",
-        sets: "2",
-        reps: "12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino B",
-        name: "Agachamento livre ou guiado",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Leg press",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Cadeira extensora",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Mesa flexora",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Prancha abdominal",
-        sets: "3",
-        reps: "30s",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "ABC Iniciante",
-    description: "Treino ABC com volume moderado para iniciantes.",
-    focuses: {
-      "Treino A": "Peito, Ombros e Tríceps",
-      "Treino B": "Costas e Bíceps",
-      "Treino C": "Pernas e Abdômen",
-    },
-    exercises: [
-      {
-        workout_day: "Treino A",
-        name: "Supino máquina",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Supino inclinado com halteres",
-        sets: "3",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Desenvolvimento de ombros",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Tríceps pulley",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino B",
-        name: "Puxada alta",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada baixa",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Pulldown",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Rosca direta",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino C",
-        name: "Agachamento guiado",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Leg press",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Cadeira extensora",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Mesa flexora",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Abdominal máquina",
-        sets: "3",
-        reps: "15",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "ABC Hipertrofia",
-    description: "Treino ABC focado em hipertrofia muscular.",
-    focuses: {
-      "Treino A": "Peito e Tríceps",
-      "Treino B": "Costas e Bíceps",
-      "Treino C": "Pernas e Abdômen",
-    },
-    exercises: [
-      {
-        workout_day: "Treino A",
-        name: "Supino reto",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Supino inclinado",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Crucifixo",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Tríceps corda",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Tríceps testa",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino B",
-        name: "Puxada alta",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada baixa",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada unilateral",
-        sets: "3",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Rosca direta",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Rosca martelo",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino C",
-        name: "Agachamento livre",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Leg press",
-        sets: "4",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Cadeira extensora",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Mesa flexora",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Abdominal prancha",
-        sets: "3",
-        reps: "30-45s",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "ABC Avançado",
-    description: "Treino ABC com maior intensidade e volume.",
-    focuses: {
-      "Treino A": "Peito, Ombros e Tríceps",
-      "Treino B": "Costas, Trapézio e Bíceps",
-      "Treino C": "Pernas completas",
-    },
-    exercises: [
-      {
-        workout_day: "Treino A",
-        name: "Supino reto",
-        sets: "4",
-        reps: "6-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Supino inclinado com halteres",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Crossover",
-        sets: "3",
-        reps: "12-15",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Desenvolvimento militar",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Elevação lateral",
-        sets: "4",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Tríceps francês",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino B",
-        name: "Barra fixa ou puxada alta",
-        sets: "4",
-        reps: "6-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada curvada",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada cavalinho",
-        sets: "3",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Encolhimento",
-        sets: "4",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Rosca direta barra",
-        sets: "3",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Rosca alternada",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino C",
-        name: "Agachamento livre",
-        sets: "5",
-        reps: "6-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Leg press",
-        sets: "4",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Stiff",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Cadeira extensora",
-        sets: "3",
-        reps: "12-15",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Mesa flexora",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Panturrilha em pé",
-        sets: "5",
-        reps: "12-15",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "ABCD Normal",
-    description: "Divisão ABCD equilibrada para evolução muscular.",
-    focuses: {
-      "Treino A": "Peito e Tríceps",
-      "Treino B": "Costas e Bíceps",
-      "Treino C": "Pernas",
-      "Treino D": "Ombros e Abdômen",
-    },
-    exercises: [
-      {
-        workout_day: "Treino A",
-        name: "Supino reto",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Supino inclinado",
-        sets: "3",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Crucifixo",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Tríceps pulley",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino B",
-        name: "Puxada alta",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada baixa",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Pulldown",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Rosca direta",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino C",
-        name: "Agachamento",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Leg press",
-        sets: "4",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Stiff",
-        sets: "3",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Panturrilha sentado",
-        sets: "4",
-        reps: "12-15",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino D",
-        name: "Desenvolvimento com halteres",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino D",
-        name: "Elevação lateral",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino D",
-        name: "Face pull",
-        sets: "3",
-        reps: "12-15",
-        load: "",
-      },
-      {
-        workout_day: "Treino D",
-        name: "Abdominal infra",
-        sets: "3",
-        reps: "15",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "ABCD Avançado",
-    description: "Divisão ABCD com maior volume e intensidade.",
-    focuses: {
-      "Treino A": "Peito",
-      "Treino B": "Costas",
-      "Treino C": "Pernas",
-      "Treino D": "Ombros e Braços",
-    },
-    exercises: [
-      {
-        workout_day: "Treino A",
-        name: "Supino reto",
-        sets: "4",
-        reps: "6-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Supino inclinado com halteres",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Paralelas",
-        sets: "3",
-        reps: "8-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Crossover",
-        sets: "3",
-        reps: "12-15",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino B",
-        name: "Barra fixa ou puxada alta",
-        sets: "4",
-        reps: "6-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada curvada",
-        sets: "4",
-        reps: "8",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada unilateral",
-        sets: "3",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Pulldown",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino C",
-        name: "Agachamento livre",
-        sets: "5",
-        reps: "6-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Leg press",
-        sets: "4",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Stiff",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Mesa flexora",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino D",
-        name: "Desenvolvimento militar",
-        sets: "4",
-        reps: "6-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino D",
-        name: "Elevação lateral",
-        sets: "4",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino D",
-        name: "Rosca direta",
-        sets: "3",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino D",
-        name: "Rosca martelo",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino D",
-        name: "Tríceps testa",
-        sets: "3",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino D",
-        name: "Tríceps corda",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "ABCDE Avançado",
-    description: "Treino ABCDE com foco específico por grupo muscular.",
-    focuses: {
-      "Treino A": "Peito",
-      "Treino B": "Costas",
-      "Treino C": "Pernas",
-      "Treino D": "Ombros",
-      "Treino E": "Braços e Abdômen",
-    },
-    exercises: [
-      {
-        workout_day: "Treino A",
-        name: "Supino reto",
-        sets: "4",
-        reps: "6-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Supino inclinado",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Crossover",
-        sets: "4",
-        reps: "12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino B",
-        name: "Puxada alta",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada curvada",
-        sets: "4",
-        reps: "8",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada baixa",
-        sets: "4",
-        reps: "10-12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino C",
-        name: "Agachamento livre",
-        sets: "5",
-        reps: "6-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Leg press",
-        sets: "4",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Stiff",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Panturrilha em pé",
-        sets: "5",
-        reps: "12-15",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino D",
-        name: "Desenvolvimento militar",
-        sets: "4",
-        reps: "6-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino D",
-        name: "Elevação lateral",
-        sets: "4",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino D",
-        name: "Face pull",
-        sets: "4",
-        reps: "12-15",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino E",
-        name: "Rosca direta",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino E",
-        name: "Rosca martelo",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino E",
-        name: "Tríceps testa",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino E",
-        name: "Abdominal prancha",
-        sets: "4",
-        reps: "40-60s",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "Full Body Iniciante",
-    description: "Treino de corpo inteiro ideal para iniciantes.",
-    focuses: {
-      "Full Body": "Corpo inteiro",
-    },
-    exercises: [
-      {
-        workout_day: "Full Body",
-        name: "Agachamento livre ou guiado",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Supino máquina",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Puxada alta",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Desenvolvimento de ombros",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Leg press",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Prancha abdominal",
-        sets: "3",
-        reps: "30s",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "Full Body Intermediário",
-    description: "Treino de corpo inteiro com volume moderado.",
-    focuses: {
-      "Full Body": "Corpo inteiro e condicionamento",
-    },
-    exercises: [
-      {
-        workout_day: "Full Body",
-        name: "Agachamento livre",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Supino reto",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Remada baixa",
-        sets: "4",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Desenvolvimento militar",
-        sets: "3",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Stiff",
-        sets: "3",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Rosca direta",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Tríceps pulley",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Full Body",
-        name: "Prancha abdominal",
-        sets: "3",
-        reps: "45s",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "PPL - Push Pull Legs",
-    description: "Divisão Push, Pull e Legs.",
-    focuses: {
-      "Treino A": "Push - Peito, Ombros e Tríceps",
-      "Treino B": "Pull - Costas e Bíceps",
-      "Treino C": "Legs - Pernas",
-    },
-    exercises: [
-      {
-        workout_day: "Treino A",
-        name: "Supino reto",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Desenvolvimento militar",
-        sets: "3",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Elevação lateral",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Tríceps corda",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino B",
-        name: "Puxada alta",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada baixa",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Face pull",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Rosca direta",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino C",
-        name: "Agachamento",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Leg press",
-        sets: "4",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Stiff",
-        sets: "3",
-        reps: "10-12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Panturrilha em pé",
-        sets: "4",
-        reps: "12-15",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "PPL Avançado",
-    description: "Push Pull Legs com maior volume para praticantes avançados.",
-    focuses: {
-      "Treino A": "Push pesado",
-      "Treino B": "Pull pesado",
-      "Treino C": "Legs pesado",
-    },
-    exercises: [
-      {
-        workout_day: "Treino A",
-        name: "Supino reto",
-        sets: "5",
-        reps: "5-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Supino inclinado com halteres",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Desenvolvimento militar",
-        sets: "4",
-        reps: "6-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Elevação lateral",
-        sets: "4",
-        reps: "12-15",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Tríceps testa",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino B",
-        name: "Barra fixa",
-        sets: "5",
-        reps: "6-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada curvada",
-        sets: "4",
-        reps: "6-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Remada baixa",
-        sets: "4",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Face pull",
-        sets: "4",
-        reps: "12-15",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Rosca direta",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino C",
-        name: "Agachamento livre",
-        sets: "5",
-        reps: "5-8",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Leg press",
-        sets: "4",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Stiff",
-        sets: "4",
-        reps: "8-10",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Afundo com halteres",
-        sets: "3",
-        reps: "10 cada perna",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Panturrilha em pé",
-        sets: "5",
-        reps: "12-15",
-        load: "",
-      },
-    ],
-  },
-  {
-    title: "Emagrecimento e Condicionamento",
-    description: "Treino com musculação e exercícios metabólicos.",
-    focuses: {
-      "Treino A": "Força geral",
-      "Treino B": "Condicionamento",
-      "Treino C": "Pernas e Core",
-    },
-    exercises: [
-      {
-        workout_day: "Treino A",
-        name: "Agachamento goblet",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Supino máquina",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Puxada alta",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino A",
-        name: "Prancha abdominal",
-        sets: "3",
-        reps: "30-45s",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino B",
-        name: "Esteira ou bike",
-        sets: "1",
-        reps: "15-20min",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Burpee adaptado",
-        sets: "3",
-        reps: "10",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Kettlebell swing ou remada alta",
-        sets: "3",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino B",
-        name: "Abdominal bicicleta",
-        sets: "3",
-        reps: "20",
-        load: "",
-      },
-
-      {
-        workout_day: "Treino C",
-        name: "Leg press",
-        sets: "4",
-        reps: "12",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Cadeira extensora",
-        sets: "3",
-        reps: "15",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Mesa flexora",
-        sets: "3",
-        reps: "15",
-        load: "",
-      },
-      {
-        workout_day: "Treino C",
-        name: "Abdominal infra",
-        sets: "3",
-        reps: "15",
-        load: "",
-      },
-    ],
-  },
-];
-
-function getLocalDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
+import { workoutTemplates } from "./workoutTemplates";
 
 function WorkoutManager({ user, profile, onProfileUpdated }) {
+  const { language, t, translate } = useLanguage();
+
   const [plans, setPlans] = useState([]);
+  const [archivedPlans, setArchivedPlans] = useState([]);
   const [activePlan, setActivePlan] = useState(null);
   const [exercises, setExercises] = useState([]);
   const [progress, setProgress] = useState([]);
@@ -1371,6 +97,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   const [showFocusEditor, setShowFocusEditor] = useState(false);
   const [showAddExercise, setShowAddExercise] = useState(false);
 
+  const [planListView, setPlanListView] = useState("active");
   const [selectedWorkoutDay, setSelectedWorkoutDay] = useState("Todos");
 
   const [newPlan, setNewPlan] = useState({
@@ -1407,15 +134,6 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
   const today = getLocalDateString();
 
-  const workoutDayOptions = [
-    "Treino A",
-    "Treino B",
-    "Treino C",
-    "Treino D",
-    "Treino E",
-    "Full Body",
-  ];
-
   const workoutFilterOptions = ["Todos", ...workoutDayOptions];
 
   useEffect(() => {
@@ -1436,20 +154,10 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     const focus = getDayFocus(day);
 
     if (!focus.trim()) {
-      return day;
+      return translate(day);
     }
 
-    return `${day} - ${focus}`;
-  }
-
-  function formatWorkoutDate(dateString) {
-    if (!dateString) {
-      return "";
-    }
-
-    const [year, month, day] = dateString.split("-");
-
-    return `${day}/${month}/${year}`;
+    return translate(`${day} - ${focus}`);
   }
 
   function formatWorkoutDuration(totalSeconds) {
@@ -1486,6 +194,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     const { data: plansData, error: plansError } =
       await fetchActiveWorkoutPlans(user.id);
+    const { data: archivedPlansData, error: archivedPlansError } =
+      await fetchArchivedWorkoutPlans(user.id);
 
     if (plansError) {
       reportError(plansError, "Error loading workout plans.");
@@ -1493,7 +203,12 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       return;
     }
 
+    if (archivedPlansError) {
+      reportError(archivedPlansError, "Error loading archived workout plans.");
+    }
+
     setPlans(plansData || []);
+    setArchivedPlans(archivedPlansData || []);
 
     const selectedPlan = plansData?.[0] || null;
 
@@ -1573,7 +288,9 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     if (!user?.id) return;
 
     const confirmCreate = confirm(
-      `Create "${template.title}" with ${template.exercises.length} exercises?`,
+      language === "pt"
+        ? `Criar "${translate(template.title)}" com ${template.exercises.length} exercicios?`
+        : `Create "${template.title}" with ${template.exercises.length} exercises?`,
     );
 
     if (!confirmCreate) return;
@@ -1590,7 +307,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       });
 
     if (planError) {
-      reportError(planError, "Error creating workout template.");
+      reportError(planError, translate("Error creating workout template."));
       setCreatingTemplate(false);
       return;
     }
@@ -1610,7 +327,12 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       await createWorkoutExercises(exercisesToInsert);
 
     if (exercisesError) {
-      reportError(exercisesError, "Workout created, but exercises could not be added.");
+      reportError(
+        exercisesError,
+        language === "pt"
+          ? "Treino criado, mas os exercicios nao puderam ser adicionados."
+          : "Workout created, but exercises could not be added.",
+      );
       setCreatingTemplate(false);
       return;
     }
@@ -1634,14 +356,18 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setShowFocusEditor(false);
     setShowAddExercise(false);
 
-    toast.success(`${template.title} created!`);
+    toast.success(
+      language === "pt"
+        ? `${translate(template.title)} criado!`
+        : `${template.title} created!`,
+    );
 
     setCreatingTemplate(false);
   }
 
   async function createWorkoutPlan() {
     if (!newPlan.title.trim()) {
-      toast.error("Enter a workout name.");
+      toast.error(translate("Enter a workout name."));
       return;
     }
 
@@ -1656,7 +382,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     });
 
     if (error) {
-      reportError(error, "Error creating workout.");
+      reportError(error, translate("Error creating workout."));
       setCreatingPlan(false);
       return;
     }
@@ -1679,7 +405,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setShowCreatePlan(false);
     setShowPlanTools(true);
 
-    toast.success("Workout created!");
+    toast.success(translate("Workout created!"));
 
     setCreatingPlan(false);
   }
@@ -1719,7 +445,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     if (!editingPlan) return;
 
     if (!editPlanData.title.trim()) {
-      toast.error("Enter a workout name.");
+      toast.error(translate("Enter a workout name."));
       return;
     }
 
@@ -1735,7 +461,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     );
 
     if (error) {
-      reportError(error, "Error updating workout plan.");
+      reportError(error, translate("Error updating workout plan."));
       setUpdatingPlan(false);
       return;
     }
@@ -1751,7 +477,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     cancelEditPlan();
 
-    toast.success("Workout plan updated!");
+    toast.success(translate("Workout plan updated!"));
 
     setUpdatingPlan(false);
   }
@@ -1774,7 +500,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     );
 
     if (error) {
-      reportError(error, "Error saving workout focuses.");
+      reportError(error, translate("Error saving workout focuses."));
       setUpdatingFocuses(false);
       return;
     }
@@ -1784,14 +510,16 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setPlans((prev) => prev.map((plan) => (plan.id === data.id ? data : plan)));
 
-    toast.success("Workout focuses saved!");
+    toast.success(translate("Workout focuses saved!"));
 
     setUpdatingFocuses(false);
   }
 
   async function archiveWorkoutPlan(planId) {
     const confirmArchive = confirm(
-      "Archive this workout plan? It will leave your active plans, but your workout history and records will stay saved.",
+      language === "pt"
+        ? "Arquivar este plano de treino? Ele saira dos planos ativos, mas seu historico e recordes ficarao salvos."
+        : "Archive this workout plan? It will leave your active plans, but your workout history and records will stay saved.",
     );
 
     if (!confirmArchive) return;
@@ -1801,14 +529,21 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     const { error } = await archiveWorkoutPlanRecord(planId, user.id);
 
     if (error) {
-      reportError(error, "Error archiving workout plan.");
+      reportError(error, translate("Error archiving workout plan."));
       setDeletingPlan(false);
       return;
     }
 
     const updatedPlans = plans.filter((plan) => plan.id !== planId);
+    const archivedPlan = plans.find((plan) => plan.id === planId);
 
     setPlans(updatedPlans);
+    if (archivedPlan) {
+      setArchivedPlans((prev) => [
+        { ...archivedPlan, is_active: false },
+        ...prev,
+      ]);
+    }
 
     if (editingPlan?.id === planId) {
       cancelEditPlan();
@@ -1835,19 +570,45 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setSelectedWorkoutDay("Treino A");
 
-    toast.success("Workout plan archived.");
+    toast.success(translate("Workout plan archived."));
 
+    setDeletingPlan(false);
+  }
+
+  async function restoreWorkoutPlan(planId) {
+    setDeletingPlan(true);
+
+    const { data, error } = await restoreWorkoutPlanRecord(planId, user.id);
+
+    if (error) {
+      reportError(error, translate("Error restoring workout plan."));
+      setDeletingPlan(false);
+      return;
+    }
+
+    setArchivedPlans((prev) => prev.filter((plan) => plan.id !== planId));
+    setPlans((prev) => [data, ...prev]);
+
+    if (!activePlan) {
+      setActivePlan(data);
+      setDayFocuses(getPlanFocuses(data));
+      await loadPlanDetails(data.id);
+      setShowCreatePlan(false);
+    }
+
+    setPlanListView("active");
+    toast.success(translate("Workout plan restored."));
     setDeletingPlan(false);
   }
 
   async function addExercise() {
     if (!activePlan) {
-      toast.error("Create or select a workout first.");
+      toast.error(translate("Create or select a workout first."));
       return;
     }
 
     if (!newExercise.name.trim()) {
-      toast.error("Enter an exercise name.");
+      toast.error(translate("Enter an exercise name."));
       return;
     }
 
@@ -1865,7 +626,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     });
 
     if (error) {
-      reportError(error, "Error adding exercise.");
+      reportError(error, translate("Error adding exercise."));
       setAddingExercise(false);
       return;
     }
@@ -1885,7 +646,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     const currentDay = getCurrentWorkoutDay(updatedExercises, workoutLogs);
     setSelectedWorkoutDay(currentDay);
 
-    toast.success("Exercise added!");
+    toast.success(translate("Exercise added!"));
 
     setAddingExercise(false);
   }
@@ -1919,7 +680,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     if (!editingExercise) return;
 
     if (!editExerciseData.name.trim()) {
-      toast.error("Enter an exercise name.");
+      toast.error(translate("Enter an exercise name."));
       return;
     }
 
@@ -1938,7 +699,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     );
 
     if (error) {
-      reportError(error, "Error updating exercise.");
+      reportError(error, translate("Error updating exercise."));
       setUpdatingExercise(false);
       return;
     }
@@ -1954,20 +715,22 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     cancelEditExercise();
 
-    toast.success("Exercise updated!");
+    toast.success(translate("Exercise updated!"));
 
     setUpdatingExercise(false);
   }
 
   async function deleteExercise(exerciseId) {
-    const confirmDelete = confirm("Delete this exercise?");
+    const confirmDelete = confirm(
+      language === "pt" ? "Excluir este exercicio?" : "Delete this exercise?",
+    );
 
     if (!confirmDelete) return;
 
     const { error } = await deleteWorkoutExercise(exerciseId, user.id);
 
     if (error) {
-      reportError(error, "Error deleting exercise.");
+      reportError(error, translate("Error deleting exercise."));
       return;
     }
 
@@ -1995,7 +758,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     const currentDay = getCurrentWorkoutDay(updatedExercises, workoutLogs);
     setSelectedWorkoutDay(currentDay);
 
-    toast.success("Exercise deleted.");
+    toast.success(translate("Exercise deleted."));
   }
 
   function isExerciseCompleted(exerciseId) {
@@ -2031,9 +794,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   return getNextWorkoutDayAfter(currentWorkoutDay, exercises);
 }, [currentWorkoutDay, exercises]);
 
-const recentWorkoutLogs = useMemo(() => {
-  return workoutLogs.slice(0, 7);
-}, [workoutLogs]);
+  const displayedPlans =
+    planListView === "archived" ? archivedPlans : plans;
 
 const lastCompletedWorkoutLog = useMemo(() => {
   return (
@@ -2133,14 +895,18 @@ const workoutTimerStorageKey = useMemo(() => {
     if (!activePlan) return;
 
     if (workoutAlreadyCompletedToday) {
-      toast.error("Today's workout is already completed.");
+      toast.error(translate("Today's workout is already completed."));
       return;
     }
 
     const exerciseDay = exercise.workout_day || "Treino A";
 
     if (exerciseDay !== currentWorkoutDay) {
-      toast.error(`Hoje é dia de ${getDayLabel(currentWorkoutDay)}.`);
+      toast.error(
+        language === "pt"
+          ? `Hoje e dia de ${getDayLabel(currentWorkoutDay)}.`
+          : `Today is ${getDayLabel(currentWorkoutDay)} day.`,
+      );
       return;
     }
 
@@ -2279,18 +1045,24 @@ const workoutTimerStorageKey = useMemo(() => {
     if (!activePlan) return;
 
     if (workoutAlreadyCompletedToday) {
-      toast.error("Today's workout is already completed.");
+      toast.error(translate("Today's workout is already completed."));
       return;
     }
 
     if (todayTotalExercises === 0) {
-      toast.error(`No exercises found for ${getDayLabel(currentWorkoutDay)}.`);
+      toast.error(
+        language === "pt"
+          ? `Nenhum exercicio encontrado para ${getDayLabel(currentWorkoutDay)}.`
+          : `No exercises found for ${getDayLabel(currentWorkoutDay)}.`,
+      );
       return;
     }
 
     if (!todayWorkoutCompleted) {
       toast.error(
-        `Complete all exercises from ${getDayLabel(currentWorkoutDay)} first.`,
+        language === "pt"
+          ? `Complete todos os exercicios de ${getDayLabel(currentWorkoutDay)} primeiro.`
+          : `Complete all exercises from ${getDayLabel(currentWorkoutDay)} first.`,
       );
       return;
     }
@@ -2304,7 +1076,7 @@ const workoutTimerStorageKey = useMemo(() => {
     );
 
     if (existingWorkout) {
-      toast.error("Today's workout is already completed.");
+      toast.error(translate("Today's workout is already completed."));
       setFinishingWorkout(false);
       return;
     }
@@ -2331,7 +1103,7 @@ const workoutTimerStorageKey = useMemo(() => {
       await createCompletedWorkoutLogWithDuration(workoutLogPayload);
 
     if (workoutError) {
-      reportError(workoutError, "Error completing workout.");
+      reportError(workoutError, translate("Error completing workout."));
       setFinishingWorkout(false);
       return;
     }
@@ -2348,25 +1120,25 @@ const workoutTimerStorageKey = useMemo(() => {
     });
 
     if (profileError) {
-      reportError(profileError, "Error updating profile.");
+      reportError(profileError, translate("Error updating profile."));
       setFinishingWorkout(false);
       return;
     }
 
     await logXP(user.id, 100, "workout");
 
-    await unlockAchievement(user.id, "💪 First Workout");
+    await unlockAchievement(user.id, "ðŸ’ª First Workout");
 
     if (newStreak >= 7) {
-      await unlockAchievement(user.id, "🔥 7 Day Streak");
+      await unlockAchievement(user.id, "ðŸ”¥ 7 Day Streak");
     }
 
     if (newXP >= 1000) {
-      await unlockAchievement(user.id, "🏆 1000 XP");
+      await unlockAchievement(user.id, "ðŸ† 1000 XP");
     }
 
     if (newXP >= 10000) {
-      await unlockAchievement(user.id, "👑 10K XP");
+      await unlockAchievement(user.id, "ðŸ‘‘ 10K XP");
     }
 
     onProfileUpdated?.({
@@ -2375,7 +1147,11 @@ const workoutTimerStorageKey = useMemo(() => {
       streak: newStreak,
     });
 
-    toast.success(`${getDayLabel(currentWorkoutDay)} completed! +100 XP`);
+    toast.success(
+      language === "pt"
+        ? `${getDayLabel(currentWorkoutDay)} concluido! +100 XP`
+        : `${getDayLabel(currentWorkoutDay)} completed! +100 XP`,
+    );
 
     clearWorkoutTimer();
     setFinishingWorkout(false);
@@ -2385,12 +1161,14 @@ const workoutTimerStorageKey = useMemo(() => {
     if (!activePlan) return;
 
     if (workoutAlreadyCompletedToday) {
-      toast.error("Today's workout already has a record.");
+      toast.error(translate("Today's workout already has a record."));
       return;
     }
 
     const confirmSkip = confirm(
-      `Skip ${getDayLabel(currentWorkoutDay)}? This will move your sequence to the next workout.`,
+      language === "pt"
+        ? `Pular ${getDayLabel(currentWorkoutDay)}? Isso movera sua sequencia para o proximo treino.`
+        : `Skip ${getDayLabel(currentWorkoutDay)}? This will move your sequence to the next workout.`,
     );
 
     if (!confirmSkip) return;
@@ -2405,7 +1183,7 @@ const workoutTimerStorageKey = useMemo(() => {
     );
 
     if (existingWorkout) {
-      toast.error("Today's workout already has a record.");
+      toast.error(translate("Today's workout already has a record."));
       setFinishingWorkout(false);
       return;
     }
@@ -2419,7 +1197,7 @@ const workoutTimerStorageKey = useMemo(() => {
     });
 
     if (error) {
-      reportError(error, "Error skipping workout.");
+      reportError(error, translate("Error skipping workout."));
       setFinishingWorkout(false);
       return;
     }
@@ -2433,9 +1211,13 @@ const workoutTimerStorageKey = useMemo(() => {
     setSelectedWorkoutDay(nextDayAfterSkip);
 
     toast.success(
-      `${getDayLabel(currentWorkoutDay)} skipped. Next: ${getDayLabel(
-        nextDayAfterSkip,
-      )}.`,
+      language === "pt"
+        ? `${getDayLabel(currentWorkoutDay)} pulado. Proximo: ${getDayLabel(
+            nextDayAfterSkip,
+          )}.`
+        : `${getDayLabel(currentWorkoutDay)} skipped. Next: ${getDayLabel(
+            nextDayAfterSkip,
+          )}.`,
     );
 
     clearWorkoutTimer();
@@ -2665,14 +1447,18 @@ const workoutTimerStorageKey = useMemo(() => {
     if (!activePlan) return;
 
     if (workoutAlreadyCompletedToday) {
-      toast.error("Today's workout is already completed.");
+      toast.error(translate("Today's workout is already completed."));
       return;
     }
 
     const exerciseDay = exercise.workout_day || "Treino A";
 
     if (exerciseDay !== currentWorkoutDay) {
-      toast.error(`Hoje é dia de ${getDayLabel(currentWorkoutDay)}.`);
+      toast.error(
+        language === "pt"
+          ? `Hoje e dia de ${getDayLabel(currentWorkoutDay)}.`
+          : `Today is ${getDayLabel(currentWorkoutDay)} day.`,
+      );
       return;
     }
 
@@ -2681,7 +1467,7 @@ const workoutTimerStorageKey = useMemo(() => {
     const form = setLogForms[exercise.id];
 
     if (!form) {
-      toast.error("Open the set logger first.");
+      toast.error(translate("Open the set logger first."));
       return;
     }
 
@@ -2700,7 +1486,7 @@ const workoutTimerStorageKey = useMemo(() => {
       .filter((setRow) => setRow.reps !== null || setRow.load !== null);
 
     if (validSets.length === 0) {
-      toast.error("Enter at least one load or reps value.");
+      toast.error(translate("Enter at least one load or reps value."));
       return;
     }
 
@@ -2716,7 +1502,7 @@ const workoutTimerStorageKey = useMemo(() => {
     });
 
     if (hasInvalidNumbers) {
-      toast.error("Use valid positive numbers for load and reps.");
+      toast.error(translate("Use valid positive numbers for load and reps."));
       return;
     }
 
@@ -2730,7 +1516,7 @@ const workoutTimerStorageKey = useMemo(() => {
     });
 
     if (deleteError) {
-      reportError(deleteError, "Error updating set logs.");
+      reportError(deleteError, translate("Error updating set logs."));
       setSavingSetLogs(false);
       return;
     }
@@ -2738,7 +1524,7 @@ const workoutTimerStorageKey = useMemo(() => {
     const { data, error } = await createWorkoutSetLogs(validSets);
 
     if (error) {
-      reportError(error, "Error saving set logs.");
+      reportError(error, translate("Error saving set logs."));
       setSavingSetLogs(false);
       return;
     }
@@ -2774,7 +1560,7 @@ const workoutTimerStorageKey = useMemo(() => {
 
     await markExerciseCompletedAfterSetLog(exercise);
 
-    toast.success("Exercise performance saved!");
+    toast.success(translate("Exercise performance saved!"));
 
     setSavingSetLogs(false);
   }
@@ -2860,7 +1646,7 @@ const workoutTimerStorageKey = useMemo(() => {
         showCreatePlan={showCreatePlan}
       />
       {/* PLANS */}
-      {plans.length > 0 && (
+      {(plans.length > 0 || archivedPlans.length > 0) && (
         <div
           className="
             bg-zinc-50
@@ -2888,11 +1674,11 @@ const workoutTimerStorageKey = useMemo(() => {
           >
             <div>
               <h3 className="font-black text-lg sm:text-xl">
-                Your workout plans
+                {t("workout.plansTitle")}
               </h3>
 
               <p className="text-zinc-500 text-sm mt-1">
-                Select the plan you want to follow.
+                {t("workout.plansDescription")}
               </p>
             </div>
 
@@ -2922,12 +1708,77 @@ const workoutTimerStorageKey = useMemo(() => {
               "
             >
               <Settings2 size={17} />
-              Manage
+              {t("common.manage")}
+            </button>
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => setPlanListView("active")}
+              className={`
+                px-4
+                py-2
+                rounded-xl
+                text-sm
+                font-bold
+                transition
+
+                ${
+                  planListView === "active"
+                    ? "bg-purple-500 text-white"
+                    : "bg-white border border-zinc-200 text-zinc-600 hover:border-purple-500 dark:bg-black/30 dark:border-white/10 dark:text-zinc-300"
+                }
+              `}
+            >
+              {t("common.active")} ({plans.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPlanListView("archived")}
+              className={`
+                px-4
+                py-2
+                rounded-xl
+                text-sm
+                font-bold
+                transition
+
+                ${
+                  planListView === "archived"
+                    ? "bg-purple-500 text-white"
+                    : "bg-white border border-zinc-200 text-zinc-600 hover:border-purple-500 dark:bg-black/30 dark:border-white/10 dark:text-zinc-300"
+                }
+              `}
+            >
+              {t("common.archived")} ({archivedPlans.length})
             </button>
           </div>
 
           <div className="flex gap-3 overflow-x-auto pb-2">
-            {plans.map((plan) => (
+            {displayedPlans.length === 0 ? (
+              <div
+                className="
+                  w-full
+                  rounded-2xl
+                  border
+                  border-dashed
+                  border-zinc-300
+                  p-5
+                  text-center
+                  text-zinc-500
+                  text-sm
+
+                  dark:border-white/10
+                "
+              >
+                {planListView === "archived"
+                  ? t("workout.noArchivedPlans")
+                  : t("workout.noActivePlans")}
+              </div>
+            ) : (
+              displayedPlans.map((plan) => (
               <div
                 key={plan.id}
                 className={`
@@ -2949,14 +1800,19 @@ const workoutTimerStorageKey = useMemo(() => {
                 `}
               >
                 <button
-                  onClick={() => selectPlan(plan)}
+                  onClick={() => {
+                    if (planListView === "active") {
+                      selectPlan(plan);
+                    }
+                  }}
+                  disabled={planListView === "archived"}
                   className="font-bold text-sm px-2 py-1 max-w-[190px] truncate"
-                  title={plan.title}
+                  title={translate(plan.title)}
                 >
-                  {plan.title}
+                  {translate(plan.title)}
                 </button>
 
-                {showPlanTools && (
+                {showPlanTools && planListView === "active" && (
                   <>
                     <button
                       onClick={() => startEditPlan(plan)}
@@ -2970,7 +1826,7 @@ const workoutTimerStorageKey = useMemo(() => {
                         hover:bg-white/20
                         transition
                       "
-                      title="Edit workout plan"
+                    title={t("workout.editPlan")}
                     >
                       <Pencil size={16} />
                     </button>
@@ -2990,14 +1846,37 @@ const workoutTimerStorageKey = useMemo(() => {
                         transition
                         disabled:opacity-50
                       "
-                      title="Archive workout plan"
+                    title={t("workout.archivePlan")}
                     >
                       <Archive size={16} />
                     </button>
                   </>
                 )}
+
+                {showPlanTools && planListView === "archived" && (
+                  <button
+                    onClick={() => restoreWorkoutPlan(plan.id)}
+                    disabled={deletingPlan}
+                    className="
+                      w-8
+                      h-8
+                      rounded-xl
+                      flex
+                      items-center
+                      justify-center
+                      hover:bg-green-500/20
+                      hover:text-green-300
+                      transition
+                      disabled:opacity-50
+                    "
+                    title={t("workout.restorePlan")}
+                  >
+                    <RotateCcw size={16} />
+                  </button>
+                )}
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}
@@ -3019,13 +1898,13 @@ const workoutTimerStorageKey = useMemo(() => {
           "
         >
           <h3 className="font-black text-lg sm:text-xl mb-4">
-            Edit workout plan
+            {t("workout.editPlan")}
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_auto] gap-3">
             <input
               type="text"
-              placeholder="Workout name"
+              placeholder={t("workout.planName")}
               value={editPlanData.title}
               onChange={(e) =>
                 setEditPlanData((prev) => ({
@@ -3038,7 +1917,7 @@ const workoutTimerStorageKey = useMemo(() => {
 
             <input
               type="text"
-              placeholder="Description"
+              placeholder={t("workout.planDescription")}
               value={editPlanData.description}
               onChange={(e) =>
                 setEditPlanData((prev) => ({
@@ -3073,7 +1952,7 @@ const workoutTimerStorageKey = useMemo(() => {
               ) : (
                 <Save size={18} />
               )}
-              Save
+              {t("common.save")}
             </button>
 
             <button
@@ -3100,7 +1979,7 @@ const workoutTimerStorageKey = useMemo(() => {
               "
             >
               <X size={18} />
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </div>
@@ -3122,7 +2001,7 @@ const workoutTimerStorageKey = useMemo(() => {
           "
         >
           Nenhum treino criado ainda. Clique em <strong>New workout</strong>{" "}
-          para começar ou use um <strong>Template</strong>.
+          para comeÃ§ar ou use um <strong>Template</strong>.
         </div>
       )}
 
@@ -3189,11 +2068,13 @@ const workoutTimerStorageKey = useMemo(() => {
               >
                 <div>
                   <h3 className="font-black text-lg sm:text-xl">
-                    Workout focuses
+                    {translate("Workout focuses")}
                   </h3>
 
                   <p className="text-zinc-500 text-sm mt-1">
-                    Define o foco principal de cada treino.
+                    {language === "pt"
+                      ? "Defina o foco principal de cada treino."
+                      : "Define the main focus for each workout."}
                   </p>
                 </div>
 
@@ -3223,7 +2104,7 @@ const workoutTimerStorageKey = useMemo(() => {
                   ) : (
                     <Save size={18} />
                   )}
-                  Save focuses
+                  {language === "pt" ? "Salvar focos" : "Save focuses"}
                 </button>
               </div>
 
@@ -3231,19 +2112,27 @@ const workoutTimerStorageKey = useMemo(() => {
                 {workoutDayOptions.map((day) => (
                   <div key={day}>
                     <label className="block text-sm font-bold text-zinc-600 dark:text-zinc-300 mb-2">
-                      {day}
+                      {translate(day)}
                     </label>
 
                     <input
                       type="text"
                       placeholder={
                         day === "Treino A"
-                          ? "Ex: Peito e Tríceps"
+                          ? language === "pt"
+                            ? "Ex: Peito e Triceps"
+                            : "Ex: Chest and Triceps"
                           : day === "Treino B"
-                            ? "Ex: Costas e Bíceps"
+                            ? language === "pt"
+                              ? "Ex: Costas e Biceps"
+                              : "Ex: Back and Biceps"
                             : day === "Treino C"
-                              ? "Ex: Pernas e Abdômen"
-                              : "Ex: Ombros, Cardio..."
+                              ? language === "pt"
+                                ? "Ex: Pernas e Abdomen"
+                                : "Ex: Legs and Abs"
+                              : language === "pt"
+                                ? "Ex: Ombros, Cardio..."
+                                : "Ex: Shoulders, Cardio..."
                       }
                       value={dayFocuses?.[day] || ""}
                       onChange={(e) =>
@@ -3277,7 +2166,7 @@ const workoutTimerStorageKey = useMemo(() => {
               "
             >
               <h3 className="font-black text-lg sm:text-xl mb-4">
-                Add exercise
+                {translate("Add exercise")}
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[.9fr_1.4fr_.7fr_.7fr_.7fr_auto] gap-3">
@@ -3300,7 +2189,7 @@ const workoutTimerStorageKey = useMemo(() => {
 
                 <input
                   type="text"
-                  placeholder="Exercise name"
+                  placeholder={translate("Exercise")}
                   value={newExercise.name}
                   onChange={(e) =>
                     setNewExercise((prev) => ({
@@ -3414,11 +2303,16 @@ const workoutTimerStorageKey = useMemo(() => {
                   <h3 className="font-black text-lg sm:text-xl">Checklist</h3>
 
                   <p className="text-zinc-500 text-sm mt-1">
-                    Showing {visibleCompletedCount}/{visibleTotalExercises}{" "}
-                    completed
+                    {language === "pt"
+                      ? `Mostrando ${visibleCompletedCount}/${visibleTotalExercises} concluidos`
+                      : `Showing ${visibleCompletedCount}/${visibleTotalExercises} completed`}
                     {selectedWorkoutDay !== "Todos"
-                      ? ` in ${getDayLabel(selectedWorkoutDay)}`
-                      : " in all workouts"}
+                      ? language === "pt"
+                        ? ` em ${getDayLabel(selectedWorkoutDay)}`
+                        : ` in ${getDayLabel(selectedWorkoutDay)}`
+                      : language === "pt"
+                        ? " em todos os treinos"
+                        : " in all workouts"}
                   </p>
                 </div>
 
@@ -3436,7 +2330,8 @@ const workoutTimerStorageKey = useMemo(() => {
                     w-fit
                   "
                 >
-                  {visibleProgressPercent}% visible progress
+                  {visibleProgressPercent}%{" "}
+                  {language === "pt" ? "progresso visivel" : "visible progress"}
                 </div>
               </div>
 
@@ -3462,7 +2357,7 @@ const workoutTimerStorageKey = useMemo(() => {
                       }
                     `}
                   >
-                    {day === "Todos" ? "Todos" : getDayLabel(day)}
+                    {day === "Todos" ? translate("Todos") : getDayLabel(day)}
                   </button>
                 ))}
               </div>
@@ -3486,7 +2381,7 @@ const workoutTimerStorageKey = useMemo(() => {
               "
             >
               <h3 className="font-black text-lg sm:text-xl mb-4">
-                Edit exercise
+                {translate("Edit exercise")}
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[.9fr_1.4fr_.7fr_.7fr_.7fr_auto_auto] gap-3">
@@ -3851,13 +2746,13 @@ const workoutTimerStorageKey = useMemo(() => {
                                 ${completed ? "line-through opacity-70" : ""}
                               `}
                             >
-                              {exercise.name}
+                              {translate(exercise.name)}
                             </h4>
 
                             <p className="text-zinc-500 text-sm mt-1">
-                              {exercise.sets || "-"} sets •{" "}
+                              {exercise.sets || "-"} sets â€¢{" "}
                               {exercise.reps || "-"} reps
-                              {exercise.load ? ` • ${exercise.load}` : ""}
+                              {exercise.load ? ` â€¢ ${exercise.load}` : ""}
                             </p>
                             <div className="flex items-center gap-2 mt-3 flex-wrap">
                               <button
@@ -3887,15 +2782,21 @@ const workoutTimerStorageKey = useMemo(() => {
     "
                               >
                                 {expandedSetLoggerId === exercise.id
-                                  ? "Close log"
-                                  : "Log sets"}
+                                  ? language === "pt"
+                                    ? "Fechar registro"
+                                    : "Close log"
+                                  : language === "pt"
+                                    ? "Registrar series"
+                                    : "Log sets"}
                               </button>
 
                               {getTodayExerciseSetLogs(exercise.id).length >
                                 0 && (
                                 <span className="text-xs text-green-500 font-bold">
                                   {getTodayExerciseSetLogs(exercise.id).length}{" "}
-                                  sets logged
+                                  {language === "pt"
+                                    ? "series registradas"
+                                    : "sets logged"}
                                 </span>
                               )}
                             </div>
@@ -3903,14 +2804,16 @@ const workoutTimerStorageKey = useMemo(() => {
                             {!isCurrentExercise &&
                               !workoutAlreadyCompletedToday && (
                               <p className="text-xs text-zinc-400 mt-1">
-                                Not current in sequence
+                                {language === "pt"
+                                  ? "Nao e o treino atual da sequencia"
+                                  : "Not current in sequence"}
                               </p>
                             )}
 
                             {workoutAlreadyCompletedToday &&
                               isDisplayWorkoutExercise && (
                                 <p className="text-xs text-green-500 mt-1">
-                                  This workout was completed today
+                                  {translate("This workout was completed today.")}
                                 </p>
                               )}
                           </div>
@@ -4180,7 +3083,7 @@ const workoutTimerStorageKey = useMemo(() => {
       ) : (
         <Save size={18} />
       )}
-      Save performance
+      {translate("Save performance")}
     </button>
                           </div>
                         )}
@@ -4191,205 +3094,6 @@ const workoutTimerStorageKey = useMemo(() => {
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* RECENT WORKOUT HISTORY */}
-          <div
-            className="
-              mt-6
-              bg-zinc-50
-              border
-              border-zinc-200
-              rounded-2xl
-              p-4
-              sm:p-5
-
-              dark:bg-black/30
-              dark:border-white/10
-            "
-          >
-            <div
-              className="
-                flex
-                items-center
-                justify-between
-                gap-4
-                mb-4
-              "
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="
-                    w-11
-                    h-11
-                    rounded-2xl
-                    bg-purple-500/10
-                    text-purple-500
-                    flex
-                    items-center
-                    justify-center
-                    shrink-0
-                  "
-                >
-                  <CalendarDays size={21} />
-                </div>
-
-                <div>
-                  <h3 className="font-black text-lg sm:text-xl">
-                    Recent workouts
-                  </h3>
-
-                  <p className="text-zinc-500 text-sm mt-1">
-                    Last logs from this plan.
-                  </p>
-                </div>
-              </div>
-
-              <div
-                className="
-                  px-3
-                  py-1
-                  rounded-full
-                  bg-purple-500/10
-                  border
-                  border-purple-500/20
-                  text-purple-500
-                  text-xs
-                  font-bold
-                  shrink-0
-                "
-              >
-                {recentWorkoutLogs.length}
-              </div>
-            </div>
-
-            {recentWorkoutLogs.length === 0 ? (
-              <div
-                className="
-                  rounded-2xl
-                  border
-                  border-dashed
-                  border-zinc-300
-                  p-5
-                  text-center
-                  text-zinc-500
-                  text-sm
-
-                  dark:border-white/10
-                "
-              >
-                No workout logs yet. Finish or skip a workout to build history.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentWorkoutLogs.map((log, index) => {
-                  const logStatus = log.status || "completed";
-                  const isSkipped = logStatus === "skipped";
-
-                  return (
-                    <div
-                      key={
-                        log.id ||
-                        `${log.workout_date}-${log.workout_day}-${index}`
-                      }
-                      className="
-                        flex
-                        items-center
-                        justify-between
-                        gap-4
-                        rounded-2xl
-                        bg-white
-                        border
-                        border-zinc-200
-                        p-4
-
-                        dark:bg-black/30
-                        dark:border-white/10
-                      "
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-black break-words">
-                            {getDayLabel(log.workout_day)}
-                          </h4>
-
-                          {log.workout_date === today && (
-                            <span
-                              className={`
-                                px-2
-                                py-1
-                                rounded-full
-                                text-white
-                                text-[10px]
-                                font-bold
-
-                                ${isSkipped ? "bg-orange-500" : "bg-green-500"}
-                              `}
-                            >
-                              Today
-                            </span>
-                          )}
-
-                          <span
-                            className={`
-                              px-2
-                              py-1
-                              rounded-full
-                              text-[10px]
-                              font-bold
-
-                              ${
-                                isSkipped
-                                  ? "bg-orange-500/10 text-orange-500"
-                                  : "bg-green-500/10 text-green-500"
-                              }
-                            `}
-                          >
-                            {isSkipped ? "Skipped" : "Completed"}
-                          </span>
-                        </div>
-
-                        <p className="text-zinc-500 text-sm mt-1">
-                          {isSkipped ? "Skipped on" : "Completed on"}{" "}
-                          {formatWorkoutDate(log.workout_date)}
-                        </p>
-
-                        {!isSkipped && Number(log.duration_seconds) > 0 && (
-                          <p className="text-zinc-500 text-xs mt-1">
-                            Duration:{" "}
-                            {formatWorkoutDuration(log.duration_seconds)}
-                          </p>
-                        )}
-                      </div>
-
-                      <div
-                        className={`
-                          w-10
-                          h-10
-                          rounded-xl
-                          flex
-                          items-center
-                          justify-center
-                          shrink-0
-
-                          ${
-                            isSkipped
-                              ? "bg-orange-500/10 text-orange-500"
-                              : "bg-green-500/10 text-green-500"
-                          }
-                        `}
-                      >
-                        {isSkipped ? (
-                          <X size={20} />
-                        ) : (
-                          <CheckCircle size={20} />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* FINISH BUTTON */}
@@ -4416,14 +3120,20 @@ const workoutTimerStorageKey = useMemo(() => {
             <div>
               <h3 className="font-black text-lg">
                 {workoutAlreadyCompletedToday
-                  ? "Workout completed today"
-                  : `Finish ${getDayLabel(currentWorkoutDay)}`}
+                  ? translate("Workout completed today")
+                  : language === "pt"
+                    ? `Finalizar ${getDayLabel(currentWorkoutDay)}`
+                    : `Finish ${getDayLabel(currentWorkoutDay)}`}
               </h3>
 
               <p className="text-zinc-500 text-sm mt-1">
                 {workoutAlreadyCompletedToday
-                  ? `Next workout in sequence: ${getDayLabel(nextWorkoutDay)}.`
-                  : "Complete today's sequence workout to finish the day."}
+                  ? language === "pt"
+                    ? `Proximo treino na sequencia: ${getDayLabel(nextWorkoutDay)}.`
+                    : `Next workout in sequence: ${getDayLabel(nextWorkoutDay)}.`
+                  : language === "pt"
+                    ? "Complete o treino da sequencia de hoje para finalizar o dia."
+                    : "Complete today's sequence workout to finish the day."}
               </p>
             </div>
 
@@ -4460,7 +3170,9 @@ const workoutTimerStorageKey = useMemo(() => {
               ) : (
                 <Trophy size={20} />
               )}
-              {workoutAlreadyCompletedToday ? "Done Today" : "Complete Today"}
+              {workoutAlreadyCompletedToday
+                ? translate("Done Today")
+                : translate("Complete Today")}
             </button>
           </div>
         </>
@@ -4470,3 +3182,4 @@ const workoutTimerStorageKey = useMemo(() => {
 }
 
 export default WorkoutManager;
+

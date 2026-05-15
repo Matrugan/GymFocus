@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../../lib/supabase";
-
 import {
   Camera,
   Save,
@@ -12,8 +10,15 @@ import {
 
 import toast from "react-hot-toast";
 import { reportError } from "../../utils/errorHandler";
+import {
+  updateProfile,
+  uploadProfileImage,
+} from "../../services/profileService";
+import { useLanguage } from "../../context/LanguageContext";
 
-function ProfileSettings({ profile, user }) {
+function ProfileSettings({ profile, user, onProfileUpdated }) {
+  const { t, translate } = useLanguage();
+
   const [bio, setBio] = useState("");
 
   const [loadingAvatar, setLoadingAvatar] = useState(false);
@@ -32,12 +37,12 @@ function ProfileSettings({ profile, user }) {
     if (!file) return false;
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image.");
+      toast.error(translate("Please select a valid image."));
       return false;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image is too large. Maximum size is 5MB.");
+      toast.error(translate("Image is too large. Maximum size is 5MB."));
       return false;
     }
 
@@ -53,50 +58,46 @@ function ProfileSettings({ profile, user }) {
 
     const fileExt = file.name.split(".").pop();
 
-    const fileName = `${user.id}.${fileExt}`;
+    const fileName = `avatar.${fileExt}`;
 
-    const filePath = `${fileName}`;
+    const filePath = `${user.id}/${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(filePath, file, {
-        upsert: true,
-      });
+    const { data: avatar_url, error: uploadError } = await uploadProfileImage({
+      bucket: "avatars",
+      file,
+      path: filePath,
+    });
 
     if (uploadError) {
-      reportError(uploadError, "Error uploading avatar.");
+      reportError(uploadError, translate("Error uploading avatar."));
 
       setLoadingAvatar(false);
+      e.target.value = "";
 
       return;
     }
 
-    const { data } = supabase.storage
-      .from("avatars")
-      .getPublicUrl(filePath);
-
-    const avatar_url = data.publicUrl;
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        avatar_url,
-      })
-      .eq("id", user.id);
+    const { error } = await updateProfile(user.id, { avatar_url });
 
     if (error) {
-      reportError(error, "Error updating avatar.");
+      reportError(error, translate("Error updating avatar."));
 
       setLoadingAvatar(false);
+      e.target.value = "";
 
       return;
     }
 
-    toast.success("Avatar updated!");
+    toast.success(translate("Avatar updated!"));
+
+    onProfileUpdated?.({
+      ...profile,
+      avatar_url,
+    });
 
     setLoadingAvatar(false);
 
-    window.location.reload();
+    e.target.value = "";
   }
 
   async function uploadBanner(e) {
@@ -108,78 +109,74 @@ function ProfileSettings({ profile, user }) {
 
     const fileExt = file.name.split(".").pop();
 
-    const fileName = `${user.id}-banner.${fileExt}`;
+    const fileName = `banner.${fileExt}`;
 
-    const filePath = `${fileName}`;
+    const filePath = `${user.id}/${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("profile-banners")
-      .upload(filePath, file, {
-        upsert: true,
-      });
+    const { data: banner_url, error: uploadError } = await uploadProfileImage({
+      bucket: "profile-banners",
+      file,
+      path: filePath,
+    });
 
     if (uploadError) {
-      reportError(uploadError, "Error uploading banner.");
+      reportError(uploadError, translate("Error uploading banner."));
 
       setLoadingBanner(false);
+      e.target.value = "";
 
       return;
     }
 
-    const { data } = supabase.storage
-      .from("profile-banners")
-      .getPublicUrl(filePath);
-
-    const banner_url = data.publicUrl;
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        banner_url,
-      })
-      .eq("id", user.id);
+    const { error } = await updateProfile(user.id, { banner_url });
 
     if (error) {
-      reportError(error, "Error updating banner.");
+      reportError(error, translate("Error updating banner."));
 
       setLoadingBanner(false);
+      e.target.value = "";
 
       return;
     }
 
-    toast.success("Banner updated!");
+    toast.success(translate("Banner updated!"));
+
+    onProfileUpdated?.({
+      ...profile,
+      banner_url,
+    });
 
     setLoadingBanner(false);
 
-    window.location.reload();
+    e.target.value = "";
   }
 
   async function updateBio() {
     if (!user?.id) return;
 
     if (bio.length > 240) {
-      toast.error("Bio must have at most 240 characters.");
+      toast.error(translate("Bio must have at most 240 characters."));
       return;
     }
 
     setLoadingBio(true);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        bio,
-      })
-      .eq("id", user.id);
+    const { error } = await updateProfile(user.id, { bio });
 
     if (error) {
-      reportError(error, "Error updating bio.");
+      reportError(error, translate("Error updating bio."));
 
       setLoadingBio(false);
 
       return;
     }
 
-    toast.success("Profile updated!");
+    toast.success(translate("Profile updated!"));
+
+    onProfileUpdated?.({
+      ...profile,
+      bio,
+    });
 
     setLoadingBio(false);
   }
@@ -248,7 +245,7 @@ function ProfileSettings({ profile, user }) {
               break-words
             "
           >
-            Profile Settings
+            {t("profile.settings")}
           </h2>
 
           <p
@@ -261,7 +258,7 @@ function ProfileSettings({ profile, user }) {
               dark:text-zinc-400
             "
           >
-            Customize your public fitness profile.
+            {translate("Customize your public fitness profile.")}
           </p>
         </div>
       </div>
@@ -297,11 +294,11 @@ function ProfileSettings({ profile, user }) {
         >
           <div className="min-w-0">
             <h3 className="text-lg sm:text-xl font-black">
-              Profile Banner
+              {translate("Profile Banner")}
             </h3>
 
             <p className="text-zinc-500 text-sm mt-1">
-              This image appears at the top of your profile.
+              {translate("This image appears at the top of your profile.")}
             </p>
           </div>
 
@@ -341,7 +338,7 @@ function ProfileSettings({ profile, user }) {
             )}
 
             <span className="font-bold">
-              {loadingBanner ? "Uploading..." : "Change Banner"}
+              {loadingBanner ? translate("Uploading...") : translate("Change Banner")}
             </span>
 
             <input
@@ -396,7 +393,7 @@ function ProfileSettings({ profile, user }) {
                 px-4
               "
             >
-              No banner selected
+              {translate("No banner selected")}
             </div>
           )}
         </div>
@@ -485,11 +482,11 @@ function ProfileSettings({ profile, user }) {
 
             <div className="min-w-0">
               <h3 className="text-lg sm:text-xl font-black">
-                Profile Picture
+                {translate("Profile Picture")}
               </h3>
 
               <p className="text-zinc-500 text-sm mt-1">
-                Recommended: square image, at least 300x300px.
+                {translate("Recommended: square image, at least 300x300px.")}
               </p>
             </div>
           </div>
@@ -530,7 +527,7 @@ function ProfileSettings({ profile, user }) {
             )}
 
             <span className="font-bold">
-              {loadingAvatar ? "Uploading..." : "Change Avatar"}
+              {loadingAvatar ? translate("Uploading...") : translate("Change Avatar")}
             </span>
 
             <input
@@ -561,18 +558,18 @@ function ProfileSettings({ profile, user }) {
       >
         <div className="mb-4">
           <h3 className="text-lg sm:text-xl font-black">
-            Bio
+            {translate("Bio")}
           </h3>
 
           <p className="text-zinc-500 text-sm mt-1">
-            Tell other athletes about your goals and training style.
+            {translate("Tell other athletes about your goals and training style.")}
           </p>
         </div>
 
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}
-          placeholder="Write your bio..."
+          placeholder={translate("Write your bio...")}
           maxLength={240}
           className="
             w-full
@@ -612,7 +609,7 @@ function ProfileSettings({ profile, user }) {
           "
         >
           <p className="text-xs sm:text-sm text-zinc-500">
-            {bio.length}/240 characters
+            {bio.length}/240 {translate("characters")}
           </p>
 
           <button
@@ -645,12 +642,12 @@ function ProfileSettings({ profile, user }) {
             {loadingBio ? (
               <>
                 <Loader2 className="animate-spin" size={20} />
-                Saving...
+                {translate("Saving...")}
               </>
             ) : (
               <>
                 <Save size={20} />
-                Save Profile
+                {translate("Save Profile")}
               </>
             )}
           </button>
