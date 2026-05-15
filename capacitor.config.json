@@ -1,0 +1,9 @@
+{
+  "appId": "com.gymfocus.app",
+  "appName": "GymFocus",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

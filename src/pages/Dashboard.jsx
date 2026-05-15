@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 
 import {
   Flame,
@@ -26,24 +26,7 @@ import { useAuth } from "../context/AuthContext";
 import useProfile from "../hooks/useProfile";
 import useWorkoutData from "../hooks/useWorkoutData";
 
-import Leaderboard from "../components/ranking/Leaderboard";
-import WeeklyRanking from "../components/ranking/WeeklyRanking";
-
-import CreatePost from "../components/feed/CreatePost";
-import Feed from "../components/feed/Feed";
-
-import ProfileSettings from "../components/profile/ProfileSettings";
-import SearchUsers from "../components/profile/SearchUsers";
-
-import WorkoutCalendar from "../components/WorkoutCalendar";
-import WorkoutManager from "../workout/WorkoutManager";
-import ProgressAnalytics from "../components/analytics/ProgressAnalytics";
-
 import NotificationBell from "../components/notifications/NotificationBell";
-import LevelProgressCard from "../components/level/LevelProgressCard";
-
-import Achievements from "../components/achievements/Achievements";
-import Challenges from "../components/challenges/Challenges";
 
 import ThemeToggle from "../components/layout/ThemeToggle";
 import BrandLogo from "../components/layout/BrandLogo";
@@ -53,6 +36,33 @@ import {
   getCurrentWorkoutDay,
   getWorkoutLabel,
 } from "../workout/workoutSequence";
+
+const Achievements = lazy(() => import("../components/achievements/Achievements"));
+const Challenges = lazy(() => import("../components/challenges/Challenges"));
+const CreatePost = lazy(() => import("../components/feed/CreatePost"));
+const Feed = lazy(() => import("../components/feed/Feed"));
+const LevelProgressCard = lazy(
+  () => import("../components/level/LevelProgressCard"),
+);
+const Leaderboard = lazy(() => import("../components/ranking/Leaderboard"));
+const ProfileSettings = lazy(
+  () => import("../components/profile/ProfileSettings"),
+);
+const ProgressAnalytics = lazy(
+  () => import("../components/analytics/ProgressAnalytics"),
+);
+const SearchUsers = lazy(() => import("../components/profile/SearchUsers"));
+const WeeklyRanking = lazy(() => import("../components/ranking/WeeklyRanking"));
+const WorkoutCalendar = lazy(() => import("../components/WorkoutCalendar"));
+const WorkoutManager = lazy(() => import("../workout/WorkoutManager"));
+
+function DashboardFallback() {
+  return (
+    <div className="mt-6 rounded-3xl border border-zinc-200 bg-white p-6 text-sm font-semibold text-zinc-500 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
+      Loading...
+    </div>
+  );
+}
 
 function Dashboard() {
   const { user, signOut } = useAuth();
@@ -279,6 +289,7 @@ function Dashboard() {
           sm:py-10
           pb-28
           sm:pb-32
+          lg:pb-10
           relative
         "
       >
@@ -471,7 +482,9 @@ function Dashboard() {
                     <X size={20} />
                   </button>
 
-                  <SearchUsers />
+                  <Suspense fallback={<DashboardFallback />}>
+                    <SearchUsers />
+                  </Suspense>
                 </motion.div>
               </motion.div>
             )}
@@ -538,7 +551,9 @@ function Dashboard() {
                   "
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-black text-lg">Menu</h3>
+                    <h3 className="font-black text-lg">
+                      {translate("More options")}
+                    </h3>
 
                     <button
                       onClick={() => setShowMobileMenu(false)}
@@ -717,7 +732,9 @@ function Dashboard() {
               </div>
 
               <div className="mt-5 sm:mt-10 relative z-10">
-                <LevelProgressCard xp={profile?.xp || 0} />
+                <Suspense fallback={<DashboardFallback />}>
+                  <LevelProgressCard xp={profile?.xp || 0} />
+                </Suspense>
               </div>
 
               <DashboardBlock>
@@ -725,76 +742,90 @@ function Dashboard() {
               </DashboardBlock>
 
               <DashboardBlock>
-                <Achievements user={user} />
+                <Suspense fallback={<DashboardFallback />}>
+                  <Achievements user={user} />
+                </Suspense>
               </DashboardBlock>
             </>
           )}
 
           {/* WORKOUTS TAB */}
           {activeTab === "workouts" && (
-            <PageContainer>
-              <WorkoutManager
-                user={user}
-                profile={profile}
-                onProfileUpdated={(updatedProfile) => {
-                  setProfile(updatedProfile);
-                  refetchDashboardWorkout();
-                }}
-              />
+            <Suspense fallback={<DashboardFallback />}>
+              <PageContainer>
+                <WorkoutManager
+                  user={user}
+                  profile={profile}
+                  onProfileUpdated={(updatedProfile) => {
+                    setProfile(updatedProfile);
+                    refetchDashboardWorkout();
+                  }}
+                />
 
-              <WorkoutCalendar user={user} />
-            </PageContainer>
+                <WorkoutCalendar user={user} />
+              </PageContainer>
+            </Suspense>
           )}
 
           {/* PROGRESS TAB */}
           {activeTab === "progress" && (
-            <PageContainer>
-              <ProgressAnalytics user={user} />
-            </PageContainer>
+            <Suspense fallback={<DashboardFallback />}>
+              <PageContainer>
+                <ProgressAnalytics user={user} />
+              </PageContainer>
+            </Suspense>
           )}
 
           {/* RANKINGS TAB */}
           {activeTab === "rankings" && (
-            <PageContainer>
-              <WeeklyRanking />
+            <Suspense fallback={<DashboardFallback />}>
+              <PageContainer>
+                <WeeklyRanking />
 
-              <Leaderboard />
-            </PageContainer>
+                <Leaderboard />
+              </PageContainer>
+            </Suspense>
           )}
 
           {/* FEED TAB */}
           {activeTab === "feed" && (
-            <PageContainer>
-              <CreatePost
-                user={user}
-                profile={profile}
-                onPostCreated={() => setFeedRefreshKey((prev) => prev + 1)}
-              />
+            <Suspense fallback={<DashboardFallback />}>
+              <PageContainer>
+                <CreatePost
+                  user={user}
+                  profile={profile}
+                  onPostCreated={() => setFeedRefreshKey((prev) => prev + 1)}
+                />
 
-              <Feed user={user} profile={profile} refreshKey={feedRefreshKey} />
-            </PageContainer>
+                <Feed user={user} profile={profile} refreshKey={feedRefreshKey} />
+              </PageContainer>
+            </Suspense>
           )}
 
           {/* CHALLENGES TAB */}
           {activeTab === "challenges" && (
-            <div className="mt-6 sm:mt-10 relative z-10">
-              <Challenges
-                user={user}
-                profile={profile}
-                onProfileUpdated={setProfile}
-              />
-            </div>
+            <Suspense fallback={<DashboardFallback />}>
+              <div className="mt-6 sm:mt-10 relative z-10">
+                <Challenges
+                  user={user}
+                  profile={profile}
+                  onProfileUpdated={setProfile}
+                />
+              </div>
+            </Suspense>
           )}
 
           {/* SETTINGS TAB */}
           {activeTab === "settings" && (
-            <div className="mt-6 sm:mt-10 relative z-10">
-              <ProfileSettings
-                profile={profile}
-                user={user}
-                onProfileUpdated={setProfile}
-              />
-            </div>
+            <Suspense fallback={<DashboardFallback />}>
+              <div className="mt-6 sm:mt-10 relative z-10">
+                <ProfileSettings
+                  profile={profile}
+                  user={user}
+                  onProfileUpdated={setProfile}
+                />
+              </div>
+            </Suspense>
           )}
         </div>
       </main>
@@ -856,6 +887,7 @@ function Dashboard() {
           justify-around
           lg:hidden
           z-40
+          mobile-bottom-nav
 
           dark:bg-zinc-950/95
           dark:text-white
@@ -894,7 +926,7 @@ function Dashboard() {
           active={isMoreActive}
           onClick={() => setShowMobileMenu(true)}
           icon={<MoreHorizontal size={21} />}
-          text="More"
+          text={translate("More")}
         />
       </div>
     </section>

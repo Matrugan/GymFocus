@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -17,8 +17,6 @@ import {
   MessageCircle,
 } from "lucide-react";
 
-import EmojiPicker from "emoji-picker-react";
-
 import { motion, AnimatePresence } from "framer-motion";
 
 import ThemeToggle from "../components/layout/ThemeToggle";
@@ -36,6 +34,8 @@ import {
   unsubscribeFromRealtime,
   uploadChatImage as uploadChatImageFile,
 } from "../services/chatService";
+
+const EmojiPicker = lazy(() => import("emoji-picker-react"));
 
 function Chat() {
   const { user } = useAuth();
@@ -57,10 +57,24 @@ function Chat() {
   const [selectedUser, setSelectedUser] = useState(null);
 
   const [image, setImage] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
 
   const [sending, setSending] = useState(false);
 
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!image) {
+      setImagePreviewUrl("");
+      return undefined;
+    }
+
+    const previewUrl = URL.createObjectURL(image);
+
+    setImagePreviewUrl(previewUrl);
+
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [image]);
 
   useEffect(() => {
     if (user && id) {
@@ -248,7 +262,7 @@ function Chat() {
   return (
     <section
       className="
-        h-screen
+        h-[100dvh]
         bg-zinc-50
         text-zinc-950
         flex
@@ -306,9 +320,10 @@ function Chat() {
 
           <div className="relative shrink-0">
             {selectedUser?.avatar_url ? (
-              <img
-                src={selectedUser.avatar_url}
-                alt=""
+                <img
+                  src={selectedUser.avatar_url}
+                  alt=""
+                  decoding="async"
                 className="
                   w-10
                   h-10
@@ -422,6 +437,7 @@ function Chat() {
       <main
         className="
           flex-1
+          min-h-0
           overflow-y-auto
           px-3
           sm:px-4
@@ -606,6 +622,8 @@ function Chat() {
                       <img
                         src={message.image_url}
                         alt="Imagem enviada"
+                        loading="lazy"
+                        decoding="async"
                         className="
                           mt-3
                           rounded-2xl
@@ -673,7 +691,7 @@ function Chat() {
           "
         >
           {/* IMAGE PREVIEW */}
-          {image && (
+          {image && imagePreviewUrl && (
             <div
               className="
                 mb-3
@@ -692,7 +710,7 @@ function Chat() {
               "
             >
               <img
-                src={URL.createObjectURL(image)}
+                src={imagePreviewUrl}
                 alt=""
                 className="
                   max-h-32
@@ -738,18 +756,24 @@ function Chat() {
                 rounded-2xl
               "
             >
-              <EmojiPicker
-                width={320}
-                height={400}
-                theme={
-                  document.documentElement.classList.contains("dark")
-                    ? "dark"
-                    : "light"
+              <Suspense
+                fallback={
+                  <div className="h-[400px] w-[320px] bg-white dark:bg-zinc-900" />
                 }
-                onEmojiClick={(emojiData) =>
-                  setNewMessage((prev) => prev + emojiData.emoji)
-                }
-              />
+              >
+                <EmojiPicker
+                  width={320}
+                  height={400}
+                  theme={
+                    document.documentElement.classList.contains("dark")
+                      ? "dark"
+                      : "light"
+                  }
+                  onEmojiClick={(emojiData) =>
+                    setNewMessage((prev) => prev + emojiData.emoji)
+                  }
+                />
+              </Suspense>
             </div>
           )}
 

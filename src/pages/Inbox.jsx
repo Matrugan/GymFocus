@@ -121,7 +121,7 @@ function Inbox() {
         py-6
         sm:py-10
         relative
-        overflow-hidden
+        overflow-x-hidden
         transition-colors
 
         dark:bg-black

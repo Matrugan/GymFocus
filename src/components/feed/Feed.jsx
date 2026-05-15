@@ -52,7 +52,6 @@ function Feed({ user, profile, refreshKey }) {
   useEffect(() => {
     if (user) {
       getPosts();
-      getLikes();
     }
   }, [user, activeFeed, refreshKey]);
 
@@ -83,12 +82,16 @@ function Feed({ user, profile, refreshKey }) {
       return;
     }
 
-    setPosts(data || []);
+    const loadedPosts = data || [];
+
+    setPosts(loadedPosts);
+    await getLikes(loadedPosts);
     setLoading(false);
   }
 
-  async function getLikes() {
-    const { data, error } = await fetchLikes();
+  async function getLikes(postList = posts) {
+    const postIds = postList.map((post) => post.id);
+    const { data, error } = await fetchLikes(postIds);
 
     if (error) {
       reportError(error);
@@ -398,6 +401,8 @@ function Feed({ user, profile, refreshKey }) {
                   <img
                     src={post.avatar_url || "https://i.pravatar.cc/150"}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className="
                       w-11
                       h-11
@@ -604,6 +609,8 @@ function Feed({ user, profile, refreshKey }) {
                   <img
                     src={post.image_url}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className="
                       w-full
                       max-h-[420px]

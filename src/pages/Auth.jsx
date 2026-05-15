@@ -4,9 +4,9 @@ import { motion } from "framer-motion";
 
 import {
   Activity,
-  ArrowLeft,
   Check,
   Dumbbell,
+  ArrowLeft,
   Flame,
   Loader2,
   Medal,
@@ -129,7 +129,7 @@ function getPasswordStrength(password, language) {
   };
 }
 
-function Auth() {
+function Auth({ siteMode = false }) {
   const { language, t, translate } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -142,7 +142,7 @@ function Auth() {
     updatePassword,
   } = useAuth();
 
-  const [authView, setAuthView] = useState("login");
+  const [authView, setAuthView] = useState(() => (siteMode ? "signup" : "login"));
   const [signupStep, setSignupStep] = useState(0);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -212,7 +212,7 @@ function Auth() {
   const isSignup = authView === "signup";
   const isRecoverPassword = authView === "recover";
   const isResetPassword = authView === "reset";
-  const showSocialLogin = isLogin || isSignup;
+  const showSocialLogin = !siteMode && (isLogin || isSignup);
 
   function showError(message) {
     setFormError(message);
@@ -220,6 +220,8 @@ function Auth() {
   }
 
   function switchMode(nextIsLogin) {
+    if (siteMode) return;
+
     setAuthView(nextIsLogin ? "login" : "signup");
     setSignupStep(0);
     setFormError("");
@@ -614,7 +616,7 @@ function Auth() {
           ? "Conta criada com treino inicial!"
           : "Account created with a starter workout!",
       );
-      navigate("/dashboard");
+      navigate(siteMode ? "/download" : "/dashboard");
     } catch (error) {
       const message =
         language === "pt"
@@ -634,7 +636,7 @@ function Auth() {
         min-h-screen
         bg-zinc-50
         text-zinc-950
-        overflow-hidden
+        overflow-x-hidden
         relative
         px-4
         sm:px-6
@@ -646,38 +648,16 @@ function Auth() {
         dark:text-white
       "
     >
-      <div className="absolute top-4 left-4 right-4 sm:top-6 sm:left-6 sm:right-6 z-20 flex items-center justify-between gap-4">
-        <Link
-          to="/"
-          className="
-            flex
-            items-center
-            gap-2
-            text-zinc-600
-            hover:text-zinc-950
-            transition
-            text-sm
-            bg-white
-            border
-            border-zinc-200
-            px-3
-            sm:px-4
-            py-2.5
-            sm:py-3
-            rounded-xl
-            sm:rounded-2xl
-            shadow-sm
-
-            dark:text-zinc-400
-            dark:hover:text-white
-            dark:bg-white/5
-            dark:border-white/10
-            dark:backdrop-blur-xl
-          "
-        >
-          <ArrowLeft size={18} />
-          {t("auth.backHome")}
-        </Link>
+      <div className="absolute top-4 left-4 right-4 sm:top-6 sm:left-6 sm:right-6 z-20 flex items-center justify-end gap-4">
+        {siteMode && (
+          <Link
+            to="/"
+            className="mr-auto flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm font-bold text-zinc-600 shadow-sm transition hover:border-purple-500 hover:text-purple-500 sm:rounded-2xl sm:px-4 sm:py-3 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400 dark:hover:text-white"
+          >
+            <ArrowLeft size={18} />
+            {language === "pt" ? "Voltar" : "Back"}
+          </Link>
+        )}
 
         <div className="flex items-center gap-3">
           <div className="hidden sm:block">
@@ -797,7 +777,7 @@ function Auth() {
               </h2>
             </div>
 
-            {!isResetPassword && (
+            {!siteMode && !isResetPassword && (
               <div className="grid grid-cols-2 gap-2 rounded-2xl bg-zinc-100 p-1 dark:bg-black/30">
                 <ModeButton active={isLogin} onClick={() => switchMode(true)}>
                   {t("auth.login")}
@@ -1016,7 +996,7 @@ function Auth() {
               </div>
             </form>
 
-            {!isResetPassword && (
+            {!siteMode && !isResetPassword && (
               <p className="mt-6 text-center text-sm text-zinc-500">
                 {isLogin || isRecoverPassword
                   ? language === "pt"

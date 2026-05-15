@@ -14,8 +14,9 @@ function useFeed({ enabled = true, profileId, userId } = {}) {
   const [loading, setLoading] = useState(Boolean(enabled && profileId));
   const [error, setError] = useState(null);
 
-  const refreshLikes = useCallback(async () => {
-    const { data, error: likesError } = await fetchLikes();
+  const refreshLikes = useCallback(async (postList = []) => {
+    const postIds = postList.map((post) => post.id);
+    const { data, error: likesError } = await fetchLikes(postIds);
 
     if (likesError) {
       reportError(likesError);
@@ -39,10 +40,8 @@ function useFeed({ enabled = true, profileId, userId } = {}) {
     setLoading(true);
     setError(null);
 
-    const [{ data: postsData, error: postsError }] = await Promise.all([
-      fetchPostsByUserId(profileId),
-      refreshLikes(),
-    ]);
+    const { data: postsData, error: postsError } =
+      await fetchPostsByUserId(profileId);
 
     if (postsError) {
       reportError(postsError);
@@ -51,7 +50,10 @@ function useFeed({ enabled = true, profileId, userId } = {}) {
       return;
     }
 
-    setPosts(postsData || []);
+    const loadedPosts = postsData || [];
+
+    setPosts(loadedPosts);
+    await refreshLikes(loadedPosts);
     setLoading(false);
   }, [enabled, profileId, refreshLikes]);
 
@@ -73,9 +75,9 @@ function useFeed({ enabled = true, profileId, userId } = {}) {
         return;
       }
 
-      await refreshLikes();
+      await refreshLikes(posts);
     },
-    [likes, refreshLikes, userId],
+    [likes, posts, refreshLikes, userId],
   );
 
   useEffect(() => {

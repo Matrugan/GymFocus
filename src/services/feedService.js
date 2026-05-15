@@ -38,8 +38,14 @@ export async function fetchFeedPosts({ activeFeed, userId }) {
     .order("created_at", { ascending: false });
 }
 
-export function fetchLikes() {
-  return supabase.from("likes").select("*");
+export function fetchLikes(postIds = []) {
+  const query = supabase.from("likes").select("*");
+
+  if (postIds.length === 0) {
+    return query.limit(0);
+  }
+
+  return query.in("post_id", postIds);
 }
 
 export function createLike(postId, userId) {

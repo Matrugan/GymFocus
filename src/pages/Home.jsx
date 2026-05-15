@@ -102,7 +102,7 @@ function Home() {
     <main
       className="
         min-h-screen
-        overflow-hidden
+        overflow-x-hidden
         bg-zinc-50
         text-zinc-950
         transition-colors
@@ -146,7 +146,7 @@ function Home() {
           <ThemeToggle />
 
           <Link
-            to="/auth"
+            to="/download"
             className="
               hidden
               sm:inline-flex
@@ -167,11 +167,11 @@ function Home() {
               dark:border-white/10
             "
           >
-            {t("home.login")}
+            {language === "pt" ? "Baixar app" : "Download app"}
           </Link>
 
           <Link
-            to="/auth"
+            to="/signup"
             className="
               px-5
               py-3
@@ -286,7 +286,7 @@ function Home() {
 
           <div className="flex flex-wrap gap-4 mt-10">
             <Link
-              to="/auth"
+              to="/signup"
               className="
                 px-8
                 py-4
@@ -309,7 +309,7 @@ function Home() {
             </Link>
 
             <a
-              href="#features"
+              href="#download"
               className="
                 px-8
                 py-4
@@ -327,7 +327,7 @@ function Home() {
                 dark:border-white/10
               "
             >
-              {language === "pt" ? "Ver recursos" : "See features"}
+              {language === "pt" ? "Baixar app" : "Download app"}
             </a>
           </div>
 
@@ -548,6 +548,8 @@ function Home() {
                       <img
                         src={item.avatar}
                         alt=""
+                        loading="lazy"
+                        decoding="async"
                         className="
                           w-10
                           h-10
@@ -842,6 +844,8 @@ function Home() {
                   <img
                     src={item.avatar}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className="
                       w-14
                       h-14
@@ -868,6 +872,7 @@ function Home() {
 
       {/* CTA */}
       <section
+        id="download"
         className="
     relative
     z-10
@@ -947,7 +952,7 @@ function Home() {
       "
           >
             <Link
-              to="/auth"
+              to="/signup"
               className="
     min-w-[200px]
     px-8
@@ -969,7 +974,7 @@ function Home() {
             </Link>
 
             <Link
-              to="/auth"
+              to="/download"
               className="
           min-w-[160px]
           px-8
@@ -986,7 +991,7 @@ function Home() {
           transition
         "
             >
-              {t("auth.login")}
+              {language === "pt" ? "Baixar app" : "Download app"}
             </Link>
           </div>
         </div>

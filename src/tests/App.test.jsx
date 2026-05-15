@@ -32,6 +32,10 @@ vi.mock("../pages/Chat", () => ({
   default: () => <div>Chat Page</div>,
 }));
 
+vi.mock("../pages/Download", () => ({
+  default: () => <div>Download Page</div>,
+}));
+
 describe("App routes", () => {
   it("renders Home page on /", async () => {
     render(
@@ -43,7 +47,7 @@ describe("App routes", () => {
     expect(await screen.findByText("Home Page")).toBeInTheDocument();
   });
 
-  it("renders Auth page on /auth", async () => {
+  it("redirects /auth to the site signup page", async () => {
     render(
       <MemoryRouter initialEntries={["/auth"]}>
         <App />
@@ -53,43 +57,33 @@ describe("App routes", () => {
     expect(await screen.findByText("Auth Page")).toBeInTheDocument();
   });
 
-  it("renders Dashboard page on /dashboard", async () => {
+  it("renders Auth page on /signup", async () => {
+    render(
+      <MemoryRouter initialEntries={["/signup"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Auth Page")).toBeInTheDocument();
+  });
+
+  it("renders Download page on /download", async () => {
+    render(
+      <MemoryRouter initialEntries={["/download"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Download Page")).toBeInTheDocument();
+  });
+
+  it("redirects internal app routes to Home on the website", async () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <App />
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("Dashboard Page")).toBeInTheDocument();
-  });
-
-  it("renders Profile page on /profile/:username", async () => {
-    render(
-      <MemoryRouter initialEntries={["/profile/mateus"]}>
-        <App />
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByText("Profile Page")).toBeInTheDocument();
-  });
-
-  it("renders Inbox page on /inbox", async () => {
-    render(
-      <MemoryRouter initialEntries={["/inbox"]}>
-        <App />
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByText("Inbox Page")).toBeInTheDocument();
-  });
-
-  it("renders Chat page on /chat/:id", async () => {
-    render(
-      <MemoryRouter initialEntries={["/chat/1"]}>
-        <App />
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByText("Chat Page")).toBeInTheDocument();
+    expect(await screen.findByText("Home Page")).toBeInTheDocument();
   });
 });

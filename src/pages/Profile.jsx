@@ -176,7 +176,7 @@ function Profile() {
         py-6
         sm:py-10
         relative
-        overflow-hidden
+        overflow-x-hidden
         transition-colors
 
         dark:bg-black
@@ -299,6 +299,8 @@ function Profile() {
               <img
                 src={profile.banner_url}
                 alt=""
+                decoding="async"
+                fetchPriority="high"
                 className="
                   absolute
                   inset-0
@@ -405,9 +407,10 @@ function Profile() {
                 {/* AVATAR */}
                 <div className="relative shrink-0">
                   {profile.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt=""
+                      <img
+                        src={profile.avatar_url}
+                        alt=""
+                        decoding="async"
                       className="
                         w-28
                         h-28
@@ -807,6 +810,8 @@ function Profile() {
                     <img
                       src={profile.avatar_url || "https://i.pravatar.cc/150"}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="
                         w-11
                         h-11
@@ -850,6 +855,8 @@ function Profile() {
                     <img
                       src={post.image_url}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="
                         mt-5
                         sm:mt-6

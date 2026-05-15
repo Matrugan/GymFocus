@@ -704,6 +704,24 @@ function translateText(value, phraseMap) {
 function normalizeNodeLanguage(root, phraseMap) {
   if (!root) return;
 
+  if (root.nodeType === Node.TEXT_NODE) {
+    const parent = root.parentElement;
+
+    if (
+      parent &&
+      !["SCRIPT", "STYLE", "TEXTAREA"].includes(parent.tagName) &&
+      !parent.isContentEditable
+    ) {
+      root.nodeValue = translateText(root.nodeValue || "", phraseMap);
+    }
+
+    return;
+  }
+
+  if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_NODE) {
+    return;
+  }
+
   const treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const textNodes = [];
 
@@ -756,20 +774,42 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     const phraseMap = getPhraseMap(language);
-    let normalizing = false;
+    let frameId = 0;
+    const pendingNodes = new Set();
 
-    function normalize() {
-      if (normalizing) return;
-
-      normalizing = true;
+    function normalizeDocument() {
       normalizeNodeLanguage(document.body, phraseMap);
-      normalizing = false;
     }
 
-    normalize();
+    function scheduleNormalize(node) {
+      if (node) {
+        pendingNodes.add(node);
+      }
 
-    const observer = new MutationObserver(() => {
-      window.requestAnimationFrame(normalize);
+      if (frameId) return;
+
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0;
+
+        pendingNodes.forEach((pendingNode) => {
+          normalizeNodeLanguage(pendingNode, phraseMap);
+        });
+
+        pendingNodes.clear();
+      });
+    }
+
+    normalizeDocument();
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "childList") {
+          mutation.addedNodes.forEach((node) => scheduleNormalize(node));
+          return;
+        }
+
+        scheduleNormalize(mutation.target);
+      });
     });
 
     observer.observe(document.body, {
@@ -780,7 +820,13 @@ export function LanguageProvider({ children }) {
       attributeFilter: ["placeholder", "title", "aria-label"],
     });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
   }, [language]);
 
   const value = useMemo(() => {

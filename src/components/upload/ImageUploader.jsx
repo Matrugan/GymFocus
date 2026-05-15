@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   ImagePlus,
@@ -24,6 +24,20 @@ function ImageUploader({
   const [dragActive, setDragActive] = useState(false);
 
   const [compressing, setCompressing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  useEffect(() => {
+    if (!image) {
+      setPreviewUrl("");
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(image);
+
+    setPreviewUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [image]);
 
   async function handleFile(file) {
     if (!file) return;
@@ -222,7 +236,7 @@ function ImageUploader({
         </div>
       )}
 
-      {image && (
+      {image && previewUrl && (
         <div
           className="
             relative
@@ -238,7 +252,7 @@ function ImageUploader({
           "
         >
           <img
-            src={URL.createObjectURL(image)}
+            src={previewUrl}
             alt={translate("Preview")}
             className={`
               w-full
