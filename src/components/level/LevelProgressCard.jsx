@@ -116,7 +116,7 @@ function LevelProgressCard({ xp = 0, compact = false }) {
               dark:text-black
             "
           >
-            {language === "pt" ? "SUBIU DE NIVEL" : "LEVEL UP"}
+            {language === "pt" ? "SUBIU DE NÍVEL" : "LEVEL UP"}
           </motion.div>
         )}
       </AnimatePresence>
@@ -202,7 +202,7 @@ function LevelProgressCard({ xp = 0, compact = false }) {
 
               <span className="flex items-center gap-1 text-xs font-bold text-zinc-500">
                 <Trophy size={14} />
-                {language === "pt" ? "Nivel" : "Level"} {level}
+                {language === "pt" ? "Nível" : "Level"} {level}
               </span>
             </div>
 
@@ -214,13 +214,13 @@ function LevelProgressCard({ xp = 0, compact = false }) {
                 ${compact ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"}
               `}
             >
-              {language === "pt" ? "Progresso para o nivel" : "Progress to Level"}{" "}
+              {language === "pt" ? "Progresso para o nível" : "Progress to Level"}{" "}
               {level + 1}
             </h3>
 
             <p className="mt-1 text-sm text-zinc-500">
               {language === "pt"
-                ? `${xpToNextLevel} XP restantes para desbloquear a proxima insignia.`
+                ? `${xpToNextLevel} XP restantes para desbloquear a próxima insígnia.`
                 : `${xpToNextLevel} XP left to unlock the next badge.`}
             </p>
           </div>
@@ -236,7 +236,7 @@ function LevelProgressCard({ xp = 0, compact = false }) {
 
           <div className="rounded-2xl bg-zinc-50 p-3 dark:bg-black/30">
             <p className="text-[10px] font-black uppercase tracking-wide text-zinc-500">
-              {language === "pt" ? "Proximo" : "Next"}
+              {language === "pt" ? "Próximo" : "Next"}
             </p>
             <p className="mt-1 text-lg font-black">{nextLevelXP}</p>
           </div>
@@ -319,7 +319,7 @@ function LevelProgressCard({ xp = 0, compact = false }) {
       <div className="relative mt-4 flex items-center gap-2 text-xs font-bold text-zinc-500">
         <ChevronUp size={14} className={rank.text} />
         {language === "pt"
-          ? "Complete treinos e desafios para subir mais rapido."
+          ? "Complete treinos e desafios para subir mais rápido."
           : "Complete workouts and challenges to climb faster."}
       </div>
     </motion.div>

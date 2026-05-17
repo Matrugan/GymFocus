@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 
 import {
+  Activity,
   Plus,
   Trash2,
   CheckCircle,
@@ -13,12 +14,16 @@ import {
   Settings2,
   Archive,
   RotateCcw,
+  Home,
+  ArrowDown,
+  ArrowUp,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
 
 import { motion } from "framer-motion";
 
+import { fetchBodyMeasurements } from "../services/bodyMeasurementService";
 import { updateProfileStats } from "../services/profileService";
 import {
   archiveWorkoutPlanRecord,
@@ -37,8 +42,6 @@ import {
   fetchWorkoutExercises,
   fetchWorkoutLogs,
   fetchWorkoutSetLogs,
-  findCompletedWorkoutLog,
-  findWorkoutLogByDay,
   restoreWorkoutPlanRecord,
   updateWorkoutExercise,
   updateWorkoutPlanRecord,
@@ -52,18 +55,127 @@ import WorkoutHeader from "./components/WorkoutHeader";
 import WorkoutQuickTools from "./components/WorkoutQuickTools";
 import WorkoutTemplatesPanel from "./components/WorkoutTemplatesPanel";
 import { reportError } from "../utils/errorHandler";
+import { workoutTimerNotification } from "../utils/workoutTimerNotification";
 import { useLanguage } from "../context/LanguageContext";
 import {
   formatWorkoutDate,
   getCurrentWorkoutDay,
   getLocalDateString,
   getNextWorkoutDayAfter,
+  getWorkoutDayBase,
   sortWorkoutLogs,
   getWorkoutDateKey,
   workoutDayOptions,
 } from "./workoutSequence";
 
 import { workoutTemplates } from "./workoutTemplates";
+
+const alternativeWorkoutOptions = [
+  {
+    id: "cardio",
+    icon: Activity,
+    titlePt: "Cardio rápido",
+    titleEn: "Quick cardio",
+    descriptionPt: "Para manter o dia ativo quando não der para ir à academia.",
+    descriptionEn: "Keep the day active when you cannot make it to the gym.",
+    durationSeconds: 20 * 60,
+    stepsPt: [
+      "Caminhada acelerada ou corrida leve - 20 min",
+      "Alongamento leve - 5 min",
+    ],
+    stepsEn: ["Fast walk or light run - 20 min", "Light stretching - 5 min"],
+  },
+  {
+    id: "home",
+    icon: Home,
+    titlePt: "Treino em casa",
+    titleEn: "Home workout",
+    descriptionPt: "Um treino simples com peso corporal para salvar a sequência.",
+    descriptionEn: "A simple bodyweight session to keep the streak alive.",
+    durationSeconds: 25 * 60,
+    stepsPt: [
+      "Agachamento livre - 3 x 15",
+      "Flexão adaptada - 3 x 10",
+      "Abdominal - 3 x 20",
+      "Prancha - 3 x 30s",
+    ],
+    stepsEn: [
+      "Bodyweight squat - 3 x 15",
+      "Adapted push-up - 3 x 10",
+      "Crunch - 3 x 20",
+      "Plank - 3 x 30s",
+    ],
+  },
+];
+
+function getEstimatedWeightKg(profile, latestBodyMeasurement) {
+  const possibleWeight =
+    latestBodyMeasurement?.weight_kg ??
+    profile?.weight_kg ??
+    profile?.weightKg ??
+    profile?.weight ??
+    profile?.peso;
+  const weight = Number(possibleWeight);
+
+  return Number.isFinite(weight) && weight > 0 ? weight : 70;
+}
+
+function getDistanceCalorieFactor(cardioType = "") {
+  const normalizedType = cardioType.toLowerCase();
+
+  if (/corr|run|trote/.test(normalizedType)) return 1.0;
+  if (/caminh|walk/.test(normalizedType)) return 0.55;
+  if (/bike|bicic|cicl|spinning/.test(normalizedType)) return 0.32;
+
+  return 0.75;
+}
+
+function getCardioMet(cardioType = "") {
+  const normalizedType = cardioType.toLowerCase();
+
+  if (/corr|run|trote/.test(normalizedType)) return 9.8;
+  if (/bike|bicic|cicl|spinning/.test(normalizedType)) return 7.5;
+  if (/caminh|walk/.test(normalizedType)) return 4.3;
+  if (/escada|stair/.test(normalizedType)) return 8.0;
+  if (/elipt/.test(normalizedType)) return 5.0;
+  if (/corda|jump/.test(normalizedType)) return 10.0;
+
+  return 7.0;
+}
+
+function calculateCaloriesBurned({
+  cardioType = "",
+  distanceKm = null,
+  durationSeconds,
+  latestBodyMeasurement = null,
+  profile,
+  workoutType,
+}) {
+  const minutes = Math.max(1, Number(durationSeconds || 0) / 60);
+  const weightKg = getEstimatedWeightKg(profile, latestBodyMeasurement);
+  const met =
+    workoutType === "cardio"
+      ? getCardioMet(cardioType)
+      : workoutType === "home"
+        ? 4.5
+        : 5.0;
+
+  const metCalories = (met * 3.5 * weightKg * minutes) / 200;
+  const parsedDistanceKm = Number(distanceKm);
+
+  if (
+    workoutType === "cardio" &&
+    Number.isFinite(parsedDistanceKm) &&
+    parsedDistanceKm > 0
+  ) {
+    const distanceCalories =
+      weightKg * parsedDistanceKm * getDistanceCalorieFactor(cardioType);
+
+    return Math.max(1, Math.round((metCalories + distanceCalories) / 2));
+  }
+
+  return Math.max(1, Math.round(metCalories));
+}
 
 function WorkoutManager({ user, profile, onProfileUpdated }) {
   const { language, t, translate } = useLanguage();
@@ -74,12 +186,16 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   const [exercises, setExercises] = useState([]);
   const [progress, setProgress] = useState([]);
   const [workoutLogs, setWorkoutLogs] = useState([]);
+  const [latestBodyMeasurement, setLatestBodyMeasurement] = useState(null);
   const [setLogs, setSetLogs] = useState([]);
   const [expandedSetLoggerId, setExpandedSetLoggerId] = useState(null);
   const [setLogForms, setSetLogForms] = useState({});
   const [savingSetLogs, setSavingSetLogs] = useState(false);
+  const [workoutSessionStartedAt, setWorkoutSessionStartedAt] = useState(null);
   const [workoutStartedAt, setWorkoutStartedAt] = useState(null);
+  const [workoutElapsedBeforePause, setWorkoutElapsedBeforePause] = useState(0);
   const [elapsedWorkoutSeconds, setElapsedWorkoutSeconds] = useState(0);
+  const [workoutTimerPaused, setWorkoutTimerPaused] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [creatingPlan, setCreatingPlan] = useState(false);
@@ -90,12 +206,19 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   const [deletingPlan, setDeletingPlan] = useState(false);
   const [updatingExercise, setUpdatingExercise] = useState(false);
   const [updatingFocuses, setUpdatingFocuses] = useState(false);
+  const [reorderingExercise, setReorderingExercise] = useState(false);
 
   const [showCreatePlan, setShowCreatePlan] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showPlanTools, setShowPlanTools] = useState(false);
   const [showFocusEditor, setShowFocusEditor] = useState(false);
   const [showAddExercise, setShowAddExercise] = useState(false);
+  const [showAlternativeWorkouts, setShowAlternativeWorkouts] = useState(false);
+  const [cardioLogForm, setCardioLogForm] = useState({
+    type: "",
+    durationMinutes: "",
+    distanceKm: "",
+  });
 
   const [planListView, setPlanListView] = useState("active");
   const [selectedWorkoutDay, setSelectedWorkoutDay] = useState("Todos");
@@ -139,8 +262,20 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   useEffect(() => {
     if (user?.id) {
       getWorkoutData();
+      getLatestBodyMeasurement();
     }
   }, [user?.id]);
+
+  async function getLatestBodyMeasurement() {
+    const { data, error } = await fetchBodyMeasurements(user.id, 1);
+
+    if (error) {
+      reportError(error, "Error loading body measurement for calorie calculation.");
+      return;
+    }
+
+    setLatestBodyMeasurement(data?.[0] || null);
+  }
 
   function getPlanFocuses(plan) {
     return plan?.day_focuses || {};
@@ -189,6 +324,46 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   );
 }
 
+  function isAlternativeWorkoutLog(log) {
+    const workoutType = String(log?.workout_type || "").toLowerCase();
+    const workoutDay = String(log?.workout_day || "");
+    const notes = String(log?.notes || "").toLowerCase();
+
+    return (
+      ["cardio", "home"].includes(workoutType) ||
+      /\s-\s(Cardio|Casa|Home)$/i.test(workoutDay) ||
+      notes.startsWith("cardio:")
+    );
+  }
+
+  function getTodayGymCompletedLog(logs) {
+    return (
+      sortWorkoutLogs(logs).find((log) => {
+        const logStatus = log.status || "completed";
+
+        return (
+          getWorkoutDateKey(log.workout_date) === today &&
+          logStatus === "completed" &&
+          !isAlternativeWorkoutLog(log)
+        );
+      }) || null
+    );
+  }
+
+  function getTodayAlternativeCompletedLog(logs) {
+    return (
+      sortWorkoutLogs(logs).find((log) => {
+        const logStatus = log.status || "completed";
+
+        return (
+          getWorkoutDateKey(log.workout_date) === today &&
+          logStatus === "completed" &&
+          isAlternativeWorkoutLog(log)
+        );
+      }) || null
+    );
+  }
+
   async function getWorkoutData() {
     setLoading(true);
 
@@ -222,7 +397,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       setProgress([]);
       setWorkoutLogs([]);
       setSetLogs([]);
-      setShowCreatePlan(true);
+      setShowCreatePlan(false);
       setLoading(false);
       return;
     }
@@ -260,9 +435,16 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setWorkoutLogs(loadedLogs);
 
     const currentDay = getCurrentWorkoutDay(loadedExercises, loadedLogs);
-    const loadedTodayCompletedLog = getTodayCompletedLog(loadedLogs);
+    const loadedTodayGymCompletedLog = getTodayGymCompletedLog(loadedLogs);
+    const loadedTodayAlternativeCompletedLog =
+      getTodayAlternativeCompletedLog(loadedLogs);
 
-    setSelectedWorkoutDay(loadedTodayCompletedLog?.workout_day || currentDay);
+    setSelectedWorkoutDay(
+      loadedTodayGymCompletedLog?.workout_day ||
+        (loadedTodayAlternativeCompletedLog?.workout_day
+          ? getWorkoutDayBase(loadedTodayAlternativeCompletedLog.workout_day)
+          : currentDay),
+    );
 
     const { data: progressData, error: progressError } =
       await fetchDailyWorkoutProgress(user.id, planId, today);
@@ -289,7 +471,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     const confirmCreate = confirm(
       language === "pt"
-        ? `Criar "${translate(template.title)}" com ${template.exercises.length} exercicios?`
+        ? `Criar "${translate(template.title)}" com ${template.exercises.length} exercícios?`
         : `Create "${template.title}" with ${template.exercises.length} exercises?`,
     );
 
@@ -330,7 +512,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       reportError(
         exercisesError,
         language === "pt"
-          ? "Treino criado, mas os exercicios nao puderam ser adicionados."
+          ? "Treino criado, mas os exercícios não puderam ser adicionados."
           : "Workout created, but exercises could not be added.",
       );
       setCreatingTemplate(false);
@@ -518,7 +700,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   async function archiveWorkoutPlan(planId) {
     const confirmArchive = confirm(
       language === "pt"
-        ? "Arquivar este plano de treino? Ele saira dos planos ativos, mas seu historico e recordes ficarao salvos."
+        ? "Arquivar este plano de treino? Ele sairá dos planos ativos, mas seu histórico e recordes ficarão salvos."
         : "Archive this workout plan? It will leave your active plans, but your workout history and records will stay saved.",
     );
 
@@ -564,7 +746,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
         setSetLogs([]);
         setExpandedSetLoggerId(null);
         setSetLogForms({});
-        setShowCreatePlan(true);
+        setShowCreatePlan(false);
       }
     }
 
@@ -676,6 +858,83 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     });
   }
 
+  function sortExercisesForDay(dayExercises) {
+    return [...dayExercises].sort((a, b) => {
+      const sortA = Number(a.sort_order) || 0;
+      const sortB = Number(b.sort_order) || 0;
+
+      if (sortA !== sortB) {
+        return sortA - sortB;
+      }
+
+      return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+    });
+  }
+
+  async function moveExerciseInDay(exercise, direction) {
+    if (reorderingExercise) return;
+
+    const exerciseDay = exercise.workout_day || "Treino A";
+    const dayExercises = sortExercisesForDay(
+      exercises.filter((item) => {
+        return (item.workout_day || "Treino A") === exerciseDay;
+      }),
+    );
+    const currentIndex = dayExercises.findIndex((item) => item.id === exercise.id);
+    const targetIndex = currentIndex + direction;
+
+    if (currentIndex === -1 || targetIndex < 0 || targetIndex >= dayExercises.length) {
+      return;
+    }
+
+    const targetExercise = dayExercises[targetIndex];
+    const currentSortOrder = Number(exercise.sort_order) || currentIndex + 1;
+    const targetSortOrder = Number(targetExercise.sort_order) || targetIndex + 1;
+
+    setReorderingExercise(true);
+
+    const [currentResult, targetResult] = await Promise.all([
+      updateWorkoutExercise(exercise.id, user.id, {
+        sort_order: targetSortOrder,
+      }),
+      updateWorkoutExercise(targetExercise.id, user.id, {
+        sort_order: currentSortOrder,
+      }),
+    ]);
+
+    if (currentResult.error || targetResult.error) {
+      reportError(
+        currentResult.error || targetResult.error,
+        language === "pt"
+          ? "Erro ao reorganizar exercícios."
+          : "Error reordering exercises.",
+      );
+      setReorderingExercise(false);
+      return;
+    }
+
+    setExercises((prev) =>
+      prev.map((item) => {
+        if (item.id === exercise.id) {
+          return { ...item, sort_order: targetSortOrder };
+        }
+
+        if (item.id === targetExercise.id) {
+          return { ...item, sort_order: currentSortOrder };
+        }
+
+        return item;
+      }),
+    );
+
+    toast.success(
+      language === "pt"
+        ? "Ordem dos exercícios atualizada."
+        : "Exercise order updated.",
+    );
+    setReorderingExercise(false);
+  }
+
   async function updateExercise() {
     if (!editingExercise) return;
 
@@ -722,7 +981,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
   async function deleteExercise(exerciseId) {
     const confirmDelete = confirm(
-      language === "pt" ? "Excluir este exercicio?" : "Delete this exercise?",
+      language === "pt" ? "Excluir este exercício?" : "Delete this exercise?",
     );
 
     if (!confirmDelete) return;
@@ -771,24 +1030,44 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     return getTodayCompletedLog(workoutLogs);
   }, [workoutLogs]);
 
-  const workoutAlreadyCompletedToday = Boolean(todayCompletedLog);
+  const todayGymCompletedLog = useMemo(() => {
+    return getTodayGymCompletedLog(workoutLogs);
+  }, [workoutLogs]);
+
+  const todayAlternativeCompletedLog = useMemo(() => {
+    return getTodayAlternativeCompletedLog(workoutLogs);
+  }, [workoutLogs]);
+
+  const workoutAlreadyCompletedToday = Boolean(todayGymCompletedLog);
+  const alternativeWorkoutAlreadyCompletedToday = Boolean(
+    todayAlternativeCompletedLog,
+  );
 
   const currentWorkoutDay = useMemo(() => {
     return getCurrentWorkoutDay(exercises, workoutLogs);
   }, [exercises, workoutLogs]);
 
-  const completedWorkoutDayToday = todayCompletedLog?.workout_day || null;
+  const completedWorkoutDayToday = todayGymCompletedLog?.workout_day || null;
+  const alternativeWorkoutDayToday = todayAlternativeCompletedLog?.workout_day
+    ? getWorkoutDayBase(todayAlternativeCompletedLog.workout_day)
+    : null;
+  const activeWorkoutDayForToday =
+    workoutAlreadyCompletedToday && completedWorkoutDayToday
+      ? getWorkoutDayBase(completedWorkoutDayToday)
+      : alternativeWorkoutDayToday
+      ? alternativeWorkoutDayToday
+      : currentWorkoutDay;
 
   const displayWorkoutDay =
     workoutAlreadyCompletedToday && completedWorkoutDayToday
       ? completedWorkoutDayToday
-      : currentWorkoutDay;
+      : activeWorkoutDayForToday;
 
   useEffect(() => {
     if (completedWorkoutDayToday) {
       setSelectedWorkoutDay(completedWorkoutDayToday);
     }
-  }, [todayCompletedLog?.id, completedWorkoutDayToday]);
+  }, [todayGymCompletedLog?.id, completedWorkoutDayToday]);
 
   const nextWorkoutDay = useMemo(() => {
   return getNextWorkoutDayAfter(currentWorkoutDay, exercises);
@@ -813,21 +1092,199 @@ const displayNextWorkoutDay = useMemo(() => {
   return getNextWorkoutDayAfter(currentWorkoutDay, exercises);
 }, [currentWorkoutDay, exercises]);
 
-const workoutTimerStorageKey = useMemo(() => {
-  if (!user?.id || !activePlan?.id || !currentWorkoutDay) {
-    return "";
+  const todayWorkoutLog = useMemo(() => {
+    return (
+      sortWorkoutLogs(workoutLogs).find((log) => {
+        return getWorkoutDateKey(log.workout_date) === today;
+      }) || null
+    );
+  }, [workoutLogs, today]);
+
+  const workoutAlreadyRecordedToday = Boolean(todayWorkoutLog);
+  const nonTrainingDayAlreadyRecordedToday =
+    todayWorkoutLog?.status === "skipped" || todayWorkoutLog?.status === "rest";
+  const canLogGymWorkoutToday =
+    !workoutAlreadyCompletedToday && !nonTrainingDayAlreadyRecordedToday;
+
+  function getLocalDateFromKey(dateKey) {
+    const [year, month, day] = String(dateKey).split("-").map(Number);
+
+    return new Date(year, month - 1, day);
   }
 
-  return `gymfocus-workout-timer:${user.id}:${activePlan.id}:${today}:${currentWorkoutDay}`;
-}, [user?.id, activePlan?.id, today, currentWorkoutDay]);
+  function addDays(date, days) {
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + days);
+
+    return nextDate;
+  }
+
+  function getWeekStartDate(dateKey) {
+    const date = getLocalDateFromKey(dateKey);
+    const dayOfWeek = date.getDay();
+    const daysFromMonday = (dayOfWeek + 6) % 7;
+
+    return addDays(date, -daysFromMonday);
+  }
+
+  function getWeekDatesUntil(dateKey, includeDate = true) {
+    const weekStartDate = getWeekStartDate(dateKey);
+    const endDate = includeDate
+      ? getLocalDateFromKey(dateKey)
+      : addDays(getLocalDateFromKey(dateKey), -1);
+    const dates = [];
+
+    for (
+      let currentDate = weekStartDate;
+      currentDate <= endDate;
+      currentDate = addDays(currentDate, 1)
+    ) {
+      dates.push(getLocalDateString(currentDate));
+    }
+
+    return dates;
+  }
+
+  function getWeeklyRestDays(logs = workoutLogs, dateKey = today) {
+    const weekDates = new Set(getWeekDatesUntil(dateKey, true));
+
+    return logs.filter((log) => {
+      return (
+        weekDates.has(getWorkoutDateKey(log.workout_date)) &&
+        log.status === "rest"
+      );
+    }).length;
+  }
+
+  function getWeeklyNonTrainingDays(logs = workoutLogs, dateKey = today, includeDate = true) {
+    const weekDates = getWeekDatesUntil(dateKey, includeDate);
+
+    return weekDates.filter((date) => {
+      const logsForDate = logs.filter((log) => {
+        return getWorkoutDateKey(log.workout_date) === date;
+      });
+
+      return !logsForDate.some((log) => {
+        const status = log.status || "completed";
+
+        return status === "completed";
+      });
+    }).length;
+  }
+
+  const weeklyRestDaysUsed = getWeeklyRestDays(workoutLogs, today);
+
+  async function resetDashboardStreak() {
+    const { error: profileError } = await updateProfileStats(user.id, {
+      streak: 0,
+    });
+
+    if (profileError) {
+      reportError(profileError, translate("Error updating profile."));
+      return;
+    }
+
+    onProfileUpdated?.({
+      ...profile,
+      streak: 0,
+    });
+  }
+
+  const workoutTimerStorageKey = useMemo(() => {
+    if (!user?.id || !activePlan?.id || !activeWorkoutDayForToday) {
+      return "";
+    }
+
+    return `gymfocus-workout-timer:${user.id}:${activePlan.id}:${today}:${activeWorkoutDayForToday}`;
+  }, [user?.id, activePlan?.id, today, activeWorkoutDayForToday]);
 
   const workoutTimerRunning =
     Boolean(workoutStartedAt) && !workoutAlreadyCompletedToday;
+  const workoutTimerActive =
+    (workoutTimerRunning || workoutTimerPaused || elapsedWorkoutSeconds > 0) &&
+    !workoutAlreadyCompletedToday;
+
+  function saveWorkoutTimerState({
+    sessionStartedAt,
+    startedAt,
+    elapsedBeforePause,
+    paused,
+  }) {
+    if (!workoutTimerStorageKey) return;
+
+    localStorage.setItem(
+      workoutTimerStorageKey,
+      JSON.stringify({
+        sessionStartedAt,
+        startedAt,
+        elapsedBeforePause,
+        paused,
+      }),
+    );
+  }
+
+  function buildWorkoutTimerNotificationPayload({
+    sessionStartedAt,
+    startedAt,
+    elapsedBeforePause,
+  }) {
+    return {
+      storageKey: workoutTimerStorageKey,
+      title: language === "pt" ? "Timer do treino" : "Workout timer",
+      subtitle:
+        language === "pt"
+          ? `${getDayLabel(activeWorkoutDayForToday)} em andamento`
+          : `${getDayLabel(activeWorkoutDayForToday)} in progress`,
+      sessionStartedAt,
+      startedAt,
+      elapsedBeforePause,
+    };
+  }
+
+  function syncTimerStateFromNotificationState(state) {
+    if (!state?.active || state.storageKey !== workoutTimerStorageKey) {
+      return;
+    }
+
+    const sessionStartedAt = Number(state.sessionStartedAt) || null;
+    const startedAt = state.paused ? null : Number(state.startedAt) || null;
+    const elapsedBeforePause = Math.max(
+      0,
+      Number(state.elapsedBeforePause) || 0,
+    );
+    const elapsedSeconds = Math.max(0, Number(state.elapsedSeconds) || 0);
+
+    saveWorkoutTimerState({
+      sessionStartedAt,
+      startedAt,
+      elapsedBeforePause,
+      paused: Boolean(state.paused),
+    });
+    setWorkoutSessionStartedAt(sessionStartedAt);
+    setWorkoutStartedAt(startedAt);
+    setWorkoutElapsedBeforePause(elapsedBeforePause);
+    setElapsedWorkoutSeconds(elapsedSeconds);
+    setWorkoutTimerPaused(Boolean(state.paused));
+  }
+
+  async function syncWorkoutTimerNotification() {
+    if (!workoutTimerStorageKey) return;
+
+    try {
+      const state = await workoutTimerNotification.getState();
+      syncTimerStateFromNotificationState(state);
+    } catch (error) {
+      reportError(error, "Error syncing workout timer notification.");
+    }
+  }
 
   useEffect(() => {
     if (!workoutTimerStorageKey || workoutAlreadyCompletedToday) {
+      setWorkoutSessionStartedAt(null);
       setWorkoutStartedAt(null);
+      setWorkoutElapsedBeforePause(0);
       setElapsedWorkoutSeconds(0);
+      setWorkoutTimerPaused(false);
 
       if (workoutTimerStorageKey) {
         localStorage.removeItem(workoutTimerStorageKey);
@@ -836,18 +1293,63 @@ const workoutTimerStorageKey = useMemo(() => {
       return;
     }
 
-    const storedStartedAt = Number(localStorage.getItem(workoutTimerStorageKey));
+    const storedTimer = localStorage.getItem(workoutTimerStorageKey);
+    const storedStartedAt = Number(storedTimer);
 
     if (Number.isFinite(storedStartedAt) && storedStartedAt > 0) {
+      setWorkoutSessionStartedAt(storedStartedAt);
       setWorkoutStartedAt(storedStartedAt);
+      setWorkoutElapsedBeforePause(0);
       setElapsedWorkoutSeconds(
         Math.max(0, Math.floor((Date.now() - storedStartedAt) / 1000)),
       );
+      setWorkoutTimerPaused(false);
       return;
     }
 
+    if (storedTimer) {
+      try {
+        const parsedTimer = JSON.parse(storedTimer);
+        const parsedSessionStartedAt = Number(parsedTimer.sessionStartedAt);
+        const parsedStartedAt = Number(parsedTimer.startedAt);
+        const parsedElapsedBeforePause = Math.max(
+          0,
+          Number(parsedTimer.elapsedBeforePause) || 0,
+        );
+        const parsedPaused = Boolean(parsedTimer.paused);
+
+        if (Number.isFinite(parsedSessionStartedAt) && parsedSessionStartedAt > 0) {
+          setWorkoutSessionStartedAt(parsedSessionStartedAt);
+          setWorkoutElapsedBeforePause(parsedElapsedBeforePause);
+          setWorkoutTimerPaused(parsedPaused);
+
+          if (
+            !parsedPaused &&
+            Number.isFinite(parsedStartedAt) &&
+            parsedStartedAt > 0
+          ) {
+            setWorkoutStartedAt(parsedStartedAt);
+            setElapsedWorkoutSeconds(
+              parsedElapsedBeforePause +
+                Math.max(0, Math.floor((Date.now() - parsedStartedAt) / 1000)),
+            );
+          } else {
+            setWorkoutStartedAt(null);
+            setElapsedWorkoutSeconds(parsedElapsedBeforePause);
+          }
+
+          return;
+        }
+      } catch (error) {
+        reportError(error, "Error loading workout timer.");
+      }
+    }
+
+    setWorkoutSessionStartedAt(null);
     setWorkoutStartedAt(null);
+    setWorkoutElapsedBeforePause(0);
     setElapsedWorkoutSeconds(0);
+    setWorkoutTimerPaused(false);
   }, [workoutTimerStorageKey, workoutAlreadyCompletedToday]);
 
   useEffect(() => {
@@ -857,14 +1359,47 @@ const workoutTimerStorageKey = useMemo(() => {
 
     const intervalId = window.setInterval(() => {
       setElapsedWorkoutSeconds(
-        Math.max(0, Math.floor((Date.now() - workoutStartedAt) / 1000)),
+        workoutElapsedBeforePause +
+          Math.max(0, Math.floor((Date.now() - workoutStartedAt) / 1000)),
       );
     }, 1000);
 
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [workoutTimerRunning, workoutStartedAt]);
+  }, [workoutTimerRunning, workoutStartedAt, workoutElapsedBeforePause]);
+
+  useEffect(() => {
+    syncWorkoutTimerNotification();
+
+    function handleTimerVisibility() {
+      if (!document.hidden) {
+        syncWorkoutTimerNotification();
+      }
+    }
+
+    window.addEventListener("focus", syncWorkoutTimerNotification);
+    document.addEventListener("visibilitychange", handleTimerVisibility);
+
+    return () => {
+      window.removeEventListener("focus", syncWorkoutTimerNotification);
+      document.removeEventListener("visibilitychange", handleTimerVisibility);
+    };
+  }, [workoutTimerStorageKey]);
+
+  useEffect(() => {
+    if (!workoutTimerActive) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      syncWorkoutTimerNotification();
+    }, 2000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [workoutTimerActive, workoutTimerStorageKey]);
 
   function startWorkoutTimer() {
     if (!workoutTimerStorageKey || workoutAlreadyCompletedToday) {
@@ -876,10 +1411,59 @@ const workoutTimerStorageKey = useMemo(() => {
     }
 
     const startedAt = Date.now();
+    const sessionStartedAt = workoutSessionStartedAt || startedAt;
+    const elapsedBeforePause = workoutTimerPaused ? elapsedWorkoutSeconds : 0;
 
-    localStorage.setItem(workoutTimerStorageKey, String(startedAt));
+    saveWorkoutTimerState({
+      sessionStartedAt,
+      startedAt,
+      elapsedBeforePause,
+      paused: false,
+    });
+    setWorkoutSessionStartedAt(sessionStartedAt);
     setWorkoutStartedAt(startedAt);
-    setElapsedWorkoutSeconds(0);
+    setWorkoutElapsedBeforePause(elapsedBeforePause);
+    setElapsedWorkoutSeconds(elapsedBeforePause);
+    setWorkoutTimerPaused(false);
+
+    void workoutTimerNotification
+      .start(
+        buildWorkoutTimerNotificationPayload({
+          sessionStartedAt,
+          startedAt,
+          elapsedBeforePause,
+        }),
+      )
+      .catch((error) => {
+        reportError(error, "Error starting workout timer notification.");
+      });
+  }
+
+  function pauseWorkoutTimer() {
+    if (!workoutTimerRunning) {
+      return;
+    }
+
+    const pausedElapsedSeconds =
+      workoutElapsedBeforePause +
+      Math.max(0, Math.floor((Date.now() - workoutStartedAt) / 1000));
+    const sessionStartedAt = workoutSessionStartedAt || workoutStartedAt;
+
+    saveWorkoutTimerState({
+      sessionStartedAt,
+      startedAt: null,
+      elapsedBeforePause: pausedElapsedSeconds,
+      paused: true,
+    });
+    setWorkoutSessionStartedAt(sessionStartedAt);
+    setWorkoutStartedAt(null);
+    setWorkoutElapsedBeforePause(pausedElapsedSeconds);
+    setElapsedWorkoutSeconds(pausedElapsedSeconds);
+    setWorkoutTimerPaused(true);
+
+    void workoutTimerNotification.pause().catch((error) => {
+      reportError(error, "Error pausing workout timer notification.");
+    });
   }
 
   function clearWorkoutTimer() {
@@ -887,25 +1471,36 @@ const workoutTimerStorageKey = useMemo(() => {
       localStorage.removeItem(workoutTimerStorageKey);
     }
 
+    setWorkoutSessionStartedAt(null);
     setWorkoutStartedAt(null);
+    setWorkoutElapsedBeforePause(0);
     setElapsedWorkoutSeconds(0);
+    setWorkoutTimerPaused(false);
+
+    void workoutTimerNotification.cancel().catch((error) => {
+      reportError(error, "Error canceling workout timer notification.");
+    });
   }
 
   async function toggleExercise(exercise) {
     if (!activePlan) return;
 
-    if (workoutAlreadyCompletedToday) {
-      toast.error(translate("Today's workout is already completed."));
+    if (workoutAlreadyCompletedToday || nonTrainingDayAlreadyRecordedToday) {
+      toast.error(
+        workoutAlreadyCompletedToday
+          ? translate("Today's workout is already completed.")
+          : translate("Today's workout already has a record."),
+      );
       return;
     }
 
     const exerciseDay = exercise.workout_day || "Treino A";
 
-    if (exerciseDay !== currentWorkoutDay) {
+    if (exerciseDay !== activeWorkoutDayForToday) {
       toast.error(
         language === "pt"
-          ? `Hoje e dia de ${getDayLabel(currentWorkoutDay)}.`
-          : `Today is ${getDayLabel(currentWorkoutDay)} day.`,
+          ? `Hoje é dia de ${getDayLabel(activeWorkoutDayForToday)}.`
+          : `Today is ${getDayLabel(activeWorkoutDayForToday)} day.`,
       );
       return;
     }
@@ -958,9 +1553,10 @@ const workoutTimerStorageKey = useMemo(() => {
 
   const currentWorkoutExercises = useMemo(() => {
     return exercises.filter(
-      (exercise) => (exercise.workout_day || "Treino A") === currentWorkoutDay,
+      (exercise) =>
+        (exercise.workout_day || "Treino A") === activeWorkoutDayForToday,
     );
-  }, [exercises, currentWorkoutDay]);
+  }, [exercises, activeWorkoutDayForToday]);
 
   const displayWorkoutExercises = useMemo(() => {
     return exercises.filter(
@@ -991,6 +1587,12 @@ const workoutTimerStorageKey = useMemo(() => {
       return groups;
     }, {});
   }, [filteredExercises]);
+
+  const orderedGroupedExercises = useMemo(() => {
+    return Object.entries(groupedExercises).map(([day, dayExercises]) => {
+      return [day, sortExercisesForDay(dayExercises)];
+    });
+  }, [groupedExercises]);
 
   const availableWorkoutDays = useMemo(() => {
     const daysFromExercises = exercises.map(
@@ -1041,62 +1643,71 @@ const workoutTimerStorageKey = useMemo(() => {
         )
       : 0;
 
-  async function finishWorkout() {
+  async function recordCompletedWorkout({
+    cardioType = "",
+    distanceKm = null,
+    durationSecondsOverride = null,
+    extraLogFields = {},
+    isAlternative = false,
+    workoutType = "gym",
+    workoutDayOverride = activeWorkoutDayForToday,
+    successLabel = getDayLabel(currentWorkoutDay),
+  } = {}) {
     if (!activePlan) return;
 
-    if (workoutAlreadyCompletedToday) {
+    if (nonTrainingDayAlreadyRecordedToday) {
+      toast.error(translate("Today's workout already has a record."));
+      return;
+    }
+
+    if (!isAlternative && workoutAlreadyCompletedToday) {
       toast.error(translate("Today's workout is already completed."));
       return;
     }
 
-    if (todayTotalExercises === 0) {
+    if (isAlternative && alternativeWorkoutAlreadyCompletedToday) {
       toast.error(
         language === "pt"
-          ? `Nenhum exercicio encontrado para ${getDayLabel(currentWorkoutDay)}.`
-          : `No exercises found for ${getDayLabel(currentWorkoutDay)}.`,
-      );
-      return;
-    }
-
-    if (!todayWorkoutCompleted) {
-      toast.error(
-        language === "pt"
-          ? `Complete todos os exercicios de ${getDayLabel(currentWorkoutDay)} primeiro.`
-          : `Complete all exercises from ${getDayLabel(currentWorkoutDay)} first.`,
+          ? "Você já registrou cardio ou treino em casa hoje."
+          : "You already logged cardio or a home workout today.",
       );
       return;
     }
 
     setFinishingWorkout(true);
 
-    const { data: existingWorkout } = await findCompletedWorkoutLog(
-      user.id,
-      activePlan.id,
-      today,
-    );
-
-    if (existingWorkout) {
-      toast.error(translate("Today's workout is already completed."));
-      setFinishingWorkout(false);
-      return;
-    }
-
     const finishedAt = new Date();
-    const startedAtDate = workoutStartedAt
-      ? new Date(workoutStartedAt)
-      : finishedAt;
-    const durationSeconds = workoutStartedAt
-      ? Math.max(1, Math.floor((finishedAt.getTime() - workoutStartedAt) / 1000))
-      : elapsedWorkoutSeconds;
+    const durationSeconds =
+      durationSecondsOverride ??
+      (workoutStartedAt
+        ? workoutElapsedBeforePause +
+          Math.max(
+            1,
+            Math.floor((finishedAt.getTime() - workoutStartedAt) / 1000),
+          )
+        : elapsedWorkoutSeconds);
+    const startedAtDate = workoutSessionStartedAt
+      ? new Date(workoutSessionStartedAt)
+      : new Date(finishedAt.getTime() - durationSeconds * 1000);
+    const caloriesBurned = calculateCaloriesBurned({
+      cardioType,
+      distanceKm,
+      durationSeconds,
+      latestBodyMeasurement,
+      profile,
+      workoutType,
+    });
     const workoutLogPayload = {
       user_id: user.id,
       workout_plan_id: activePlan.id,
-      workout_day: currentWorkoutDay,
+      workout_day: workoutDayOverride,
       workout_date: today,
+      calories_burned: caloriesBurned,
       status: "completed",
       started_at: startedAtDate.toISOString(),
       completed_at: finishedAt.toISOString(),
       duration_seconds: durationSeconds,
+      ...extraLogFields,
     };
 
     const { data: insertedLog, error: workoutError } =
@@ -1108,11 +1719,23 @@ const workoutTimerStorageKey = useMemo(() => {
       return;
     }
 
-    setSelectedWorkoutDay(currentWorkoutDay);
+    setSelectedWorkoutDay(getWorkoutDayBase(workoutDayOverride));
     setWorkoutLogs((prev) => [insertedLog, ...prev]);
 
-    const newXP = (profile?.xp || 0) + 100;
-    const newStreak = (profile?.streak || 0) + 1;
+    const missedDaysBeforeToday = getWeeklyNonTrainingDays(
+      workoutLogs,
+      today,
+      false,
+    );
+    const dayAlreadyHadCompletedWorkout = Boolean(todayCompletedLog);
+    const xpToAdd = dayAlreadyHadCompletedWorkout ? 50 : 100;
+    const newXP = (profile?.xp || 0) + xpToAdd;
+    const newStreak =
+      dayAlreadyHadCompletedWorkout
+        ? profile?.streak || 0
+        : missedDaysBeforeToday > 2
+          ? 1
+          : (profile?.streak || 0) + 1;
 
     const { error: profileError } = await updateProfileStats(user.id, {
       xp: newXP,
@@ -1125,20 +1748,20 @@ const workoutTimerStorageKey = useMemo(() => {
       return;
     }
 
-    await logXP(user.id, 100, "workout");
+    await logXP(user.id, xpToAdd, isAlternative ? "alternative_workout" : "workout");
 
-    await unlockAchievement(user.id, "ðŸ’ª First Workout");
+    await unlockAchievement(user.id, "💪 First Workout");
 
     if (newStreak >= 7) {
-      await unlockAchievement(user.id, "ðŸ”¥ 7 Day Streak");
+      await unlockAchievement(user.id, "🔥 7 Day Streak");
     }
 
     if (newXP >= 1000) {
-      await unlockAchievement(user.id, "ðŸ† 1000 XP");
+      await unlockAchievement(user.id, "🏆 1000 XP");
     }
 
     if (newXP >= 10000) {
-      await unlockAchievement(user.id, "ðŸ‘‘ 10K XP");
+      await unlockAchievement(user.id, "👑 10K XP");
     }
 
     onProfileUpdated?.({
@@ -1149,44 +1772,161 @@ const workoutTimerStorageKey = useMemo(() => {
 
     toast.success(
       language === "pt"
-        ? `${getDayLabel(currentWorkoutDay)} concluido! +100 XP`
-        : `${getDayLabel(currentWorkoutDay)} completed! +100 XP`,
+        ? `${successLabel} concluído! ${caloriesBurned} kcal estimadas. +${xpToAdd} XP`
+        : `${successLabel} completed! ${caloriesBurned} estimated kcal. +${xpToAdd} XP`,
     );
+
+    void workoutTimerNotification
+      .showWorkoutCompleted({
+        title:
+          language === "pt"
+            ? `${successLabel} concluído`
+            : `${successLabel} completed`,
+        body:
+          language === "pt"
+            ? `Você queimou cerca de ${caloriesBurned} kcal neste treino. +${xpToAdd} XP`
+            : `You burned about ${caloriesBurned} kcal in this workout. +${xpToAdd} XP`,
+      })
+      .catch((error) => {
+        reportError(error, "Error showing workout completion notification.");
+      });
 
     clearWorkoutTimer();
     setFinishingWorkout(false);
   }
 
+  async function finishWorkout() {
+    if (nonTrainingDayAlreadyRecordedToday) {
+      toast.error(translate("Today's workout already has a record."));
+      return;
+    }
+
+    if (todayTotalExercises === 0) {
+      toast.error(
+        language === "pt"
+          ? `Nenhum exercício encontrado para ${getDayLabel(activeWorkoutDayForToday)}.`
+          : `No exercises found for ${getDayLabel(activeWorkoutDayForToday)}.`,
+      );
+      return;
+    }
+
+    if (!todayWorkoutCompleted) {
+      toast.error(
+        language === "pt"
+          ? `Complete todos os exercícios de ${getDayLabel(activeWorkoutDayForToday)} primeiro.`
+          : `Complete all exercises from ${getDayLabel(activeWorkoutDayForToday)} first.`,
+      );
+      return;
+    }
+
+    await recordCompletedWorkout({
+      workoutDayOverride: activeWorkoutDayForToday,
+    });
+  }
+
+  async function completeAlternativeWorkout(option) {
+    const title = language === "pt" ? option.titlePt : option.titleEn;
+    let durationSeconds = option.durationSeconds;
+    let extraLogFields = {
+      workout_type: option.id,
+      notes: title,
+    };
+
+    if (option.id === "cardio") {
+      const cardioType = cardioLogForm.type.trim();
+      const durationMinutes = Number(cardioLogForm.durationMinutes);
+      const distanceKm = cardioLogForm.distanceKm
+        ? Number(String(cardioLogForm.distanceKm).replace(",", "."))
+        : null;
+
+      if (!cardioType) {
+        toast.error(
+          language === "pt"
+            ? "Informe o tipo de cardio."
+            : "Enter the cardio type.",
+        );
+        return;
+      }
+
+      if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+        toast.error(
+          language === "pt"
+            ? "Informe a duração do cardio em minutos."
+            : "Enter cardio duration in minutes.",
+        );
+        return;
+      }
+
+      if (cardioLogForm.distanceKm && (!Number.isFinite(distanceKm) || distanceKm < 0)) {
+        toast.error(
+          language === "pt"
+            ? "Informe uma distância válida."
+            : "Enter a valid distance.",
+        );
+        return;
+      }
+
+      durationSeconds = Math.round(durationMinutes * 60);
+      extraLogFields = {
+        workout_type: "cardio",
+        distance_km: distanceKm,
+        notes:
+          language === "pt"
+            ? `Cardio: ${cardioType}. Duração: ${durationMinutes} min${
+                distanceKm ? `. Distância: ${distanceKm} km` : ""
+              }.`
+            : `Cardio: ${cardioType}. Duration: ${durationMinutes} min${
+                distanceKm ? `. Distance: ${distanceKm} km` : ""
+              }.`,
+      };
+    }
+
+    const confirmAlternative = confirm(
+      language === "pt"
+        ? `Registrar "${title}" como treino de hoje? Isso conta para XP, calendário e sequência.`
+        : `Log "${title}" as today's workout? This counts for XP, calendar and streak.`,
+    );
+
+    if (!confirmAlternative) return;
+
+    await recordCompletedWorkout({
+      durationSecondsOverride: durationSeconds,
+      cardioType: option.id === "cardio" ? cardioLogForm.type.trim() : "",
+      distanceKm: option.id === "cardio" ? distanceKm : null,
+      extraLogFields,
+      isAlternative: true,
+      successLabel: title,
+      workoutType: option.id,
+      workoutDayOverride:
+        option.id === "cardio"
+          ? `${activeWorkoutDayForToday} - Cardio`
+          : `${activeWorkoutDayForToday} - Casa`,
+    });
+    setCardioLogForm({
+      type: "",
+      durationMinutes: "",
+      distanceKm: "",
+    });
+    setShowAlternativeWorkouts(false);
+  }
+
   async function skipWorkout() {
     if (!activePlan) return;
 
-    if (workoutAlreadyCompletedToday) {
+    if (workoutAlreadyRecordedToday) {
       toast.error(translate("Today's workout already has a record."));
       return;
     }
 
     const confirmSkip = confirm(
       language === "pt"
-        ? `Pular ${getDayLabel(currentWorkoutDay)}? Isso movera sua sequencia para o proximo treino.`
-        : `Skip ${getDayLabel(currentWorkoutDay)}? This will move your sequence to the next workout.`,
+        ? `Pular ${getDayLabel(currentWorkoutDay)}? Isso avançará para o próximo treino.`
+        : `Skip ${getDayLabel(currentWorkoutDay)}? This will advance to the next workout.`,
     );
 
     if (!confirmSkip) return;
 
     setFinishingWorkout(true);
-
-    const { data: existingWorkout } = await findWorkoutLogByDay(
-      user.id,
-      activePlan.id,
-      today,
-      currentWorkoutDay,
-    );
-
-    if (existingWorkout) {
-      toast.error(translate("Today's workout already has a record."));
-      setFinishingWorkout(false);
-      return;
-    }
 
     const { data: insertedLog, error } = await createWorkoutLog({
       user_id: user.id,
@@ -1202,22 +1942,109 @@ const workoutTimerStorageKey = useMemo(() => {
       return;
     }
 
+    const updatedWorkoutLogs = [insertedLog, ...workoutLogs];
+    const weeklyNonTrainingDays = getWeeklyNonTrainingDays(
+      updatedWorkoutLogs,
+      today,
+      true,
+    );
+    const shouldResetStreak = weeklyNonTrainingDays > 2;
+
+    if (shouldResetStreak && (profile?.streak || 0) > 0) {
+      await resetDashboardStreak();
+    }
+
     const nextDayAfterSkip = getNextWorkoutDayAfter(
       currentWorkoutDay,
       exercises,
     );
 
-    setWorkoutLogs((prev) => [insertedLog, ...prev]);
+    setWorkoutLogs(updatedWorkoutLogs);
     setSelectedWorkoutDay(nextDayAfterSkip);
 
     toast.success(
+      shouldResetStreak
+        ? language === "pt"
+          ? "Você passou de 2 dias sem treino nesta semana. Sua sequência foi zerada."
+          : "You passed 2 non-training days this week. Your streak was reset."
+        : language === "pt"
+          ? `${getDayLabel(currentWorkoutDay)} pulado. Próximo: ${getDayLabel(
+              nextDayAfterSkip,
+            )}.`
+          : `${getDayLabel(currentWorkoutDay)} skipped. Next: ${getDayLabel(
+              nextDayAfterSkip,
+            )}.`,
+    );
+
+    clearWorkoutTimer();
+    setFinishingWorkout(false);
+  }
+
+  async function markRestDay() {
+    if (!activePlan) return;
+
+    if (workoutAlreadyRecordedToday) {
+      toast.error(translate("Today's workout already has a record."));
+      return;
+    }
+
+    const restDayNumber = weeklyRestDaysUsed + 1;
+    const confirmRest = confirm(
       language === "pt"
-        ? `${getDayLabel(currentWorkoutDay)} pulado. Proximo: ${getDayLabel(
-            nextDayAfterSkip,
-          )}.`
-        : `${getDayLabel(currentWorkoutDay)} skipped. Next: ${getDayLabel(
-            nextDayAfterSkip,
-          )}.`,
+        ? restDayNumber <= 2
+          ? `Marcar hoje como descanso? Você já usou ${weeklyRestDaysUsed}/2 descansos nesta semana.`
+          : "Você já usou 2 descansos nesta semana. Marcar outro dia sem treino vai zerar sua sequência. Continuar?"
+        : restDayNumber <= 2
+          ? `Mark today as rest? You already used ${weeklyRestDaysUsed}/2 rest days this week.`
+          : "You already used 2 rest days this week. Marking another non-training day will reset your streak. Continue?",
+    );
+
+    if (!confirmRest) return;
+
+    setFinishingWorkout(true);
+
+    const { data: insertedLog, error } = await createWorkoutLog({
+      user_id: user.id,
+      workout_plan_id: activePlan.id,
+      workout_day: currentWorkoutDay,
+      workout_date: today,
+      status: "rest",
+    });
+
+    if (error) {
+      reportError(error, translate("Error skipping workout."));
+      setFinishingWorkout(false);
+      return;
+    }
+
+    const updatedWorkoutLogs = [insertedLog, ...workoutLogs];
+    const weeklyNonTrainingDays = getWeeklyNonTrainingDays(
+      updatedWorkoutLogs,
+      today,
+      true,
+    );
+    const shouldResetStreak = weeklyNonTrainingDays > 2;
+
+    if (shouldResetStreak && (profile?.streak || 0) > 0) {
+      await resetDashboardStreak();
+    }
+
+    const nextDayAfterRest = getNextWorkoutDayAfter(
+      currentWorkoutDay,
+      exercises,
+    );
+
+    setWorkoutLogs(updatedWorkoutLogs);
+    setSelectedWorkoutDay(nextDayAfterRest);
+
+    toast.success(
+      shouldResetStreak
+        ? language === "pt"
+          ? "Você passou de 2 dias sem treino nesta semana. Sua sequência foi zerada."
+          : "You passed 2 non-training days this week. Your streak was reset."
+        : language === "pt"
+          ? `Descanso registrado. Próximo: ${getDayLabel(nextDayAfterRest)}.`
+          : `Rest day logged. Next: ${getDayLabel(nextDayAfterRest)}.`,
     );
 
     clearWorkoutTimer();
@@ -1446,18 +2273,22 @@ const workoutTimerStorageKey = useMemo(() => {
   async function saveExerciseSetLogs(exercise) {
     if (!activePlan) return;
 
-    if (workoutAlreadyCompletedToday) {
-      toast.error(translate("Today's workout is already completed."));
+    if (workoutAlreadyCompletedToday || nonTrainingDayAlreadyRecordedToday) {
+      toast.error(
+        workoutAlreadyCompletedToday
+          ? translate("Today's workout is already completed.")
+          : translate("Today's workout already has a record."),
+      );
       return;
     }
 
     const exerciseDay = exercise.workout_day || "Treino A";
 
-    if (exerciseDay !== currentWorkoutDay) {
+    if (exerciseDay !== activeWorkoutDayForToday) {
       toast.error(
         language === "pt"
-          ? `Hoje e dia de ${getDayLabel(currentWorkoutDay)}.`
-          : `Today is ${getDayLabel(currentWorkoutDay)} day.`,
+          ? `Hoje é dia de ${getDayLabel(activeWorkoutDayForToday)}.`
+          : `Today is ${getDayLabel(activeWorkoutDayForToday)} day.`,
       );
       return;
     }
@@ -2001,7 +2832,7 @@ const workoutTimerStorageKey = useMemo(() => {
           "
         >
           Nenhum treino criado ainda. Clique em <strong>New workout</strong>{" "}
-          para comeÃ§ar ou use um <strong>Template</strong>.
+          para começar ou use um <strong>Template</strong>.
         </div>
       )}
 
@@ -2020,24 +2851,236 @@ const workoutTimerStorageKey = useMemo(() => {
             getDayLabel={getDayLabel}
             lastCompletedWorkoutDay={lastCompletedWorkoutDay}
             lastCompletedWorkoutLog={lastCompletedWorkoutLog}
+            clearWorkoutTimer={clearWorkoutTimer}
+            pauseWorkoutTimer={pauseWorkoutTimer}
             startWorkoutTimer={startWorkoutTimer}
             todayCompletedLog={todayCompletedLog}
             todayTotalExercises={todayTotalExercises}
             workoutAlreadyCompletedToday={workoutAlreadyCompletedToday}
+            workoutAlreadyRecordedToday={workoutAlreadyRecordedToday}
+            workoutTimerActive={workoutTimerActive}
+            workoutTimerPaused={workoutTimerPaused}
             workoutTimerRunning={workoutTimerRunning}
           />
 
           <WorkoutQuickTools
+            alternativeWorkoutAlreadyCompletedToday={
+              alternativeWorkoutAlreadyCompletedToday
+            }
             displayWorkoutDay={displayWorkoutDay}
             finishingWorkout={finishingWorkout}
+            markRestDay={markRestDay}
+            nonTrainingDayAlreadyRecordedToday={
+              nonTrainingDayAlreadyRecordedToday
+            }
+            restDaysAllowed={2}
+            restDaysUsed={weeklyRestDaysUsed}
             setSelectedWorkoutDay={setSelectedWorkoutDay}
             setShowAddExercise={setShowAddExercise}
+            setShowAlternativeWorkouts={setShowAlternativeWorkouts}
             setShowFocusEditor={setShowFocusEditor}
             showAddExercise={showAddExercise}
+            showAlternativeWorkouts={showAlternativeWorkouts}
             showFocusEditor={showFocusEditor}
             skipWorkout={skipWorkout}
             workoutAlreadyCompletedToday={workoutAlreadyCompletedToday}
+            workoutAlreadyRecordedToday={workoutAlreadyRecordedToday}
           />
+
+          {showAlternativeWorkouts && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="
+                bg-white
+                dark:bg-zinc-900
+                border
+                border-zinc-200
+                dark:border-white/10
+                rounded-2xl
+                p-5
+                mb-6
+              "
+            >
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-lg font-black">
+                    {language === "pt"
+                      ? "Alternativas para hoje"
+                      : "Alternatives for today"}
+                  </h3>
+                  <p className="text-sm text-zinc-500 mt-1">
+                    {language === "pt"
+                      ? "Use quando não conseguir ir à academia, sem perder o dia."
+                      : "Use these when you cannot go to the gym without losing the day."}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAlternativeWorkouts(false)}
+                  className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {alternativeWorkoutOptions.map((option) => {
+                  const Icon = option.icon;
+                  const title = language === "pt" ? option.titlePt : option.titleEn;
+                  const description =
+                    language === "pt" ? option.descriptionPt : option.descriptionEn;
+                  const steps = language === "pt" ? option.stepsPt : option.stepsEn;
+
+                  return (
+                    <div
+                      key={option.id}
+                      className="
+                        border
+                        border-zinc-200
+                        dark:border-white/10
+                        rounded-2xl
+                        p-4
+                        bg-zinc-50
+                        dark:bg-black/20
+                      "
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="
+                            w-11
+                            h-11
+                            rounded-2xl
+                            bg-rose-500/10
+                            text-rose-500
+                            flex
+                            items-center
+                            justify-center
+                            shrink-0
+                          "
+                        >
+                          <Icon size={20} />
+                        </div>
+
+                        <div>
+                          <h4 className="font-black">{title}</h4>
+                          <p className="text-sm text-zinc-500 mt-1">
+                            {description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <ul className="mt-4 space-y-2 text-sm text-zinc-600 dark:text-zinc-300">
+                        {steps.map((step) => (
+                          <li key={step} className="flex gap-2">
+                            <CheckCircle
+                              size={16}
+                              className="text-green-500 shrink-0 mt-0.5"
+                            />
+                            <span>{step}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {option.id === "cardio" && (
+                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <label className="block">
+                            <span className="text-xs font-bold text-zinc-500">
+                              {language === "pt" ? "Tipo" : "Type"}
+                            </span>
+                            <input
+                              type="text"
+                              value={cardioLogForm.type}
+                              onChange={(event) =>
+                                setCardioLogForm((prev) => ({
+                                  ...prev,
+                                  type: event.target.value,
+                                }))
+                              }
+                              placeholder={
+                                language === "pt"
+                                  ? "Corrida, bike..."
+                                  : "Run, bike..."
+                              }
+                              className="WorkoutInput mt-1"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-xs font-bold text-zinc-500">
+                              {language === "pt" ? "Minutos" : "Minutes"}
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              inputMode="decimal"
+                              value={cardioLogForm.durationMinutes}
+                              onChange={(event) =>
+                                setCardioLogForm((prev) => ({
+                                  ...prev,
+                                  durationMinutes: event.target.value,
+                                }))
+                              }
+                              placeholder="20"
+                              className="WorkoutInput mt-1"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-xs font-bold text-zinc-500">
+                              {language === "pt" ? "Km" : "Km"}
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              inputMode="decimal"
+                              value={cardioLogForm.distanceKm}
+                              onChange={(event) =>
+                                setCardioLogForm((prev) => ({
+                                  ...prev,
+                                  distanceKm: event.target.value,
+                                }))
+                              }
+                              placeholder="3.5"
+                              className="WorkoutInput mt-1"
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => completeAlternativeWorkout(option)}
+                        disabled={
+                          alternativeWorkoutAlreadyCompletedToday ||
+                          nonTrainingDayAlreadyRecordedToday ||
+                          finishingWorkout
+                        }
+                        className="
+                          w-full
+                          mt-4
+                          px-4
+                          py-3
+                          rounded-2xl
+                          bg-rose-500
+                          text-white
+                          font-black
+                          disabled:opacity-50
+                          transition
+                        "
+                      >
+                        {language === "pt"
+                          ? "Registrar como treino"
+                          : "Log as workout"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
 
           {/* DAY FOCUSES */}
           {showFocusEditor && (
@@ -2120,15 +3163,15 @@ const workoutTimerStorageKey = useMemo(() => {
                       placeholder={
                         day === "Treino A"
                           ? language === "pt"
-                            ? "Ex: Peito e Triceps"
+                            ? "Ex: Peito e Tríceps"
                             : "Ex: Chest and Triceps"
                           : day === "Treino B"
                             ? language === "pt"
-                              ? "Ex: Costas e Biceps"
+                              ? "Ex: Costas e Bíceps"
                               : "Ex: Back and Biceps"
                             : day === "Treino C"
                               ? language === "pt"
-                                ? "Ex: Pernas e Abdomen"
+                                ? "Ex: Pernas e Abdômen"
                                 : "Ex: Legs and Abs"
                               : language === "pt"
                                 ? "Ex: Ombros, Cardio..."
@@ -2304,7 +3347,7 @@ const workoutTimerStorageKey = useMemo(() => {
 
                   <p className="text-zinc-500 text-sm mt-1">
                     {language === "pt"
-                      ? `Mostrando ${visibleCompletedCount}/${visibleTotalExercises} concluidos`
+                      ? `Mostrando ${visibleCompletedCount}/${visibleTotalExercises} concluídos`
                       : `Showing ${visibleCompletedCount}/${visibleTotalExercises} completed`}
                     {selectedWorkoutDay !== "Todos"
                       ? language === "pt"
@@ -2331,7 +3374,7 @@ const workoutTimerStorageKey = useMemo(() => {
                   "
                 >
                   {visibleProgressPercent}%{" "}
-                  {language === "pt" ? "progresso visivel" : "visible progress"}
+                  {language === "pt" ? "progresso visível" : "visible progress"}
                 </div>
               </div>
 
@@ -2552,7 +3595,7 @@ const workoutTimerStorageKey = useMemo(() => {
               </div>
             )}
 
-            {Object.entries(groupedExercises).map(([day, dayExercises]) => (
+            {orderedGroupedExercises.map(([day, dayExercises]) => (
               <div
                 key={day}
                 className={`
@@ -2563,7 +3606,7 @@ const workoutTimerStorageKey = useMemo(() => {
                   sm:p-5
 
                   ${
-                    day === currentWorkoutDay && !workoutAlreadyCompletedToday
+                    day === activeWorkoutDayForToday && canLogGymWorkoutToday
                       ? "border-purple-500/40 ring-2 ring-purple-500/20"
                       : "border-zinc-200 dark:border-white/10"
                   }
@@ -2578,8 +3621,8 @@ const workoutTimerStorageKey = useMemo(() => {
                         {getDayLabel(day)}
                       </h3>
 
-                      {day === currentWorkoutDay &&
-                        !workoutAlreadyCompletedToday && (
+                      {day === activeWorkoutDayForToday &&
+                        canLogGymWorkoutToday && (
                           <span
                             className="
                             px-3
@@ -2595,7 +3638,7 @@ const workoutTimerStorageKey = useMemo(() => {
                           </span>
                         )}
 
-                      {todayCompletedLog?.workout_day === day && (
+                      {todayGymCompletedLog?.workout_day === day && (
                         <span
                           className="
                             px-3
@@ -2641,14 +3684,14 @@ const workoutTimerStorageKey = useMemo(() => {
                 </div>
 
                 <div className="space-y-3 sm:space-y-4">
-                  {dayExercises.map((exercise) => {
+                  {dayExercises.map((exercise, exerciseIndex) => {
                     const completed = isExerciseCompleted(exercise.id);
                     const isEditingCurrentExercise =
                       editingExercise?.id === exercise.id;
                     const exerciseWorkoutDay =
                       exercise.workout_day || "Treino A";
                     const isCurrentExercise =
-                      exerciseWorkoutDay === currentWorkoutDay;
+                      exerciseWorkoutDay === activeWorkoutDayForToday;
                     const isDisplayWorkoutExercise =
                       exerciseWorkoutDay === displayWorkoutDay;
 
@@ -2687,9 +3730,8 @@ const workoutTimerStorageKey = useMemo(() => {
                           }
 
                           ${
-                            (!isCurrentExercise &&
-                              !workoutAlreadyCompletedToday) ||
-                            (workoutAlreadyCompletedToday &&
+                            (!isCurrentExercise && canLogGymWorkoutToday) ||
+                            (!canLogGymWorkoutToday &&
                               !isDisplayWorkoutExercise)
                               ? "opacity-70"
                               : ""
@@ -2709,6 +3751,7 @@ const workoutTimerStorageKey = useMemo(() => {
                           <button
                             type="button"
                             onClick={() => toggleExercise(exercise)}
+                            disabled={!canLogGymWorkoutToday}
                             className={`
     w-11
     h-11
@@ -2722,7 +3765,7 @@ const workoutTimerStorageKey = useMemo(() => {
                                 completed
                                   ? "bg-green-500 text-white"
                                   : isCurrentExercise &&
-                                      !workoutAlreadyCompletedToday
+                                      canLogGymWorkoutToday
                                     ? "bg-zinc-200 text-zinc-500 dark:bg-zinc-800"
                                     : "bg-zinc-100 text-zinc-400 dark:bg-white/5"
                               }
@@ -2750,9 +3793,14 @@ const workoutTimerStorageKey = useMemo(() => {
                             </h4>
 
                             <p className="text-zinc-500 text-sm mt-1">
-                              {exercise.sets || "-"} sets â€¢{" "}
-                              {exercise.reps || "-"} reps
-                              {exercise.load ? ` â€¢ ${exercise.load}` : ""}
+                              {language === "pt"
+                                ? `${exercise.sets || "-"} séries - ${
+                                    exercise.reps || "-"
+                                  } repetições`
+                                : `${exercise.sets || "-"} sets - ${
+                                    exercise.reps || "-"
+                                  } reps`}
+                              {exercise.load ? ` - ${exercise.load}` : ""}
                             </p>
                             <div className="flex items-center gap-2 mt-3 flex-wrap">
                               <button
@@ -2763,7 +3811,7 @@ const workoutTimerStorageKey = useMemo(() => {
                                 }}
                                 disabled={
                                   !isCurrentExercise ||
-                                  workoutAlreadyCompletedToday
+                                  !canLogGymWorkoutToday
                                 }
                                 className="
       px-3
@@ -2786,7 +3834,7 @@ const workoutTimerStorageKey = useMemo(() => {
                                     ? "Fechar registro"
                                     : "Close log"
                                   : language === "pt"
-                                    ? "Registrar series"
+                                    ? "Registrar séries"
                                     : "Log sets"}
                               </button>
 
@@ -2795,17 +3843,17 @@ const workoutTimerStorageKey = useMemo(() => {
                                 <span className="text-xs text-green-500 font-bold">
                                   {getTodayExerciseSetLogs(exercise.id).length}{" "}
                                   {language === "pt"
-                                    ? "series registradas"
+                                    ? "séries registradas"
                                     : "sets logged"}
                                 </span>
                               )}
                             </div>
 
                             {!isCurrentExercise &&
-                              !workoutAlreadyCompletedToday && (
+                              canLogGymWorkoutToday && (
                               <p className="text-xs text-zinc-400 mt-1">
                                 {language === "pt"
-                                  ? "Nao e o treino atual da sequencia"
+                                  ? "Não é o treino atual da sequência"
                                   : "Not current in sequence"}
                               </p>
                             )}
@@ -2821,6 +3869,69 @@ const workoutTimerStorageKey = useMemo(() => {
 
                         {showPlanTools && (
                           <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex flex-col gap-1">
+                              <button
+                                type="button"
+                                onClick={() => moveExerciseInDay(exercise, -1)}
+                                disabled={reorderingExercise || exerciseIndex === 0}
+                                className="
+                                  w-10
+                                  h-8
+                                  rounded-xl
+                                  flex
+                                  items-center
+                                  justify-center
+                                  text-zinc-500
+                                  hover:text-purple-500
+                                  hover:bg-purple-500/10
+                                  disabled:opacity-30
+                                  disabled:hover:bg-transparent
+                                  disabled:hover:text-zinc-500
+                                  transition
+                                  shrink-0
+                                "
+                                title={
+                                  language === "pt"
+                                    ? "Mover para cima"
+                                    : "Move up"
+                                }
+                              >
+                                <ArrowUp size={17} />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => moveExerciseInDay(exercise, 1)}
+                                disabled={
+                                  reorderingExercise ||
+                                  exerciseIndex === dayExercises.length - 1
+                                }
+                                className="
+                                  w-10
+                                  h-8
+                                  rounded-xl
+                                  flex
+                                  items-center
+                                  justify-center
+                                  text-zinc-500
+                                  hover:text-purple-500
+                                  hover:bg-purple-500/10
+                                  disabled:opacity-30
+                                  disabled:hover:bg-transparent
+                                  disabled:hover:text-zinc-500
+                                  transition
+                                  shrink-0
+                                "
+                                title={
+                                  language === "pt"
+                                    ? "Mover para baixo"
+                                    : "Move down"
+                                }
+                              >
+                                <ArrowDown size={17} />
+                              </button>
+                            </div>
+
                             <button
                               onClick={() => startEditExercise(exercise)}
                               className="
@@ -3119,20 +4230,26 @@ const workoutTimerStorageKey = useMemo(() => {
           >
             <div>
               <h3 className="font-black text-lg">
-                {workoutAlreadyCompletedToday
-                  ? translate("Workout completed today")
+                {!canLogGymWorkoutToday
+                  ? language === "pt"
+                    ? workoutAlreadyCompletedToday
+                      ? "Musculação já registrada"
+                      : "Dia já registrado"
+                    : workoutAlreadyCompletedToday
+                      ? "Gym workout already logged"
+                      : "Day already recorded"
                   : language === "pt"
-                    ? `Finalizar ${getDayLabel(currentWorkoutDay)}`
-                    : `Finish ${getDayLabel(currentWorkoutDay)}`}
+                    ? `Finalizar ${getDayLabel(activeWorkoutDayForToday)}`
+                    : `Finish ${getDayLabel(activeWorkoutDayForToday)}`}
               </h3>
 
               <p className="text-zinc-500 text-sm mt-1">
-                {workoutAlreadyCompletedToday
+                {!canLogGymWorkoutToday
                   ? language === "pt"
-                    ? `Proximo treino na sequencia: ${getDayLabel(nextWorkoutDay)}.`
+                    ? `Próximo treino na sequência: ${getDayLabel(nextWorkoutDay)}.`
                     : `Next workout in sequence: ${getDayLabel(nextWorkoutDay)}.`
                   : language === "pt"
-                    ? "Complete o treino da sequencia de hoje para finalizar o dia."
+                    ? "Complete o treino da sequência de hoje para finalizar o dia."
                     : "Complete today's sequence workout to finish the day."}
               </p>
             </div>
@@ -3142,7 +4259,7 @@ const workoutTimerStorageKey = useMemo(() => {
               disabled={
                 !todayWorkoutCompleted ||
                 finishingWorkout ||
-                workoutAlreadyCompletedToday
+                !canLogGymWorkoutToday
               }
               className="
                 w-full
@@ -3170,7 +4287,7 @@ const workoutTimerStorageKey = useMemo(() => {
               ) : (
                 <Trophy size={20} />
               )}
-              {workoutAlreadyCompletedToday
+              {!canLogGymWorkoutToday
                 ? translate("Done Today")
                 : translate("Complete Today")}
             </button>

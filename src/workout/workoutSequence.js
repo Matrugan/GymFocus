@@ -64,6 +64,10 @@ export function getOrderedWorkoutDaysFromExercises(exercises = []) {
   return workoutDayOptions.filter((day) => uniqueDays.includes(day));
 }
 
+export function getWorkoutDayBase(day) {
+  return String(day || "").replace(/\s-\s(Cardio|Casa|Home)$/i, "");
+}
+
 export function getNextWorkoutDayAfter(
   day,
   exercises = [],
@@ -75,7 +79,7 @@ export function getNextWorkoutDayAfter(
     return fallbackDay;
   }
 
-  const currentIndex = orderedDays.indexOf(day);
+  const currentIndex = orderedDays.indexOf(getWorkoutDayBase(day));
 
   if (currentIndex === -1) {
     return orderedDays[0];
@@ -105,8 +109,8 @@ export function getCurrentWorkoutDay(
     const status = log.status || "completed";
 
     return (
-      orderedDays.includes(log.workout_day) &&
-      ["completed", "skipped"].includes(status)
+      orderedDays.includes(getWorkoutDayBase(log.workout_day)) &&
+      ["completed", "skipped", "rest"].includes(status)
     );
   });
 
@@ -114,7 +118,11 @@ export function getCurrentWorkoutDay(
     return orderedDays[0];
   }
 
-  return getNextWorkoutDayAfter(validLogs[0].workout_day, exercises, fallbackDay);
+  return getNextWorkoutDayAfter(
+    getWorkoutDayBase(validLogs[0].workout_day),
+    exercises,
+    fallbackDay,
+  );
 }
 
 export function calculateCurrentWorkoutDay(exercises = [], logs = [], fallbackDay) {

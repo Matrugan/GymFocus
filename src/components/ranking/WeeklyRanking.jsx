@@ -343,7 +343,7 @@ function WeeklyRanking() {
                 dark:text-zinc-400
               "
             >
-              {language === "pt" ? "XP ganho nos ultimos 7 dias" : "XP earned in the last 7 days"}
+              {language === "pt" ? "XP ganho nos últimos 7 dias" : "XP earned in the last 7 days"}
             </p>
           </div>
         </div>
@@ -605,7 +605,7 @@ function WeeklyRanking() {
 
         <p className="text-sm">
           {language === "pt"
-            ? "O XP semanal e calculado a partir de treinos e desafios concluidos nos ultimos 7 dias."
+            ? "O XP semanal é calculado a partir de treinos e desafios concluídos nos últimos 7 dias."
             : "Weekly XP is calculated from workouts and completed challenges in the last 7 days."}
         </p>
       </div>

@@ -1,13 +1,15 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
 import {
   Flame,
   Trophy,
   Dumbbell,
   CheckCircle,
+  CalendarDays,
   Loader2,
   LogOut,
+  Plus,
   Search,
   Home,
   Users,
@@ -18,6 +20,7 @@ import {
   Activity,
   Medal,
   MoreHorizontal,
+  Ruler,
 } from "lucide-react";
 
 import { Link } from "react-router-dom";
@@ -28,9 +31,7 @@ import useWorkoutData from "../hooks/useWorkoutData";
 
 import NotificationBell from "../components/notifications/NotificationBell";
 
-import ThemeToggle from "../components/layout/ThemeToggle";
 import BrandLogo from "../components/layout/BrandLogo";
-import LanguageToggle from "../components/layout/LanguageToggle";
 import { useLanguage } from "../context/LanguageContext";
 import {
   getCurrentWorkoutDay,
@@ -38,6 +39,9 @@ import {
 } from "../workout/workoutSequence";
 
 const Achievements = lazy(() => import("../components/achievements/Achievements"));
+const BodyMeasurements = lazy(
+  () => import("../components/measurements/BodyMeasurements"),
+);
 const Challenges = lazy(() => import("../components/challenges/Challenges"));
 const CreatePost = lazy(() => import("../components/feed/CreatePost"));
 const Feed = lazy(() => import("../components/feed/Feed"));
@@ -69,8 +73,12 @@ function Dashboard() {
   const { t, translate } = useLanguage();
 
   const [activeTab, setActiveTab] = useState("home");
+  const [simpleMode, setSimpleMode] = useState(
+    () => localStorage.getItem("gymfocus-simple-mode") === "true",
+  );
   const [showSearch, setShowSearch] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showCreatePost, setShowCreatePost] = useState(false);
   const [feedRefreshKey, setFeedRefreshKey] = useState(0);
   const { profile, setProfile } = useProfile({
     enabled: Boolean(user?.id),
@@ -85,6 +93,29 @@ function Dashboard() {
     enabled: Boolean(user?.id),
     userId: user?.id,
   });
+
+  useEffect(() => {
+    function syncSimpleMode() {
+      setSimpleMode(localStorage.getItem("gymfocus-simple-mode") === "true");
+    }
+
+    window.addEventListener("gymfocus-preferences-updated", syncSimpleMode);
+    window.addEventListener("storage", syncSimpleMode);
+
+    return () => {
+      window.removeEventListener("gymfocus-preferences-updated", syncSimpleMode);
+      window.removeEventListener("storage", syncSimpleMode);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      simpleMode &&
+      ["feed", "rankings", "challenges"].includes(activeTab)
+    ) {
+      setActiveTab("home");
+    }
+  }, [activeTab, simpleMode]);
 
   function handleMobileMenuTab(tab) {
     setActiveTab(tab);
@@ -131,6 +162,9 @@ function Dashboard() {
   const isMoreActive =
     activeTab === "rankings" ||
     activeTab === "challenges" ||
+    activeTab === "measurements" ||
+    activeTab === "calendar" ||
+    activeTab === "achievements" ||
     activeTab === "settings";
 
   const stats = [
@@ -221,24 +255,49 @@ function Dashboard() {
             />
 
             <SidebarButton
-              active={activeTab === "rankings"}
-              onClick={() => setActiveTab("rankings")}
-              icon={<Medal size={20} />}
-              text={t("dashboard.nav.rankings")}
+              active={activeTab === "calendar"}
+              onClick={() => setActiveTab("calendar")}
+              icon={<CalendarDays size={20} />}
+              text={t("dashboard.nav.calendar")}
             />
 
             <SidebarButton
-              active={activeTab === "feed"}
-              onClick={() => setActiveTab("feed")}
-              icon={<Users size={20} />}
-              text={t("dashboard.nav.feed")}
+              active={activeTab === "measurements"}
+              onClick={() => setActiveTab("measurements")}
+              icon={<Ruler size={20} />}
+              text={t("dashboard.nav.measurements")}
             />
 
+            {!simpleMode && (
+              <>
+                <SidebarButton
+                  active={activeTab === "rankings"}
+                  onClick={() => setActiveTab("rankings")}
+                  icon={<Medal size={20} />}
+                  text={t("dashboard.nav.rankings")}
+                />
+
+                <SidebarButton
+                  active={activeTab === "feed"}
+                  onClick={() => setActiveTab("feed")}
+                  icon={<Users size={20} />}
+                  text={t("dashboard.nav.feed")}
+                />
+
+                <SidebarButton
+                  active={activeTab === "challenges"}
+                  onClick={() => setActiveTab("challenges")}
+                  icon={<Target size={20} />}
+                  text={t("dashboard.nav.challenges")}
+                />
+              </>
+            )}
+
             <SidebarButton
-              active={activeTab === "challenges"}
-              onClick={() => setActiveTab("challenges")}
-              icon={<Target size={20} />}
-              text={t("dashboard.nav.challenges")}
+              active={activeTab === "achievements"}
+              onClick={() => setActiveTab("achievements")}
+              icon={<Trophy size={20} />}
+              text={t("dashboard.nav.achievements")}
             />
 
             <div className="pt-2">
@@ -352,14 +411,6 @@ function Dashboard() {
                 overflow-visible
               "
             >
-              <div className="relative z-50">
-                <LanguageToggle />
-              </div>
-
-              <div className="relative z-50">
-                <ThemeToggle />
-              </div>
-
               <div className="relative z-50">
                 <NotificationBell user={user} />
               </div>
@@ -578,17 +629,35 @@ function Dashboard() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <MobileMenuButton
-                      active={activeTab === "rankings"}
-                      onClick={() => handleMobileMenuTab("rankings")}
-                      icon={<Medal size={20} />}
-                      text={t("dashboard.nav.rankings")}
+                      active={activeTab === "calendar"}
+                      onClick={() => handleMobileMenuTab("calendar")}
+                      icon={<CalendarDays size={20} />}
+                      text={t("dashboard.nav.calendar")}
                     />
 
+                    {!simpleMode && (
+                      <>
+                        <MobileMenuButton
+                          active={activeTab === "rankings"}
+                          onClick={() => handleMobileMenuTab("rankings")}
+                          icon={<Medal size={20} />}
+                          text={t("dashboard.nav.rankings")}
+                        />
+
+                        <MobileMenuButton
+                          active={activeTab === "challenges"}
+                          onClick={() => handleMobileMenuTab("challenges")}
+                          icon={<Target size={20} />}
+                          text={t("dashboard.nav.challenges")}
+                        />
+                      </>
+                    )}
+
                     <MobileMenuButton
-                      active={activeTab === "challenges"}
-                      onClick={() => handleMobileMenuTab("challenges")}
-                      icon={<Target size={20} />}
-                      text={t("dashboard.nav.challenges")}
+                      active={activeTab === "measurements"}
+                      onClick={() => handleMobileMenuTab("measurements")}
+                      icon={<Ruler size={20} />}
+                      text={t("dashboard.nav.measurements")}
                     />
 
                     <MobileMenuButton
@@ -596,6 +665,13 @@ function Dashboard() {
                       onClick={() => handleMobileMenuTab("settings")}
                       icon={<Settings size={20} />}
                       text={t("dashboard.nav.settings")}
+                    />
+
+                    <MobileMenuButton
+                      active={activeTab === "achievements"}
+                      onClick={() => handleMobileMenuTab("achievements")}
+                      icon={<Trophy size={20} />}
+                      text={t("dashboard.nav.achievements")}
                     />
 
                     <button
@@ -740,12 +816,6 @@ function Dashboard() {
               <DashboardBlock>
                 <WorkoutSummaryCard user={user} />
               </DashboardBlock>
-
-              <DashboardBlock>
-                <Suspense fallback={<DashboardFallback />}>
-                  <Achievements user={user} />
-                </Suspense>
-              </DashboardBlock>
             </>
           )}
 
@@ -761,7 +831,14 @@ function Dashboard() {
                     refetchDashboardWorkout();
                   }}
                 />
+              </PageContainer>
+            </Suspense>
+          )}
 
+          {/* CALENDAR TAB */}
+          {activeTab === "calendar" && (
+            <Suspense fallback={<DashboardFallback />}>
+              <PageContainer>
                 <WorkoutCalendar user={user} />
               </PageContainer>
             </Suspense>
@@ -772,6 +849,15 @@ function Dashboard() {
             <Suspense fallback={<DashboardFallback />}>
               <PageContainer>
                 <ProgressAnalytics user={user} />
+              </PageContainer>
+            </Suspense>
+          )}
+
+          {/* MEASUREMENTS TAB */}
+          {activeTab === "measurements" && (
+            <Suspense fallback={<DashboardFallback />}>
+              <PageContainer>
+                <BodyMeasurements user={user} />
               </PageContainer>
             </Suspense>
           )}
@@ -791,11 +877,58 @@ function Dashboard() {
           {activeTab === "feed" && (
             <Suspense fallback={<DashboardFallback />}>
               <PageContainer>
-                <CreatePost
-                  user={user}
-                  profile={profile}
-                  onPostCreated={() => setFeedRefreshKey((prev) => prev + 1)}
-                />
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-xl font-black">
+                        {translate("Feed")}
+                      </h2>
+                      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                        {translate("Acompanhe os posts da comunidade.")}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowCreatePost((prev) => !prev)}
+                      className="
+                        flex
+                        w-full
+                        items-center
+                        justify-center
+                        gap-2
+                        rounded-2xl
+                        bg-zinc-950
+                        px-5
+                        py-3
+                        font-black
+                        text-white
+                        transition
+                        hover:scale-[1.01]
+                        sm:w-auto
+
+                        dark:bg-white
+                        dark:text-black
+                      "
+                    >
+                      {showCreatePost ? <X size={18} /> : <Plus size={18} />}
+                      {showCreatePost
+                        ? translate("Fechar")
+                        : translate("Criar post")}
+                    </button>
+                  </div>
+                </div>
+
+                {showCreatePost && (
+                  <CreatePost
+                    user={user}
+                    profile={profile}
+                    onPostCreated={() => {
+                      setFeedRefreshKey((prev) => prev + 1);
+                      setShowCreatePost(false);
+                    }}
+                  />
+                )}
 
                 <Feed user={user} profile={profile} refreshKey={feedRefreshKey} />
               </PageContainer>
@@ -812,6 +945,15 @@ function Dashboard() {
                   onProfileUpdated={setProfile}
                 />
               </div>
+            </Suspense>
+          )}
+
+          {/* ACHIEVEMENTS TAB */}
+          {activeTab === "achievements" && (
+            <Suspense fallback={<DashboardFallback />}>
+              <PageContainer>
+                <Achievements user={user} />
+              </PageContainer>
             </Suspense>
           )}
 
@@ -898,7 +1040,7 @@ function Dashboard() {
           active={activeTab === "home"}
           onClick={() => setActiveTab("home")}
           icon={<Home size={21} />}
-          text={t("dashboard.nav.dashboard")}
+          text={t("dashboard.nav.today")}
         />
 
         <MobileNavButton
@@ -915,12 +1057,21 @@ function Dashboard() {
           text={t("dashboard.nav.progress")}
         />
 
-        <MobileNavButton
-          active={activeTab === "feed"}
-          onClick={() => setActiveTab("feed")}
-          icon={<Users size={21} />}
-          text={t("dashboard.nav.feed")}
-        />
+        {simpleMode ? (
+          <MobileNavButton
+            active={activeTab === "measurements"}
+            onClick={() => setActiveTab("measurements")}
+            icon={<Ruler size={21} />}
+            text={t("dashboard.nav.measurements")}
+          />
+        ) : (
+          <MobileNavButton
+            active={activeTab === "feed"}
+            onClick={() => setActiveTab("feed")}
+            icon={<Users size={21} />}
+            text={t("dashboard.nav.social")}
+          />
+        )}
 
         <MobileNavButton
           active={isMoreActive}

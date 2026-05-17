@@ -28,7 +28,7 @@ function Home() {
       title: language === "pt" ? "Acompanhe treinos" : "Track Workouts",
       description:
         language === "pt"
-          ? "Complete treinos diarios, ganhe XP e mantenha sua sequencia ativa."
+          ? "Complete treinos diários, ganhe XP e mantenha sua sequência ativa."
           : "Complete daily workouts, earn XP and keep your streak alive.",
       icon: Dumbbell,
     },
@@ -44,7 +44,7 @@ function Home() {
       title: language === "pt" ? "Desafios fitness" : "Fitness Challenges",
       description:
         language === "pt"
-          ? "Entre em desafios, resgate recompensas e desbloqueie insignias exclusivas."
+          ? "Entre em desafios, resgate recompensas e desbloqueie insígnias exclusivas."
           : "Join challenges, claim rewards and unlock exclusive badges.",
       icon: Target,
     },
@@ -52,15 +52,15 @@ function Home() {
       title: language === "pt" ? "Ranking semanal" : "Weekly Ranking",
       description:
         language === "pt"
-          ? "Compita com outros usuarios por XP semanal e consistencia nos treinos."
+          ? "Compita com outros usuários por XP semanal e consistência nos treinos."
           : "Compete with other users based on weekly XP and workout consistency.",
       icon: Trophy,
     },
     {
-      title: language === "pt" ? "Analise de progresso" : "Progress Analytics",
+      title: language === "pt" ? "Análise de progresso" : "Progress Analytics",
       description:
         language === "pt"
-          ? "Visualize sua evolucao de XP e entenda seu desempenho ao longo do tempo."
+          ? "Visualize sua evolução de XP e entenda seu desempenho ao longo do tempo."
           : "Visualize your XP evolution and understand your performance over time.",
       icon: BarChart3,
     },
@@ -337,7 +337,7 @@ function Home() {
               label={language === "pt" ? "Progresso gamificado" : "Gamified progress"}
             />
             <HeroStat
-              value={language === "pt" ? "Insignias" : "Badges"}
+              value={language === "pt" ? "Insígnias" : "Badges"}
               label={language === "pt" ? "Desbloqueie conquistas" : "Unlock achievements"}
             />
             <HeroStat
@@ -445,13 +445,13 @@ function Home() {
 
               <div className="p-5 grid grid-cols-3 gap-4">
                 <PreviewCard
-                  title={language === "pt" ? "Sequencia" : "Streak"}
+                  title={language === "pt" ? "Sequência" : "Streak"}
                   value={language === "pt" ? "12 dias" : "12 Days"}
                   icon={<Flame size={22} />}
                 />
                 <PreviewCard title="XP" value="2,450" icon={<Trophy size={22} />} />
                 <PreviewCard
-                  title={language === "pt" ? "Nivel" : "Level"}
+                  title={language === "pt" ? "Nível" : "Level"}
                   value="8"
                   icon={<Star size={22} />}
                 />
@@ -474,7 +474,7 @@ function Home() {
                     <div>
                       <p className="text-zinc-500 text-sm">
                         {language === "pt"
-                          ? "Progresso para o nivel 9"
+                          ? "Progresso para o nível 9"
                           : "Progress to Level 9"}
                       </p>
 
@@ -562,7 +562,7 @@ function Home() {
                         <h4 className="font-bold">{item.name}</h4>
 
                         <p className="text-zinc-500 text-xs">
-                          {language === "pt" ? "Sequencia" : "Streak"}: {item.streak}
+                          {language === "pt" ? "Sequência" : "Streak"}: {item.streak}
                         </p>
                       </div>
                     </div>
@@ -595,7 +595,7 @@ function Home() {
 
           <h2 className="text-4xl md:text-6xl font-black">
             {language === "pt"
-              ? "Tudo que voce precisa para manter consistencia"
+              ? "Tudo que você precisa para manter consistência"
               : "Everything you need to stay consistent"}
           </h2>
 
@@ -609,7 +609,7 @@ function Home() {
             "
           >
             {language === "pt"
-              ? "GymFocus combina motivacao social, gamificacao e analise de progresso em uma plataforma fitness moderna."
+              ? "GymFocus combina motivação social, gamificação e análise de progresso em uma plataforma fitness moderna."
               : "GymFocus combines social motivation, gamification and progress analytics in one modern fitness platform."}
           </p>
         </div>
@@ -715,7 +715,7 @@ function Home() {
       >
         <div>
           <p className="text-purple-500 font-bold mb-4">
-            {language === "pt" ? "COMPETICAO SEMANAL" : "WEEKLY COMPETITION"}
+            {language === "pt" ? "COMPETIÇÃO SEMANAL" : "WEEKLY COMPETITION"}
           </p>
 
           <h2 className="text-4xl md:text-6xl font-black">
@@ -735,7 +735,7 @@ function Home() {
             "
           >
             {language === "pt"
-              ? "Cada treino e desafio gera XP. Quanto mais consistente voce for, mais alto sobe no ranking semanal."
+              ? "Cada treino e desafio gera XP. Quanto mais consistente você for, mais alto sobe no ranking semanal."
               : "Every workout and challenge gives you XP. The more consistent you are, the higher you climb in the weekly ranking."}
           </p>
 
@@ -746,7 +746,7 @@ function Home() {
             />
             <SmallBenefit
               icon={<Flame />}
-              text={language === "pt" ? "Motivacao por sequencia" : "Streak-based motivation"}
+              text={language === "pt" ? "Motivação por sequência" : "Streak-based motivation"}
             />
             <SmallBenefit
               icon={<Target />}
@@ -782,7 +782,7 @@ function Home() {
               </h3>
 
               <p className="text-zinc-500">
-                {language === "pt" ? "Previa do ranking semanal" : "Weekly ranking preview"}
+                {language === "pt" ? "Prévia do ranking semanal" : "Weekly ranking preview"}
               </p>
             </div>
           </div>
@@ -858,7 +858,7 @@ function Home() {
                     <h4 className="font-bold text-lg">{item.name}</h4>
 
                     <p className="text-zinc-500 text-sm">
-                      {language === "pt" ? "Sequencia" : "Streak"}: {item.streak}
+                      {language === "pt" ? "Sequência" : "Streak"}: {item.streak}
                     </p>
                   </div>
                 </div>
@@ -923,7 +923,7 @@ function Home() {
       "
           >
             {language === "pt"
-              ? "Pronto para comecar seu jogo fitness?"
+              ? "Pronto para começar seu jogo fitness?"
               : "Ready to start your fitness game?"}
           </h2>
 

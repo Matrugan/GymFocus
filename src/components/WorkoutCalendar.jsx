@@ -5,6 +5,7 @@ import {
   CheckCircle,
   XCircle,
   SkipForward,
+  Moon,
   Loader2,
   RefreshCw,
   ChevronLeft,
@@ -211,6 +212,14 @@ function WorkoutCalendar({ user }) {
       return "skipped";
     }
 
+    const hasRest = logs.some((workout) => {
+      return workout.status === "rest";
+    });
+
+    if (hasRest) {
+      return "rest";
+    }
+
     return "none";
   }
 
@@ -233,6 +242,14 @@ function WorkoutCalendar({ user }) {
 
     if (skippedLog?.workout_day) {
       return translate(skippedLog.workout_day);
+    }
+
+    const restLog = logs.find((workout) => {
+      return workout.status === "rest";
+    });
+
+    if (restLog?.workout_day) {
+      return translate(restLog.workout_day);
     }
 
     return "";
@@ -263,8 +280,11 @@ function WorkoutCalendar({ user }) {
   const skippedDays = visibleMonthDates.filter((day) => {
     return getWorkoutStatus(day) === "skipped";
   }).length;
+  const restDays = visibleMonthDates.filter((day) => {
+    return getWorkoutStatus(day) === "rest";
+  }).length;
 
-  const emptyDays = visibleMonthDates.length - completedDays - skippedDays;
+  const emptyDays = visibleMonthDates.length - completedDays - skippedDays - restDays;
 
   const locale = language === "pt" ? "pt-BR" : "en-US";
 
@@ -306,7 +326,7 @@ function WorkoutCalendar({ user }) {
           "
         >
           <Loader2 className="animate-spin" size={20} />
-          {language === "pt" ? "Carregando calendario..." : "Loading calendar..."}
+          {language === "pt" ? "Carregando calendário..." : "Loading calendar..."}
         </div>
 
         <div
@@ -450,7 +470,7 @@ function WorkoutCalendar({ user }) {
               "
             >
               {language === "pt"
-                ? `Seu calendario completo de treinos de ${visibleMonthLabel}`
+                ? `Seu calendário completo de treinos de ${visibleMonthLabel}`
                 : `Your complete workout calendar for ${visibleMonthLabel}`}
             </p>
           </div>
@@ -491,7 +511,7 @@ function WorkoutCalendar({ user }) {
               dark:border-white/10
               dark:text-zinc-300
             "
-            title={language === "pt" ? "Mes anterior" : "Previous month"}
+            title={language === "pt" ? "Mês anterior" : "Previous month"}
           >
             <ChevronLeft size={18} />
           </button>
@@ -540,7 +560,7 @@ function WorkoutCalendar({ user }) {
               dark:border-white/10
               dark:text-zinc-300
             "
-            title={language === "pt" ? "Proximo mes" : "Next month"}
+            title={language === "pt" ? "Próximo mês" : "Next month"}
           >
             <ChevronRight size={18} />
           </button>
@@ -563,7 +583,7 @@ function WorkoutCalendar({ user }) {
             "
           >
             {completedDays}/{visibleMonthDates.length}{" "}
-            {language === "pt" ? "concluidos" : "completed"}
+            {language === "pt" ? "concluídos" : "completed"}
           </div>
 
           <div
@@ -620,6 +640,7 @@ function WorkoutCalendar({ user }) {
           const status = getWorkoutStatus(day);
           const completed = status === "completed";
           const skipped = status === "skipped";
+          const rest = status === "rest";
           const workoutLabel = getWorkoutLabel(day);
           const isToday = day === today;
 
@@ -667,6 +688,11 @@ function WorkoutCalendar({ user }) {
                         bg-orange-500/10
                         border-orange-500/30
                       `
+                      : rest
+                        ? `
+                          bg-sky-500/10
+                          border-sky-500/30
+                        `
                       : `
                         bg-zinc-50
                         border-zinc-200
@@ -744,6 +770,11 @@ function WorkoutCalendar({ user }) {
                     size={15}
                     className="text-orange-500 shrink-0"
                   />
+                ) : rest ? (
+                  <Moon
+                    size={15}
+                    className="text-sky-500 shrink-0"
+                  />
                 ) : (
                   <XCircle
                     size={15}
@@ -787,6 +818,11 @@ function WorkoutCalendar({ user }) {
                           bg-orange-500
                           text-white
                         `
+                        : rest
+                          ? `
+                            bg-sky-500
+                            text-white
+                          `
                         : `
                           bg-zinc-200
                           text-zinc-500
@@ -818,19 +854,25 @@ function WorkoutCalendar({ user }) {
                       ? "text-purple-500"
                       : skipped
                         ? "text-orange-500"
+                        : rest
+                          ? "text-sky-500"
                         : "text-zinc-500"
                   }
                 `}
               >
                 {completed
                   ? language === "pt"
-                    ? "Concluido"
+                    ? "Concluído"
                     : "Completed"
-                  : skipped
-                    ? language === "pt"
-                      ? "Pulado"
-                      : "Skipped"
-                    : language === "pt"
+                    : skipped
+                      ? language === "pt"
+                        ? "Pulado"
+                        : "Skipped"
+                      : rest
+                        ? language === "pt"
+                          ? "Descanso"
+                          : "Rest"
+                      : language === "pt"
                       ? "Descanso / perdido"
                       : "Rest / Missed"}
               </p>
@@ -856,6 +898,8 @@ function WorkoutCalendar({ user }) {
                       ? "bg-purple-500"
                       : skipped
                         ? "bg-orange-500"
+                        : rest
+                          ? "bg-sky-500"
                         : "bg-zinc-300 dark:bg-zinc-700"
                   }
                 `}
@@ -887,7 +931,7 @@ function WorkoutCalendar({ user }) {
           "
         >
           <p className="text-zinc-500 text-xs">
-            {language === "pt" ? "Concluidos" : "Completed"}
+            {language === "pt" ? "Concluídos" : "Completed"}
           </p>
 
           <h3 className="text-xl font-black text-purple-500 mt-1">
@@ -933,7 +977,7 @@ function WorkoutCalendar({ user }) {
           </p>
 
           <h3 className="text-xl font-black text-zinc-500 mt-1">
-            {emptyDays}
+            {restDays}
           </h3>
         </div>
       </div>
@@ -966,7 +1010,7 @@ function WorkoutCalendar({ user }) {
 
         <p className="text-sm">
           {language === "pt"
-            ? "Complete seu treino diario para marcar o dia como concluido. Treinos pulados aparecem separados e nao contam como dias concluidos. As datas seguem o fuso horario local do dispositivo."
+            ? "Complete seu treino diário para marcar o dia como concluído. Treinos pulados aparecem separados e não contam como dias concluídos. As datas seguem o fuso horário local do dispositivo."
             : "Complete your daily workout to mark the day as completed. Skipped workouts appear separately and do not count as completed days. Dates follow the local timezone of the device using the app."}
         </p>
       </div>

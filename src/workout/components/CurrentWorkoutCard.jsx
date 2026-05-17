@@ -1,4 +1,4 @@
-import { Clock } from "lucide-react";
+import { Clock, Pause, Play, XCircle } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 
 function CurrentWorkoutCard({
@@ -14,10 +14,15 @@ function CurrentWorkoutCard({
   getDayLabel,
   lastCompletedWorkoutDay,
   lastCompletedWorkoutLog,
+  clearWorkoutTimer,
+  pauseWorkoutTimer,
   startWorkoutTimer,
   todayCompletedLog,
   todayTotalExercises,
   workoutAlreadyCompletedToday,
+  workoutAlreadyRecordedToday,
+  workoutTimerActive,
+  workoutTimerPaused,
   workoutTimerRunning,
 }) {
   const { language, translate } = useLanguage();
@@ -51,7 +56,7 @@ function CurrentWorkoutCard({
           <p className="text-white/80 mt-2 break-words">
             {workoutAlreadyCompletedToday
               ? language === "pt"
-                ? "Voce ja concluiu o treino de hoje."
+                ? "Você já concluiu o treino de hoje."
                 : "You already finished today's workout."
               : `${language === "pt" ? "Plano" : "From plan"}: ${translate(activePlan.title)}`}
           </p>
@@ -74,7 +79,7 @@ function CurrentWorkoutCard({
         >
           {workoutAlreadyCompletedToday
             ? language === "pt"
-              ? "Concluido"
+              ? "Concluído"
               : "Done"
             : `${displayWorkoutCompletedCount}/${displayWorkoutTotalExercises}`}
         </div>
@@ -142,46 +147,81 @@ function CurrentWorkoutCard({
           </div>
         </div>
 
-        {!workoutAlreadyCompletedToday && (
-          <button
-            type="button"
-            onClick={startWorkoutTimer}
-            disabled={workoutTimerRunning || todayTotalExercises === 0}
-            className="
-              w-full
-              sm:w-auto
-              px-4
-              py-3
-              rounded-2xl
-              bg-white
-              text-purple-700
-              font-black
-              text-sm
-              flex
-              items-center
-              justify-center
-              gap-2
-              disabled:opacity-60
-              transition
-            "
-          >
-            <Clock size={17} />
-            {workoutTimerRunning
-              ? language === "pt"
-                ? "Timer rodando"
-                : "Timer running"
-              : language === "pt"
-                ? "Iniciar treino"
-                : "Start workout"}
-          </button>
+        {!workoutAlreadyRecordedToday && (
+          <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-[auto_auto]">
+            <button
+              type="button"
+              onClick={workoutTimerRunning ? pauseWorkoutTimer : startWorkoutTimer}
+              disabled={todayTotalExercises === 0}
+              className="
+                w-full
+                sm:w-auto
+                px-4
+                py-3
+                rounded-2xl
+                bg-white
+                text-purple-700
+                font-black
+                text-sm
+                flex
+                items-center
+                justify-center
+                gap-2
+                disabled:opacity-60
+                transition
+              "
+            >
+              {workoutTimerRunning ? <Pause size={17} /> : <Play size={17} />}
+              {workoutTimerRunning
+                ? language === "pt"
+                  ? "Pausar timer"
+                  : "Pause timer"
+                : workoutTimerPaused
+                  ? language === "pt"
+                    ? "Retomar treino"
+                    : "Resume workout"
+                  : language === "pt"
+                    ? "Iniciar treino"
+                    : "Start workout"}
+            </button>
+
+            {workoutTimerActive && (
+              <button
+                type="button"
+                onClick={clearWorkoutTimer}
+                className="
+                  w-full
+                  sm:w-auto
+                  px-4
+                  py-3
+                  rounded-2xl
+                  bg-white/10
+                  text-white
+                  border
+                  border-white/20
+                  font-black
+                  text-sm
+                  flex
+                  items-center
+                  justify-center
+                  gap-2
+                  hover:bg-white/15
+                  transition
+                "
+              >
+                <XCircle size={17} />
+                {language === "pt" ? "Cancelar timer" : "Cancel timer"}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
       <div
         className="
           mt-5
-          grid
-          grid-cols-1
+          hidden
+          sm:grid
           sm:grid-cols-3
           gap-3
         "
@@ -196,7 +236,7 @@ function CurrentWorkoutCard({
           "
         >
           <p className="text-white/60 text-xs font-bold uppercase tracking-wide">
-            {language === "pt" ? "Ultimo" : "Last"}
+            {language === "pt" ? "Último" : "Last"}
           </p>
 
           <h4 className="font-black mt-2 break-words">
@@ -211,7 +251,7 @@ function CurrentWorkoutCard({
             {lastCompletedWorkoutLog
               ? formatWorkoutDate(lastCompletedWorkoutLog.workout_date)
               : language === "pt"
-                ? "Comece sua sequencia"
+                ? "Comece sua sequência"
                 : "Start your sequence"}
           </p>
         </div>
@@ -238,10 +278,10 @@ function CurrentWorkoutCard({
           <p className="text-purple-500 text-xs mt-2">
             {workoutAlreadyCompletedToday
               ? language === "pt"
-                ? "Concluido hoje"
+                ? "Concluído hoje"
                 : "Completed today"
               : language === "pt"
-                ? "Faca este treino agora"
+                ? "Faça este treino agora"
                 : "Do this workout now"}
           </p>
         </div>
@@ -256,7 +296,7 @@ function CurrentWorkoutCard({
           "
         >
           <p className="text-white/60 text-xs font-bold uppercase tracking-wide">
-            {language === "pt" ? "Proximo" : "Next"}
+            {language === "pt" ? "Próximo" : "Next"}
           </p>
 
           <h4 className="font-black mt-2 break-words">

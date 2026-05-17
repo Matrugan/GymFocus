@@ -54,6 +54,17 @@ function ProfileBadges({ profileId }) {
     });
   }
 
+  function getTranslatedBadge(badge) {
+    return translate(badge || "🏆 Achievement");
+  }
+
+  function getBadgeIcon(badge) {
+    const translatedBadge = getTranslatedBadge(badge);
+    const firstToken = translatedBadge.trim().split(" ")[0];
+
+    return firstToken || "🏆";
+  }
+
   if (loading) {
     return (
       <div
@@ -160,7 +171,7 @@ function ProfileBadges({ profileId }) {
 
           <div>
             <h2 className="text-2xl font-black">
-              {language === "pt" ? "Insignias" : "Badges"}
+              {language === "pt" ? "Insígnias" : "Badges"}
             </h2>
 
             <p className="text-zinc-500 text-sm">
@@ -221,12 +232,12 @@ function ProfileBadges({ profileId }) {
           </div>
 
           <h3 className="text-xl font-black">
-            {language === "pt" ? "Nenhuma insignia ainda" : "No badges yet"}
+            {language === "pt" ? "Nenhuma insígnia ainda" : "No badges yet"}
           </h3>
 
           <p className="text-zinc-500 text-sm mt-2">
             {language === "pt"
-              ? "Complete treinos e desafios para desbloquear insignias."
+              ? "Complete treinos e desafios para desbloquear insígnias."
               : "Complete workouts and challenges to unlock badges."}
           </p>
         </div>
@@ -285,7 +296,7 @@ function ProfileBadges({ profileId }) {
                   shrink-0
                 "
               >
-                {badge.badge?.split(" ")[0] || "🏆"}
+                {getBadgeIcon(badge.badge)}
               </div>
 
               <div className="min-w-0 flex-1">
@@ -296,7 +307,7 @@ function ProfileBadges({ profileId }) {
                   "
                 >
                   {badge.badge
-                    ? translate(badge.badge)
+                    ? getTranslatedBadge(badge.badge)
                     : language === "pt"
                       ? "Conquista"
                       : "Achievement"}

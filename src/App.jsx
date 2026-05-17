@@ -7,6 +7,7 @@ import Auth from "./pages/Auth";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import AppSplash from "./components/layout/AppSplash";
 import { useAuth } from "./context/AuthContext";
+import { workoutTimerNotification } from "./utils/workoutTimerNotification";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -67,6 +68,14 @@ function RootRoute() {
 
 function App() {
   const isNative = Capacitor.isNativePlatform();
+
+  useEffect(() => {
+    if (!isNative) return;
+
+    void workoutTimerNotification.scheduleDailyReminders().catch(() => {
+      // The user can deny notification permission; the app should keep opening normally.
+    });
+  }, [isNative]);
 
   return (
     <>

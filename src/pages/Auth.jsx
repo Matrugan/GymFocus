@@ -43,8 +43,8 @@ const goalOptions = [
 
 const levelOptions = [
   { id: "beginner", pt: "Iniciante", en: "Beginner" },
-  { id: "intermediate", pt: "Intermediario", en: "Intermediate" },
-  { id: "advanced", pt: "Avancado", en: "Advanced" },
+  { id: "intermediate", pt: "Intermediário", en: "Intermediate" },
+  { id: "advanced", pt: "Avançado", en: "Advanced" },
 ];
 
 const starterTemplateTitles = [
@@ -58,7 +58,7 @@ function getUsernameError(username, language) {
   const trimmedUsername = username.trim();
 
   if (!trimmedUsername) {
-    return language === "pt" ? "Username obrigatorio." : "Username is required.";
+    return language === "pt" ? "Username obrigatório." : "Username is required.";
   }
 
   if (trimmedUsername.length < 3) {
@@ -69,13 +69,13 @@ function getUsernameError(username, language) {
 
   if (/\s/.test(trimmedUsername)) {
     return language === "pt"
-      ? "Username nao pode ter espacos."
+      ? "Username não pode ter espaços."
       : "Username cannot contain spaces.";
   }
 
   if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
     return language === "pt"
-      ? "Use apenas letras, numeros e underline."
+      ? "Use apenas letras, números e underline."
       : "Use only letters, numbers and underscores.";
   }
 
@@ -108,7 +108,7 @@ function getPasswordStrength(password, language) {
 
   if (score <= 2) {
     return {
-      label: language === "pt" ? "Senha media" : "Medium password",
+      label: language === "pt" ? "Senha média" : "Medium password",
       score: 2,
       tone: "bg-amber-500",
     };
@@ -159,7 +159,7 @@ function Auth({ siteMode = false }) {
 
   const heroCopy =
     language === "pt"
-      ? ["Treine mais forte.", "Acompanhe sua evolucao.", "Compita socialmente."]
+      ? ["Treine mais forte.", "Acompanhe sua evolução.", "Compita socialmente."]
       : ["Train harder.", "Track progress.", "Compete socially."];
 
   const starterTemplates = useMemo(() => {
@@ -181,7 +181,7 @@ function Auth({ siteMode = false }) {
     },
     {
       icon: <Flame size={18} />,
-      label: language === "pt" ? "Sequencia" : "Streak",
+      label: language === "pt" ? "Sequência" : "Streak",
       value: language === "pt" ? "12 dias" : "12 days",
       tone: "from-orange-400 to-rose-500",
     },
@@ -202,7 +202,7 @@ function Auth({ siteMode = false }) {
   const signupSteps = [
     language === "pt" ? "Conta" : "Account",
     language === "pt" ? "Objetivo" : "Goal",
-    language === "pt" ? "Nivel" : "Level",
+    language === "pt" ? "Nível" : "Level",
     language === "pt" ? "Treino" : "Workout",
   ];
 
@@ -264,7 +264,7 @@ function Auth({ siteMode = false }) {
           setUsernameStatus("invalid");
           setUsernameFeedback(
             language === "pt"
-              ? "Nao foi possivel verificar o username."
+              ? "Não foi possível verificar o username."
               : "Could not check this username.",
           );
           return;
@@ -275,7 +275,7 @@ function Auth({ siteMode = false }) {
           setCheckedUsername(normalizedUsername);
           setUsernameFeedback(
             language === "pt"
-              ? "Esse username ja esta em uso."
+              ? "Esse username já está em uso."
               : "This username is already taken.",
           );
           return;
@@ -285,14 +285,14 @@ function Auth({ siteMode = false }) {
         setCheckedUsername(normalizedUsername);
         setUsernameFeedback(
           language === "pt"
-            ? "Username disponivel."
+            ? "Username disponível."
             : "Username available.",
         );
       } catch (error) {
         setUsernameStatus("invalid");
         setUsernameFeedback(
           language === "pt"
-            ? "Nao foi possivel verificar o username."
+            ? "Não foi possível verificar o username."
             : "Could not check this username.",
         );
         reportError(error, "Erro ao verificar username.");
@@ -314,7 +314,7 @@ function Auth({ siteMode = false }) {
       if (usernameStatus === "checking") {
         showError(
           language === "pt"
-            ? "Aguarde a verificacao do username."
+            ? "Aguarde a verificação do username."
             : "Wait for the username check.",
         );
         return false;
@@ -324,7 +324,7 @@ function Auth({ siteMode = false }) {
         showError(
           usernameFeedback ||
             (language === "pt"
-              ? "Escolha um username disponivel."
+              ? "Escolha um username disponível."
               : "Choose an available username."),
         );
         return false;
@@ -333,7 +333,7 @@ function Auth({ siteMode = false }) {
       if (checkedUsername !== normalizedUsername) {
         showError(
           language === "pt"
-            ? "Aguarde a verificacao do username."
+            ? "Aguarde a verificação do username."
             : "Wait for the username check.",
         );
         return false;
@@ -342,7 +342,7 @@ function Auth({ siteMode = false }) {
       if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
         showError(
           language === "pt"
-            ? "Preencha e-mail, senha e confirmacao."
+            ? "Preencha e-mail, senha e confirmação."
             : "Enter email, password and confirmation.",
         );
         return false;
@@ -360,7 +360,7 @@ function Auth({ siteMode = false }) {
       if (password !== confirmPassword) {
         showError(
           language === "pt"
-            ? "As senhas nao conferem."
+            ? "As senhas não conferem."
             : "Passwords do not match.",
         );
         return false;
@@ -392,7 +392,7 @@ function Auth({ siteMode = false }) {
     } catch (error) {
       const message =
         language === "pt"
-          ? "Nao foi possivel entrar com Google."
+          ? "Não foi possível entrar com Google."
           : "Could not sign in with Google.";
 
       setFormError(message);
@@ -462,14 +462,14 @@ function Auth({ siteMode = false }) {
 
         toast.success(
           language === "pt"
-            ? "Enviamos um link de recuperacao para seu e-mail."
+            ? "Enviamos um link de recuperação para seu e-mail."
             : "We sent a recovery link to your email.",
         );
         setAuthView("login");
       } catch (error) {
         const message =
           language === "pt"
-            ? "Nao foi possivel enviar o email de recuperacao."
+            ? "Não foi possível enviar o email de recuperação."
             : "Could not send the recovery email.";
 
         setFormError(message);
@@ -485,7 +485,7 @@ function Auth({ siteMode = false }) {
       if (!password.trim() || !confirmPassword.trim()) {
         showError(
           language === "pt"
-            ? "Preencha a nova senha e a confirmacao."
+            ? "Preencha a nova senha e a confirmação."
             : "Enter the new password and confirmation.",
         );
         return;
@@ -503,7 +503,7 @@ function Auth({ siteMode = false }) {
       if (password !== confirmPassword) {
         showError(
           language === "pt"
-            ? "As senhas nao conferem."
+            ? "As senhas não conferem."
             : "Passwords do not match.",
         );
         return;
@@ -529,7 +529,7 @@ function Auth({ siteMode = false }) {
       } catch (error) {
         const message =
           language === "pt"
-            ? "Nao foi possivel redefinir a senha."
+            ? "Não foi possível redefinir a senha."
             : "Could not update your password.";
 
         setFormError(message);
@@ -715,7 +715,7 @@ function Auth({ siteMode = false }) {
 
               <p className="mt-6 max-w-lg text-base leading-relaxed text-zinc-300">
                 {language === "pt"
-                  ? "Registre treinos, ganhe XP, acompanhe sequencias e dispute rankings com sua comunidade."
+                  ? "Registre treinos, ganhe XP, acompanhe sequências e dispute rankings com sua comunidade."
                   : "Log workouts, earn XP, track streaks and climb rankings with your community."}
               </p>
             </div>
@@ -1161,7 +1161,7 @@ function ResetPasswordFields({
       {confirmPassword && password !== confirmPassword && (
         <p className="-mt-2 text-xs font-bold text-red-500">
           {language === "pt"
-            ? "As senhas nao conferem."
+            ? "As senhas não conferem."
             : "Passwords do not match."}
         </p>
       )}
@@ -1288,7 +1288,7 @@ function SignupStep({
         {confirmPassword && password !== confirmPassword && (
           <p className="-mt-2 text-xs font-bold text-red-500">
             {language === "pt"
-              ? "As senhas nao conferem."
+              ? "As senhas não conferem."
               : "Passwords do not match."}
           </p>
         )}
@@ -1319,14 +1319,14 @@ function SignupStep({
       <ChoiceGrid
         description={
           language === "pt"
-            ? "Seu nivel define a complexidade do treino inicial."
+            ? "Seu nível define a complexidade do treino inicial."
             : "Your level defines the complexity of the starter workout."
         }
         icon={<Medal size={19} />}
         options={levelOptions}
         selected={level}
         setSelected={setLevel}
-        title={language === "pt" ? "Escolha seu nivel" : "Choose your level"}
+        title={language === "pt" ? "Escolha seu nível" : "Choose your level"}
         language={language}
       />
     );
@@ -1346,7 +1346,7 @@ function SignupStep({
           </h3>
           <p className="text-sm text-zinc-500">
             {language === "pt"
-              ? "Voce ja entra com um treino pronto para usar."
+              ? "Você já entra com um treino pronto para usar."
               : "You start with a ready-to-use workout plan."}
           </p>
         </div>
@@ -1392,7 +1392,7 @@ function SignupStep({
       {selectedTemplate && (
         <p className="mt-4 text-xs font-bold text-zinc-500">
           {selectedTemplate.exercises.length}{" "}
-          {language === "pt" ? "exercicios incluidos" : "exercises included"}
+          {language === "pt" ? "exercícios incluídos" : "exercises included"}
         </p>
       )}
     </div>

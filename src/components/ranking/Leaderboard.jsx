@@ -573,7 +573,7 @@ function Leaderboard() {
 
         <p className="text-sm">
           {language === "pt"
-            ? "Ganhe XP completando treinos, finalizando desafios e mantendo consistencia."
+            ? "Ganhe XP completando treinos, finalizando desafios e mantendo consistência."
             : "Earn XP by completing workouts, finishing challenges and staying consistent."}
         </p>
       </div>

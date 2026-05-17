@@ -340,7 +340,7 @@ export function AuthProvider({ children }) {
 
       return {
         error: {
-          message: "Nao foi possivel entrar com Google.",
+          message: "Não foi possível entrar com Google.",
         },
       };
     }
@@ -358,11 +358,11 @@ export function AuthProvider({ children }) {
     });
 
     if (error) {
-      reportError("Erro ao enviar recuperacao de senha:", error.message);
+      reportError("Erro ao enviar recuperação de senha:", error.message);
 
       return {
         error: {
-          message: "Nao foi possivel enviar o email de recuperacao.",
+          message: "Não foi possível enviar o email de recuperação.",
         },
       };
     }
@@ -382,7 +382,7 @@ export function AuthProvider({ children }) {
 
       return {
         error: {
-          message: "Nao foi possivel redefinir a senha.",
+          message: "Não foi possível redefinir a senha.",
         },
       };
     }

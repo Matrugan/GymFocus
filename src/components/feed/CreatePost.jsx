@@ -240,7 +240,7 @@ function CreatePost({ user, profile, onPostCreated }) {
                   ? "Enviando..."
                   : "Uploading..."
                 : language === "pt"
-                  ? "Upload concluido"
+                  ? "Upload concluído"
                   : "Upload complete"}
             </span>
 

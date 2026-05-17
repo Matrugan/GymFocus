@@ -85,7 +85,7 @@ function CommentSection({ postId, user, profile }) {
 
   async function deleteComment(commentId) {
     const confirmDelete = confirm(
-      language === "pt" ? "Excluir este comentario?" : "Delete this comment?",
+      language === "pt" ? "Excluir este comentário?" : "Delete this comment?",
     );
 
     if (!confirmDelete) return;

@@ -6,6 +6,12 @@ import {
   Loader2,
   ImagePlus,
   User,
+  Languages,
+  Moon,
+  Sun,
+  Settings,
+  Bell,
+  ShieldCheck,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
@@ -15,11 +21,17 @@ import {
   uploadProfileImage,
 } from "../../services/profileService";
 import { useLanguage } from "../../context/LanguageContext";
+import { useTheme } from "../../context/ThemeContext";
 
 function ProfileSettings({ profile, user, onProfileUpdated }) {
-  const { t, translate } = useLanguage();
+  const { language, setLanguage, t, translate } = useLanguage();
+  const { theme, setTheme } = useTheme();
 
   const [bio, setBio] = useState("");
+  const [localPreferences, setLocalPreferences] = useState({
+    progressTips: localStorage.getItem("gymfocus-progress-tips") !== "false",
+    simpleMode: localStorage.getItem("gymfocus-simple-mode") === "true",
+  });
 
   const [loadingAvatar, setLoadingAvatar] = useState(false);
 
@@ -181,6 +193,15 @@ function ProfileSettings({ profile, user, onProfileUpdated }) {
     setLoadingBio(false);
   }
 
+  function updateLocalPreference(key, value) {
+    setLocalPreferences((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    localStorage.setItem(`gymfocus-${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`, String(value));
+    window.dispatchEvent(new Event("gymfocus-preferences-updated"));
+  }
+
   return (
     <div
       className="
@@ -233,7 +254,7 @@ function ProfileSettings({ profile, user, onProfileUpdated }) {
             shrink-0
           "
         >
-          <User size={24} />
+          <Settings size={24} />
         </div>
 
         <div className="min-w-0">
@@ -245,7 +266,7 @@ function ProfileSettings({ profile, user, onProfileUpdated }) {
               break-words
             "
           >
-            {t("profile.settings")}
+            {translate("Settings")}
           </h2>
 
           <p
@@ -258,11 +279,120 @@ function ProfileSettings({ profile, user, onProfileUpdated }) {
               dark:text-zinc-400
             "
           >
-            {translate("Customize your public fitness profile.")}
+            {language === "pt"
+              ? "Organize seu perfil, idioma, aparência e preferências do app."
+              : "Manage profile, language, appearance and app preferences."}
           </p>
         </div>
       </div>
 
+      <SettingsSection
+        icon={<Languages size={20} />}
+        title={language === "pt" ? "Idioma e aparência" : "Language and appearance"}
+        description={
+          language === "pt"
+            ? "Escolha como o app aparece para você."
+            : "Choose how the app looks and reads for you."
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-2xl bg-white border border-zinc-200 p-4 dark:bg-black/30 dark:border-white/10">
+            <p className="text-sm font-black mb-3">
+              {language === "pt" ? "Idioma" : "Language"}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <SegmentButton
+                active={language === "pt"}
+                onClick={() => setLanguage("pt")}
+                text="Português"
+              />
+              <SegmentButton
+                active={language === "en"}
+                onClick={() => setLanguage("en")}
+                text="English"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white border border-zinc-200 p-4 dark:bg-black/30 dark:border-white/10">
+            <p className="text-sm font-black mb-3">
+              {language === "pt" ? "Tema" : "Theme"}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <SegmentButton
+                active={theme === "light"}
+                icon={<Sun size={17} />}
+                onClick={() => setTheme("light")}
+                text={language === "pt" ? "Claro" : "Light"}
+              />
+              <SegmentButton
+                active={theme === "dark"}
+                icon={<Moon size={17} />}
+                onClick={() => setTheme("dark")}
+                text={language === "pt" ? "Escuro" : "Dark"}
+              />
+            </div>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<Bell size={20} />}
+        title={language === "pt" ? "Preferências do app" : "App preferences"}
+        description={
+          language === "pt"
+            ? "Preferências salvas neste aparelho."
+            : "Preferences saved on this device."
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <PreferenceToggle
+            checked={localPreferences.progressTips}
+            description={
+              language === "pt"
+                ? "Salva sua preferência para dicas e resumos de evolução."
+                : "Saves your preference for progress tips and summaries."
+            }
+            label={language === "pt" ? "Dicas de progresso" : "Progress tips"}
+            onChange={(value) => updateLocalPreference("progressTips", value)}
+          />
+          <PreferenceToggle
+            checked={localPreferences.simpleMode}
+            description={
+              language === "pt"
+                ? "Deixa a navegação focada em Hoje, Treinos, Progresso e Medidas."
+                : "Keeps navigation focused on Today, Workouts, Progress and Measurements."
+            }
+            label={language === "pt" ? "Modo simples" : "Simple mode"}
+            onChange={(value) => updateLocalPreference("simpleMode", value)}
+          />
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<ShieldCheck size={20} />}
+        title={language === "pt" ? "Conta" : "Account"}
+        description={
+          language === "pt"
+            ? "Informações básicas da sua sessão."
+            : "Basic information about your session."
+        }
+      >
+        <div className="rounded-2xl bg-white border border-zinc-200 p-4 dark:bg-black/30 dark:border-white/10">
+          <p className="text-xs font-bold text-zinc-500 uppercase tracking-wide">
+            Email
+          </p>
+          <p className="font-black mt-1 break-words">
+            {user?.email || "-"}
+          </p>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<User size={20} />}
+        title={t("profile.settings")}
+        description={translate("Customize your public fitness profile.")}
+      >
       {/* BANNER */}
       <div
         className="
@@ -653,6 +783,107 @@ function ProfileSettings({ profile, user, onProfileUpdated }) {
           </button>
         </div>
       </div>
+      </SettingsSection>
+    </div>
+  );
+}
+
+function SettingsSection({ children, description, icon, title }) {
+  return (
+    <section
+      className="
+        bg-zinc-50
+        border
+        border-zinc-200
+        rounded-2xl
+        sm:rounded-3xl
+        p-4
+        sm:p-5
+        mb-6
+        sm:mb-8
+        min-w-0
+
+        dark:bg-black/30
+        dark:border-white/10
+      "
+    >
+      <div className="flex items-start gap-3 mb-5">
+        <div className="w-11 h-11 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-lg sm:text-xl font-black">{title}</h3>
+          <p className="text-zinc-500 text-sm mt-1">{description}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SegmentButton({ active, icon = null, onClick, text }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        px-4
+        py-3
+        rounded-2xl
+        border
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-2
+        transition
+        ${
+          active
+            ? "bg-purple-500 text-white border-purple-500"
+            : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:border-purple-500 dark:bg-white/5 dark:text-zinc-300 dark:border-white/10"
+        }
+      `}
+    >
+      {icon}
+      {text}
+    </button>
+  );
+}
+
+function PreferenceToggle({ checked, description, label, onChange }) {
+  return (
+    <div className="rounded-2xl bg-white border border-zinc-200 p-4 flex items-center justify-between gap-4 dark:bg-black/30 dark:border-white/10">
+      <div className="min-w-0">
+        <p className="font-black">{label}</p>
+        <p className="text-sm text-zinc-500 mt-1">{description}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`
+          w-14
+          h-8
+          rounded-full
+          p-1
+          shrink-0
+          transition
+          ${checked ? "bg-purple-500" : "bg-zinc-300 dark:bg-zinc-700"}
+        `}
+        aria-pressed={checked}
+      >
+        <span
+          className={`
+            block
+            w-6
+            h-6
+            rounded-full
+            bg-white
+            transition
+            ${checked ? "translate-x-6" : "translate-x-0"}
+          `}
+        />
+      </button>
     </div>
   );
 }

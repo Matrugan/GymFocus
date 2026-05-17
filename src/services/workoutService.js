@@ -162,15 +162,27 @@ export async function createCompletedWorkoutLogWithDuration(log) {
 
   if (
     result.error &&
-    ["started_at", "completed_at", "duration_seconds"].some((column) =>
+    [
+      "started_at",
+      "completed_at",
+      "duration_seconds",
+      "calories_burned",
+      "workout_type",
+      "distance_km",
+      "notes",
+    ].some((column) =>
       result.error.message?.includes(column),
     )
   ) {
     const legacyLog = { ...log };
 
     delete legacyLog.completed_at;
+    delete legacyLog.calories_burned;
     delete legacyLog.duration_seconds;
     delete legacyLog.started_at;
+    delete legacyLog.distance_km;
+    delete legacyLog.notes;
+    delete legacyLog.workout_type;
 
     result = await createWorkoutLog(legacyLog);
   }

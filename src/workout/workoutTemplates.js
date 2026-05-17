@@ -1,15 +1,15 @@
 ﻿export const workoutTemplates = [
   {
     title: "AB Iniciante",
-    description: "Treino AB simples para quem estÃ¡ comeÃ§ando.",
+    description: "Treino AB simples para quem está começando.",
     focuses: {
       "Treino A": "Superiores",
-      "Treino B": "Inferiores e AbdÃ´men",
+      "Treino B": "Inferiores e Abdômen",
     },
     exercises: [
       {
         workout_day: "Treino A",
-        name: "Supino mÃ¡quina",
+        name: "Supino máquina",
         sets: "3",
         reps: "10-12",
         load: "",
@@ -37,7 +37,7 @@
       },
       {
         workout_day: "Treino A",
-        name: "TrÃ­ceps pulley",
+        name: "Tríceps pulley",
         sets: "2",
         reps: "12",
         load: "",
@@ -84,14 +84,14 @@
     title: "ABC Iniciante",
     description: "Treino ABC com volume moderado para iniciantes.",
     focuses: {
-      "Treino A": "Peito, Ombros e TrÃ­ceps",
-      "Treino B": "Costas e BÃ­ceps",
-      "Treino C": "Pernas e AbdÃ´men",
+      "Treino A": "Peito, Ombros e Tríceps",
+      "Treino B": "Costas e Bíceps",
+      "Treino C": "Pernas e Abdômen",
     },
     exercises: [
       {
         workout_day: "Treino A",
-        name: "Supino mÃ¡quina",
+        name: "Supino máquina",
         sets: "3",
         reps: "10-12",
         load: "",
@@ -112,7 +112,7 @@
       },
       {
         workout_day: "Treino A",
-        name: "TrÃ­ceps pulley",
+        name: "Tríceps pulley",
         sets: "3",
         reps: "12",
         load: "",
@@ -177,7 +177,7 @@
       },
       {
         workout_day: "Treino C",
-        name: "Abdominal mÃ¡quina",
+        name: "Abdominal máquina",
         sets: "3",
         reps: "15",
         load: "",
@@ -188,9 +188,9 @@
     title: "ABC Hipertrofia",
     description: "Treino ABC focado em hipertrofia muscular.",
     focuses: {
-      "Treino A": "Peito e TrÃ­ceps",
-      "Treino B": "Costas e BÃ­ceps",
-      "Treino C": "Pernas e AbdÃ´men",
+      "Treino A": "Peito e Tríceps",
+      "Treino B": "Costas e Bíceps",
+      "Treino C": "Pernas e Abdômen",
     },
     exercises: [
       {
@@ -216,14 +216,14 @@
       },
       {
         workout_day: "Treino A",
-        name: "TrÃ­ceps corda",
+        name: "Tríceps corda",
         sets: "3",
         reps: "10-12",
         load: "",
       },
       {
         workout_day: "Treino A",
-        name: "TrÃ­ceps testa",
+        name: "Tríceps testa",
         sets: "3",
         reps: "10-12",
         load: "",
@@ -303,11 +303,11 @@
     ],
   },
   {
-    title: "ABC AvanÃ§ado",
+    title: "ABC Avançado",
     description: "Treino ABC com maior intensidade e volume.",
     focuses: {
-      "Treino A": "Peito, Ombros e TrÃ­ceps",
-      "Treino B": "Costas, TrapÃ©zio e BÃ­ceps",
+      "Treino A": "Peito, Ombros e Tríceps",
+      "Treino B": "Costas, Trapézio e Bíceps",
       "Treino C": "Pernas completas",
     },
     exercises: [
@@ -341,14 +341,14 @@
       },
       {
         workout_day: "Treino A",
-        name: "ElevaÃ§Ã£o lateral",
+        name: "Elevação lateral",
         sets: "4",
         reps: "12",
         load: "",
       },
       {
         workout_day: "Treino A",
-        name: "TrÃ­ceps francÃªs",
+        name: "Tríceps francês",
         sets: "3",
         reps: "10-12",
         load: "",
@@ -434,7 +434,7 @@
       },
       {
         workout_day: "Treino C",
-        name: "Panturrilha em pÃ©",
+        name: "Panturrilha em pé",
         sets: "5",
         reps: "12-15",
         load: "",
@@ -443,12 +443,12 @@
   },
   {
     title: "ABCD Normal",
-    description: "DivisÃ£o ABCD equilibrada para evoluÃ§Ã£o muscular.",
+    description: "Divisão ABCD equilibrada para evolução muscular.",
     focuses: {
-      "Treino A": "Peito e TrÃ­ceps",
-      "Treino B": "Costas e BÃ­ceps",
+      "Treino A": "Peito e Tríceps",
+      "Treino B": "Costas e Bíceps",
       "Treino C": "Pernas",
-      "Treino D": "Ombros e AbdÃ´men",
+      "Treino D": "Ombros e Abdômen",
     },
     exercises: [
       {
@@ -474,7 +474,7 @@
       },
       {
         workout_day: "Treino A",
-        name: "TrÃ­ceps pulley",
+        name: "Tríceps pulley",
         sets: "3",
         reps: "10-12",
         load: "",
@@ -547,7 +547,7 @@
       },
       {
         workout_day: "Treino D",
-        name: "ElevaÃ§Ã£o lateral",
+        name: "Elevação lateral",
         sets: "3",
         reps: "12",
         load: "",
@@ -569,13 +569,13 @@
     ],
   },
   {
-    title: "ABCD AvanÃ§ado",
-    description: "DivisÃ£o ABCD com maior volume e intensidade.",
+    title: "ABCD Avançado",
+    description: "Divisão ABCD com maior volume e intensidade.",
     focuses: {
       "Treino A": "Peito",
       "Treino B": "Costas",
       "Treino C": "Pernas",
-      "Treino D": "Ombros e BraÃ§os",
+      "Treino D": "Ombros e Braços",
     },
     exercises: [
       {
@@ -674,7 +674,7 @@
       },
       {
         workout_day: "Treino D",
-        name: "ElevaÃ§Ã£o lateral",
+        name: "Elevação lateral",
         sets: "4",
         reps: "12",
         load: "",
@@ -695,14 +695,14 @@
       },
       {
         workout_day: "Treino D",
-        name: "TrÃ­ceps testa",
+        name: "Tríceps testa",
         sets: "3",
         reps: "8-10",
         load: "",
       },
       {
         workout_day: "Treino D",
-        name: "TrÃ­ceps corda",
+        name: "Tríceps corda",
         sets: "3",
         reps: "12",
         load: "",
@@ -710,14 +710,14 @@
     ],
   },
   {
-    title: "ABCDE AvanÃ§ado",
-    description: "Treino ABCDE com foco especÃ­fico por grupo muscular.",
+    title: "ABCDE Avançado",
+    description: "Treino ABCDE com foco específico por grupo muscular.",
     focuses: {
       "Treino A": "Peito",
       "Treino B": "Costas",
       "Treino C": "Pernas",
       "Treino D": "Ombros",
-      "Treino E": "BraÃ§os e AbdÃ´men",
+      "Treino E": "Braços e Abdômen",
     },
     exercises: [
       {
@@ -787,7 +787,7 @@
       },
       {
         workout_day: "Treino C",
-        name: "Panturrilha em pÃ©",
+        name: "Panturrilha em pé",
         sets: "5",
         reps: "12-15",
         load: "",
@@ -802,7 +802,7 @@
       },
       {
         workout_day: "Treino D",
-        name: "ElevaÃ§Ã£o lateral",
+        name: "Elevação lateral",
         sets: "4",
         reps: "12",
         load: "",
@@ -831,7 +831,7 @@
       },
       {
         workout_day: "Treino E",
-        name: "TrÃ­ceps testa",
+        name: "Tríceps testa",
         sets: "4",
         reps: "8-10",
         load: "",
@@ -861,7 +861,7 @@
       },
       {
         workout_day: "Full Body",
-        name: "Supino mÃ¡quina",
+        name: "Supino máquina",
         sets: "3",
         reps: "10-12",
         load: "",
@@ -897,7 +897,7 @@
     ],
   },
   {
-    title: "Full Body IntermediÃ¡rio",
+    title: "Full Body Intermediário",
     description: "Treino de corpo inteiro com volume moderado.",
     focuses: {
       "Full Body": "Corpo inteiro e condicionamento",
@@ -947,7 +947,7 @@
       },
       {
         workout_day: "Full Body",
-        name: "TrÃ­ceps pulley",
+        name: "Tríceps pulley",
         sets: "3",
         reps: "12",
         load: "",
@@ -963,10 +963,10 @@
   },
   {
     title: "PPL - Push Pull Legs",
-    description: "DivisÃ£o Push, Pull e Legs.",
+    description: "Divisão Push, Pull e Legs.",
     focuses: {
-      "Treino A": "Push - Peito, Ombros e TrÃ­ceps",
-      "Treino B": "Pull - Costas e BÃ­ceps",
+      "Treino A": "Push - Peito, Ombros e Tríceps",
+      "Treino B": "Pull - Costas e Bíceps",
       "Treino C": "Legs - Pernas",
     },
     exercises: [
@@ -986,14 +986,14 @@
       },
       {
         workout_day: "Treino A",
-        name: "ElevaÃ§Ã£o lateral",
+        name: "Elevação lateral",
         sets: "3",
         reps: "12",
         load: "",
       },
       {
         workout_day: "Treino A",
-        name: "TrÃ­ceps corda",
+        name: "Tríceps corda",
         sets: "3",
         reps: "10-12",
         load: "",
@@ -1051,7 +1051,7 @@
       },
       {
         workout_day: "Treino C",
-        name: "Panturrilha em pÃ©",
+        name: "Panturrilha em pé",
         sets: "4",
         reps: "12-15",
         load: "",
@@ -1059,8 +1059,8 @@
     ],
   },
   {
-    title: "PPL AvanÃ§ado",
-    description: "Push Pull Legs com maior volume para praticantes avanÃ§ados.",
+    title: "PPL Avançado",
+    description: "Push Pull Legs com maior volume para praticantes avançados.",
     focuses: {
       "Treino A": "Push pesado",
       "Treino B": "Pull pesado",
@@ -1090,14 +1090,14 @@
       },
       {
         workout_day: "Treino A",
-        name: "ElevaÃ§Ã£o lateral",
+        name: "Elevação lateral",
         sets: "4",
         reps: "12-15",
         load: "",
       },
       {
         workout_day: "Treino A",
-        name: "TrÃ­ceps testa",
+        name: "Tríceps testa",
         sets: "4",
         reps: "8-10",
         load: "",
@@ -1169,7 +1169,7 @@
       },
       {
         workout_day: "Treino C",
-        name: "Panturrilha em pÃ©",
+        name: "Panturrilha em pé",
         sets: "5",
         reps: "12-15",
         load: "",
@@ -1178,9 +1178,9 @@
   },
   {
     title: "Emagrecimento e Condicionamento",
-    description: "Treino com musculaÃ§Ã£o e exercÃ­cios metabÃ³licos.",
+    description: "Treino com musculação e exercícios metabólicos.",
     focuses: {
-      "Treino A": "ForÃ§a geral",
+      "Treino A": "Força geral",
       "Treino B": "Condicionamento",
       "Treino C": "Pernas e Core",
     },
@@ -1194,7 +1194,7 @@
       },
       {
         workout_day: "Treino A",
-        name: "Supino mÃ¡quina",
+        name: "Supino máquina",
         sets: "3",
         reps: "12",
         load: "",

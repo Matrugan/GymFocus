@@ -112,7 +112,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
     }
 
     if (challenge.type === "streak") {
-      return `Sequencia de ${challenge.target} dias`;
+      return `Sequência de ${challenge.target} dias`;
     }
 
     if (challenge.type === "xp") {
@@ -132,7 +132,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
     }
 
     if (challenge.type === "streak") {
-      return `Mantenha uma sequencia de ${challenge.target} dias para concluir este desafio.`;
+      return `Mantenha uma sequência de ${challenge.target} dias para concluir este desafio.`;
     }
 
     if (challenge.type === "xp") {
@@ -211,7 +211,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
 
     toast.success(
       language === "pt"
-        ? `Desafio concluido! +${challenge.xp_reward} XP`
+        ? `Desafio concluído! +${challenge.xp_reward} XP`
         : `Challenge completed! +${challenge.xp_reward} XP`,
     );
 
@@ -659,7 +659,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
                       font-bold
                     "
                   >
-                    {language === "pt" ? "Concluido" : "Completed"}
+                    {language === "pt" ? "Concluído" : "Completed"}
                   </span>
                 )}
               </div>
@@ -689,7 +689,7 @@ function Challenges({ user, profile, onProfileUpdated }) {
           "
         >
           {language === "pt"
-            ? "Nenhum desafio disponivel ainda."
+            ? "Nenhum desafio disponível ainda."
             : "No challenges available yet."}
         </div>
       )}

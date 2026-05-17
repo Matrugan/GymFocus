@@ -66,6 +66,19 @@ describe("workoutLogic", () => {
     expect(getCurrentWorkoutDay(exercisesABC, logs)).toBe("Treino C");
   });
 
+  it("advances after rest day", () => {
+    const logs = [
+      {
+        workout_day: "Treino A",
+        workout_date: "2026-05-14",
+        status: "rest",
+        created_at: "2026-05-14T10:00:00Z",
+      },
+    ];
+
+    expect(getCurrentWorkoutDay(exercisesABC, logs)).toBe("Treino B");
+  });
+
   it("returns to first workout after the last workout", () => {
     const logs = [
       {

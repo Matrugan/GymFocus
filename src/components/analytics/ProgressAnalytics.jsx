@@ -47,6 +47,7 @@ function ProgressAnalytics({ user }) {
   const [setLogs, setSetLogs] = useState([]);
   const [workoutLogs, setWorkoutLogs] = useState([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState("");
+  const [activeAnalyticsTab, setActiveAnalyticsTab] = useState("summary");
 
   const [loading, setLoading] = useState(true);
 
@@ -399,11 +400,11 @@ function ProgressAnalytics({ user }) {
       return {
         title:
           language === "pt"
-            ? `Aumente cerca de ${suggestedIncrease}kg na proxima vez`
+            ? `Aumente cerca de ${suggestedIncrease}kg na próxima vez`
             : `Increase about ${suggestedIncrease}kg next time`,
         description:
           language === "pt"
-            ? `Voce chegou ao topo da meta de repeticoes (${repsTarget.max}) sem falha. Tente um pequeno aumento de carga.`
+            ? `Você chegou ao topo da meta de repetições (${repsTarget.max}) sem falha. Tente um pequeno aumento de carga.`
             : `You reached the top of your rep target (${repsTarget.max}) without failure. Try a small load jump.`,
         tone: "up",
       };
@@ -545,6 +546,12 @@ function ProgressAnalytics({ user }) {
     : "rgba(9,9,11,0.12)";
 
   const tooltipText = isDark ? "#ffffff" : "#09090b";
+  const analyticsTabs = [
+    { id: "summary", label: language === "pt" ? "Resumo" : "Summary" },
+    { id: "strength", label: language === "pt" ? "Força" : "Strength" },
+    { id: "time", label: language === "pt" ? "Tempo" : "Time" },
+    { id: "records", label: language === "pt" ? "Recordes" : "Records" },
+  ];
 
   if (loading) {
     return (
@@ -764,6 +771,36 @@ function ProgressAnalytics({ user }) {
         />
       </div>
 
+      <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
+        {analyticsTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveAnalyticsTab(tab.id)}
+            className={`
+              shrink-0
+              rounded-xl
+              border
+              px-4
+              py-2
+              text-sm
+              font-black
+              transition
+
+              ${
+                activeAnalyticsTab === tab.id
+                  ? "border-transparent bg-zinc-950 text-white dark:bg-white dark:text-black"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-purple-500 dark:border-white/10 dark:bg-black/30 dark:text-zinc-300"
+              }
+            `}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeAnalyticsTab === "summary" && (
+        <>
       {/* CHART */}
       <MeasuredChartFrame
         className="
@@ -888,7 +925,11 @@ function ProgressAnalytics({ user }) {
           {translate("XP is logged from completed workouts and claimed challenge rewards.")}
         </p>
       </div>
+        </>
+      )}
 
+      {activeAnalyticsTab === "time" && (
+        <>
       {/* WORKOUT TIME */}
       <div
         className="
@@ -1045,7 +1086,11 @@ function ProgressAnalytics({ user }) {
           </>
         )}
       </div>
+        </>
+      )}
 
+      {activeAnalyticsTab === "strength" && (
+        <>
       {/* WORKOUT EVOLUTION */}
       <div
         className="
@@ -1302,7 +1347,11 @@ function ProgressAnalytics({ user }) {
           </>
         )}
       </div>
+        </>
+      )}
 
+      {activeAnalyticsTab === "records" && (
+        <>
       {/* RECORDS */}
       <div
         className="
@@ -1397,6 +1446,8 @@ function ProgressAnalytics({ user }) {
           </div>
         )}
       </div>
+        </>
+      )}
     </motion.div>
   );
 }

@@ -59,6 +59,17 @@ function Achievements({ user }) {
     });
   }
 
+  function getTranslatedBadge(badge) {
+    return translate(badge || "🏆 Achievement");
+  }
+
+  function getBadgeIcon(badge) {
+    const translatedBadge = getTranslatedBadge(badge);
+    const firstToken = translatedBadge.trim().split(" ")[0];
+
+    return firstToken || "🏆";
+  }
+
   if (loading) {
     return (
       <div
@@ -220,7 +231,7 @@ function Achievements({ user }) {
               "
             >
               {language === "pt"
-                ? "Insignias desbloqueadas na sua jornada fitness"
+                ? "Insígnias desbloqueadas na sua jornada fitness"
                 : "Badges unlocked through your fitness journey"}
             </p>
           </div>
@@ -307,7 +318,7 @@ function Achievements({ user }) {
             "
           >
             {language === "pt"
-              ? "Complete treinos, entre em desafios e ganhe XP para desbloquear sua primeira insignia."
+              ? "Complete treinos, entre em desafios e ganhe XP para desbloquear sua primeira insígnia."
               : "Complete workouts, join challenges and earn XP to unlock your first badge."}
           </p>
         </div>
@@ -384,7 +395,7 @@ function Achievements({ user }) {
                   shadow-purple-500/20
                 "
               >
-                {achievement.badge?.split(" ")[0] || "🏆"}
+                {getBadgeIcon(achievement.badge)}
               </div>
 
               <h3
@@ -395,7 +406,7 @@ function Achievements({ user }) {
                   break-words
                 "
               >
-                {translate(achievement.badge)}
+                {getTranslatedBadge(achievement.badge)}
               </h3>
 
               <div
@@ -470,7 +481,7 @@ function Achievements({ user }) {
 
         <p className="text-sm">
           {language === "pt"
-            ? "Conquistas sao desbloqueadas automaticamente quando voce atinge marcos importantes."
+            ? "Conquistas são desbloqueadas automaticamente quando você atinge marcos importantes."
             : "Achievements are unlocked automatically when you reach important milestones."}
         </p>
       </div>

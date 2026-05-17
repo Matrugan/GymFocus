@@ -66,7 +66,7 @@ function Download() {
 
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
             {language === "pt"
-              ? "O app Android esta preparado para entregar a experiencia completa: treino do dia, progresso, feed, chat, desafios e rankings."
+              ? "O app Android está preparado para entregar a experiência completa: treino do dia, progresso, feed, chat, desafios e rankings."
               : "The Android app is built for the full experience: daily workout, progress, feed, chat, challenges and rankings."}
           </p>
 
@@ -103,7 +103,7 @@ function Download() {
 
             <p className="mt-3 text-sm leading-relaxed text-zinc-300">
               {language === "pt"
-                ? "Baixe a versao beta para testes. Depois, este espaco pode apontar para a Play Store."
+                ? "Baixe a versão beta para testes. Depois, este espaço pode apontar para a Play Store."
                 : "Download the beta version for testing. Later, this area can point to the Play Store."}
             </p>
 
@@ -118,7 +118,7 @@ function Download() {
 
             <p className="mt-3 text-xs leading-relaxed text-zinc-400">
               {language === "pt"
-                ? "Arquivo beta para teste. Para publicacao final, substitua este link pela Play Store."
+                ? "Arquivo beta para teste. Para publicação final, substitua este link pela Play Store."
                 : "Beta file for testing. For the final release, replace this link with the Play Store."}
             </p>
           </div>
