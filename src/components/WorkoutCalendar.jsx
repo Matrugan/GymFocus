@@ -284,8 +284,6 @@ function WorkoutCalendar({ user }) {
     return getWorkoutStatus(day) === "rest";
   }).length;
 
-  const emptyDays = visibleMonthDates.length - completedDays - skippedDays - restDays;
-
   const locale = language === "pt" ? "pt-BR" : "en-US";
 
   const visibleMonthLabel = visibleMonth.toLocaleDateString(locale, {

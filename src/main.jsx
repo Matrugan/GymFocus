@@ -11,7 +11,7 @@ import { AuthProvider } from "./context/AuthContext";
 
 import { ThemeProvider } from "./context/ThemeContext";
 import { LanguageProvider } from "./context/LanguageContext";
-import { registerServiceWorker } from "./registerServiceWorker";
+import { cleanupServiceWorkers } from "./registerServiceWorker";
 
 import "./index.css";
 
@@ -40,4 +40,4 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   </React.StrictMode>
 );
 
-registerServiceWorker();
+cleanupServiceWorkers();

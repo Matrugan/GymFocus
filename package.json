@@ -8,7 +8,7 @@
     "build": "vite build",
     "android:add": "cap add android",
     "android:open": "cap open android",
-    "android:sync": "npm run build && cap sync android",
+    "android:sync": "vite build --mode android && cap sync android",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
