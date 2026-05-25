@@ -222,8 +222,35 @@ export function deleteWorkoutSetLogsForExerciseDate({
     .eq("workout_date", workoutDate);
 }
 
+export function deleteWorkoutSetLogsOutsideSetNumbers({
+  exerciseId,
+  setNumbers,
+  userId,
+  workoutDate,
+  workoutPlanId,
+}) {
+  return supabase
+    .from("workout_set_logs")
+    .delete()
+    .eq("user_id", userId)
+    .eq("workout_plan_id", workoutPlanId)
+    .eq("exercise_id", exerciseId)
+    .eq("workout_date", workoutDate)
+    .not("set_number", "in", `(${setNumbers.join(",")})`);
+}
+
 export function createWorkoutSetLogs(records) {
   return supabase.from("workout_set_logs").insert(records).select();
+}
+
+export function upsertWorkoutSetLogs(records) {
+  return supabase
+    .from("workout_set_logs")
+    .upsert(records, {
+      onConflict:
+        "user_id,workout_plan_id,exercise_id,workout_date,set_number",
+    })
+    .select();
 }
 
 export function subscribeToUserWorkoutLogs(userId, onChange) {

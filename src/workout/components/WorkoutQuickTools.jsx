@@ -12,10 +12,8 @@ import { useLanguage } from "../../context/LanguageContext";
 
 function WorkoutQuickTools({
   displayWorkoutDay,
-  alternativeWorkoutAlreadyCompletedToday = false,
   finishingWorkout,
   markRestDay,
-  nonTrainingDayAlreadyRecordedToday = false,
   restDaysAllowed = 2,
   restDaysUsed = 0,
   setSelectedWorkoutDay,
@@ -162,11 +160,7 @@ function WorkoutQuickTools({
 
           <button
             onClick={() => setShowAlternativeWorkouts((prev) => !prev)}
-            disabled={
-              alternativeWorkoutAlreadyCompletedToday ||
-              nonTrainingDayAlreadyRecordedToday ||
-              finishingWorkout
-            }
+            disabled={finishingWorkout}
             className="
               px-4
               py-3

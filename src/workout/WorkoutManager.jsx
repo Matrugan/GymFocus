@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Activity,
@@ -33,9 +33,8 @@ import {
   createWorkoutLog,
   createWorkoutPlanRecord,
   createWorkoutProgress,
-  createWorkoutSetLogs,
   deleteWorkoutExercise,
-  deleteWorkoutSetLogsForExerciseDate,
+  deleteWorkoutSetLogsOutsideSetNumbers,
   fetchActiveWorkoutPlans,
   fetchArchivedWorkoutPlans,
   fetchDailyWorkoutProgress,
@@ -46,6 +45,7 @@ import {
   updateWorkoutExercise,
   updateWorkoutPlanRecord,
   updateWorkoutProgress,
+  upsertWorkoutSetLogs,
 } from "../services/workoutService";
 import { unlockAchievement } from "../utils/achievementSystem";
 import { logXP } from "../utils/xpSystem";
@@ -69,6 +69,8 @@ import {
 } from "./workoutSequence";
 
 import { workoutTemplates } from "./workoutTemplates";
+
+const CARDIO_XP_REWARD = 50;
 
 const alternativeWorkoutOptions = [
   {
@@ -177,8 +179,35 @@ function calculateCaloriesBurned({
   return Math.max(1, Math.round(metCalories));
 }
 
+function parseSetLogNumber(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const normalizedValue = String(value).trim().replace(",", ".");
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const parsedValue = Number(normalizedValue);
+
+  return Number.isFinite(parsedValue) ? parsedValue : Number.NaN;
+}
+
+function parseDecimalInput(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const parsedValue = Number(String(value).trim().replace(",", "."));
+
+  return Number.isFinite(parsedValue) ? parsedValue : Number.NaN;
+}
+
 function WorkoutManager({ user, profile, onProfileUpdated }) {
   const { language, t, translate } = useLanguage();
+  const profileRef = useRef(profile);
 
   const [plans, setPlans] = useState([]);
   const [archivedPlans, setArchivedPlans] = useState([]);
@@ -260,6 +289,20 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   const workoutFilterOptions = ["Todos", ...workoutDayOptions];
 
   useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+
+  function updateLocalProfile(updates) {
+    const updatedProfile = {
+      ...(profileRef.current || profile || {}),
+      ...updates,
+    };
+
+    profileRef.current = updatedProfile;
+    onProfileUpdated?.(updatedProfile);
+  }
+
+  useEffect(() => {
     if (user?.id) {
       getWorkoutData();
       getLatestBodyMeasurement();
@@ -318,22 +361,35 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
       return (
         getWorkoutDateKey(log.workout_date) === today &&
-        logStatus === "completed"
+        logStatus === "completed" &&
+        !isCardioWorkoutLog(log)
       );
     }) || null
   );
 }
 
-  function isAlternativeWorkoutLog(log) {
+  function isCardioWorkoutLog(log) {
     const workoutType = String(log?.workout_type || "").toLowerCase();
     const workoutDay = String(log?.workout_day || "");
     const notes = String(log?.notes || "").toLowerCase();
 
     return (
-      ["cardio", "home"].includes(workoutType) ||
-      /\s-\s(Cardio|Casa|Home)$/i.test(workoutDay) ||
+      workoutType === "cardio" ||
+      /^Cardio$/i.test(workoutDay) ||
+      /\s-\sCardio$/i.test(workoutDay) ||
       notes.startsWith("cardio:")
     );
+  }
+
+  function isHomeWorkoutLog(log) {
+    const workoutType = String(log?.workout_type || "").toLowerCase();
+    const workoutDay = String(log?.workout_day || "");
+
+    return workoutType === "home" || /\s-\s(Casa|Home)$/i.test(workoutDay);
+  }
+
+  function isAlternativeWorkoutLog(log) {
+    return isCardioWorkoutLog(log) || isHomeWorkoutLog(log);
   }
 
   function getTodayGymCompletedLog(logs) {
@@ -350,6 +406,20 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     );
   }
 
+  function getTodayCardioCompletedLog(logs) {
+    return (
+      sortWorkoutLogs(logs).find((log) => {
+        const logStatus = log.status || "completed";
+
+        return (
+          getWorkoutDateKey(log.workout_date) === today &&
+          logStatus === "completed" &&
+          isCardioWorkoutLog(log)
+        );
+      }) || null
+    );
+  }
+
   function getTodayAlternativeCompletedLog(logs) {
     return (
       sortWorkoutLogs(logs).find((log) => {
@@ -358,7 +428,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
         return (
           getWorkoutDateKey(log.workout_date) === today &&
           logStatus === "completed" &&
-          isAlternativeWorkoutLog(log)
+          isHomeWorkoutLog(log)
         );
       }) || null
     );
@@ -434,7 +504,10 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setWorkoutLogs(loadedLogs);
 
-    const currentDay = getCurrentWorkoutDay(loadedExercises, loadedLogs);
+    const currentDay = getCurrentWorkoutDay(
+      loadedExercises,
+      loadedLogs.filter((log) => !isCardioWorkoutLog(log)),
+    );
     const loadedTodayGymCompletedLog = getTodayGymCompletedLog(loadedLogs);
     const loadedTodayAlternativeCompletedLog =
       getTodayAlternativeCompletedLog(loadedLogs);
@@ -1038,13 +1111,21 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     return getTodayAlternativeCompletedLog(workoutLogs);
   }, [workoutLogs]);
 
+  const todayCardioCompletedLog = useMemo(() => {
+    return getTodayCardioCompletedLog(workoutLogs);
+  }, [workoutLogs]);
+
   const workoutAlreadyCompletedToday = Boolean(todayGymCompletedLog);
   const alternativeWorkoutAlreadyCompletedToday = Boolean(
     todayAlternativeCompletedLog,
   );
+  const cardioWorkoutAlreadyCompletedToday = Boolean(todayCardioCompletedLog);
 
   const currentWorkoutDay = useMemo(() => {
-    return getCurrentWorkoutDay(exercises, workoutLogs);
+    return getCurrentWorkoutDay(
+      exercises,
+      workoutLogs.filter((log) => !isCardioWorkoutLog(log)),
+    );
   }, [exercises, workoutLogs]);
 
   const completedWorkoutDayToday = todayGymCompletedLog?.workout_day || null;
@@ -1081,7 +1162,11 @@ const lastCompletedWorkoutLog = useMemo(() => {
     workoutLogs.find((log) => {
       const logStatus = log.status || "completed";
 
-      return log.workout_date !== today && logStatus === "completed";
+      return (
+        log.workout_date !== today &&
+        logStatus === "completed" &&
+        !isCardioWorkoutLog(log)
+      );
     }) || null
   );
 }, [workoutLogs, today]);
@@ -1095,7 +1180,10 @@ const displayNextWorkoutDay = useMemo(() => {
   const todayWorkoutLog = useMemo(() => {
     return (
       sortWorkoutLogs(workoutLogs).find((log) => {
-        return getWorkoutDateKey(log.workout_date) === today;
+        return (
+          getWorkoutDateKey(log.workout_date) === today &&
+          !isCardioWorkoutLog(log)
+        );
       }) || null
     );
   }, [workoutLogs, today]);
@@ -1167,7 +1255,7 @@ const displayNextWorkoutDay = useMemo(() => {
       return !logsForDate.some((log) => {
         const status = log.status || "completed";
 
-        return status === "completed";
+        return status === "completed" && !isCardioWorkoutLog(log);
       });
     }).length;
   }
@@ -1729,13 +1817,14 @@ const displayNextWorkoutDay = useMemo(() => {
     );
     const dayAlreadyHadCompletedWorkout = Boolean(todayCompletedLog);
     const xpToAdd = dayAlreadyHadCompletedWorkout ? 50 : 100;
-    const newXP = (profile?.xp || 0) + xpToAdd;
+    const currentProfile = profileRef.current || profile || {};
+    const newXP = (currentProfile?.xp || 0) + xpToAdd;
     const newStreak =
       dayAlreadyHadCompletedWorkout
-        ? profile?.streak || 0
+        ? currentProfile?.streak || 0
         : missedDaysBeforeToday > 2
           ? 1
-          : (profile?.streak || 0) + 1;
+          : (currentProfile?.streak || 0) + 1;
 
     const { error: profileError } = await updateProfileStats(user.id, {
       xp: newXP,
@@ -1764,8 +1853,7 @@ const displayNextWorkoutDay = useMemo(() => {
       await unlockAchievement(user.id, "👑 10K XP");
     }
 
-    onProfileUpdated?.({
-      ...profile,
+    updateLocalProfile({
       xp: newXP,
       streak: newStreak,
     });
@@ -1792,6 +1880,99 @@ const displayNextWorkoutDay = useMemo(() => {
       });
 
     clearWorkoutTimer();
+    setFinishingWorkout(false);
+  }
+
+  async function recordCardioWorkout({
+    cardioType,
+    distanceKm = null,
+    durationSeconds,
+  }) {
+    if (!activePlan) return;
+
+    if (cardioWorkoutAlreadyCompletedToday) {
+      toast.error(
+        language === "pt"
+          ? "O cardio de hoje já foi registrado."
+          : "Today's cardio is already logged.",
+      );
+      return;
+    }
+
+    setFinishingWorkout(true);
+
+    const finishedAt = new Date();
+    const startedAtDate = new Date(
+      finishedAt.getTime() - durationSeconds * 1000,
+    );
+    const caloriesBurned = calculateCaloriesBurned({
+      cardioType,
+      distanceKm,
+      durationSeconds,
+      latestBodyMeasurement,
+      profile,
+      workoutType: "cardio",
+    });
+    const cardioLogPayload = {
+      user_id: user.id,
+      workout_plan_id: activePlan.id,
+      workout_day: "Cardio",
+      workout_date: today,
+      calories_burned: caloriesBurned,
+      status: "completed",
+      started_at: startedAtDate.toISOString(),
+      completed_at: finishedAt.toISOString(),
+      duration_seconds: durationSeconds,
+      workout_type: "cardio",
+      distance_km: distanceKm,
+      notes:
+        language === "pt"
+          ? `Cardio: ${cardioType}.`
+          : `Cardio: ${cardioType}.`,
+    };
+
+    const { data: insertedLog, error } =
+      await createCompletedWorkoutLogWithDuration(cardioLogPayload);
+
+    if (error) {
+      reportError(error, translate("Error completing workout."));
+      setFinishingWorkout(false);
+      return;
+    }
+
+    setWorkoutLogs((prev) => [insertedLog, ...prev]);
+
+    const currentProfile = profileRef.current || profile || {};
+    const newXP = (currentProfile?.xp || 0) + CARDIO_XP_REWARD;
+    const { error: profileError } = await updateProfileStats(user.id, {
+      xp: newXP,
+    });
+
+    if (profileError) {
+      reportError(profileError, translate("Error updating profile."));
+      setFinishingWorkout(false);
+      return;
+    }
+
+    await logXP(user.id, CARDIO_XP_REWARD, "cardio");
+
+    if (newXP >= 1000) {
+      await unlockAchievement(user.id, "🏆 1000 XP");
+    }
+
+    if (newXP >= 10000) {
+      await unlockAchievement(user.id, "👑 10K XP");
+    }
+
+    updateLocalProfile({
+      xp: newXP,
+    });
+
+    toast.success(
+      language === "pt"
+        ? `Cardio registrado! ${caloriesBurned} kcal estimadas. +${CARDIO_XP_REWARD} XP`
+        : `Cardio logged! ${caloriesBurned} estimated kcal. +${CARDIO_XP_REWARD} XP`,
+    );
     setFinishingWorkout(false);
   }
 
@@ -1834,9 +2015,9 @@ const displayNextWorkoutDay = useMemo(() => {
 
     if (option.id === "cardio") {
       const cardioType = cardioLogForm.type.trim();
-      const durationMinutes = Number(cardioLogForm.durationMinutes);
+      const durationMinutes = parseDecimalInput(cardioLogForm.durationMinutes);
       const distanceKm = cardioLogForm.distanceKm
-        ? Number(String(cardioLogForm.distanceKm).replace(",", "."))
+        ? parseDecimalInput(cardioLogForm.distanceKm)
         : null;
 
       if (!cardioType) {
@@ -1867,18 +2048,28 @@ const displayNextWorkoutDay = useMemo(() => {
       }
 
       durationSeconds = Math.round(durationMinutes * 60);
-      extraLogFields = {
-        workout_type: "cardio",
-        distance_km: distanceKm,
-        notes:
-          language === "pt"
-            ? `Cardio: ${cardioType}. Duração: ${durationMinutes} min${
-                distanceKm ? `. Distância: ${distanceKm} km` : ""
-              }.`
-            : `Cardio: ${cardioType}. Duration: ${durationMinutes} min${
-                distanceKm ? `. Distance: ${distanceKm} km` : ""
-              }.`,
-      };
+
+      const confirmCardio = confirm(
+        language === "pt"
+          ? `Registrar cardio de ${durationMinutes} min? Ele ficará separado da musculação.`
+          : `Log ${durationMinutes} min of cardio? It will stay separate from strength training.`,
+      );
+
+      if (!confirmCardio) return;
+
+      await recordCardioWorkout({
+        cardioType,
+        distanceKm,
+        durationSeconds,
+      });
+
+      setCardioLogForm({
+        type: "",
+        durationMinutes: "",
+        distanceKm: "",
+      });
+      setShowAlternativeWorkouts(false);
+      return;
     }
 
     const confirmAlternative = confirm(
@@ -1891,8 +2082,6 @@ const displayNextWorkoutDay = useMemo(() => {
 
     await recordCompletedWorkout({
       durationSecondsOverride: durationSeconds,
-      cardioType: option.id === "cardio" ? cardioLogForm.type.trim() : "",
-      distanceKm: option.id === "cardio" ? distanceKm : null,
       extraLogFields,
       isAlternative: true,
       successLabel: title,
@@ -2309,8 +2498,8 @@ const displayNextWorkoutDay = useMemo(() => {
         exercise_id: exercise.id,
         workout_date: today,
         set_number: index + 1,
-        reps: setRow.reps === "" ? null : Number(setRow.reps),
-        load: setRow.load === "" ? null : Number(setRow.load),
+        reps: parseSetLogNumber(setRow.reps),
+        load: parseSetLogNumber(setRow.load),
         difficulty: form.difficulty,
         notes: form.notes?.trim() || null,
       }))
@@ -2324,7 +2513,9 @@ const displayNextWorkoutDay = useMemo(() => {
     const hasInvalidNumbers = validSets.some((setRow) => {
       const hasInvalidReps =
         setRow.reps !== null &&
-        (!Number.isFinite(setRow.reps) || setRow.reps < 0);
+        (!Number.isFinite(setRow.reps) ||
+          !Number.isInteger(setRow.reps) ||
+          setRow.reps < 0);
       const hasInvalidLoad =
         setRow.load !== null &&
         (!Number.isFinite(setRow.load) || setRow.load < 0);
@@ -2339,8 +2530,18 @@ const displayNextWorkoutDay = useMemo(() => {
 
     setSavingSetLogs(true);
 
-    const { error: deleteError } = await deleteWorkoutSetLogsForExerciseDate({
+    const { data, error } = await upsertWorkoutSetLogs(validSets);
+
+    if (error) {
+      reportError(error, translate("Error saving set logs."));
+      setSavingSetLogs(false);
+      return;
+    }
+
+    const savedSetNumbers = validSets.map((setRow) => setRow.set_number);
+    const { error: deleteError } = await deleteWorkoutSetLogsOutsideSetNumbers({
       exerciseId: exercise.id,
+      setNumbers: savedSetNumbers,
       userId: user.id,
       workoutDate: today,
       workoutPlanId: activePlan.id,
@@ -2348,14 +2549,6 @@ const displayNextWorkoutDay = useMemo(() => {
 
     if (deleteError) {
       reportError(deleteError, translate("Error updating set logs."));
-      setSavingSetLogs(false);
-      return;
-    }
-
-    const { data, error } = await createWorkoutSetLogs(validSets);
-
-    if (error) {
-      reportError(error, translate("Error saving set logs."));
       setSavingSetLogs(false);
       return;
     }
@@ -2369,7 +2562,7 @@ const displayNextWorkoutDay = useMemo(() => {
         (log) =>
           !(
             log.exercise_id === exercise.id &&
-            log.workout_date === today &&
+            getWorkoutDateKey(log.workout_date) === today &&
             log.workout_plan_id === activePlan.id
           ),
       );
@@ -2864,15 +3057,9 @@ const displayNextWorkoutDay = useMemo(() => {
           />
 
           <WorkoutQuickTools
-            alternativeWorkoutAlreadyCompletedToday={
-              alternativeWorkoutAlreadyCompletedToday
-            }
             displayWorkoutDay={displayWorkoutDay}
             finishingWorkout={finishingWorkout}
             markRestDay={markRestDay}
-            nonTrainingDayAlreadyRecordedToday={
-              nonTrainingDayAlreadyRecordedToday
-            }
             restDaysAllowed={2}
             restDaysUsed={weeklyRestDaysUsed}
             setSelectedWorkoutDay={setSelectedWorkoutDay}
@@ -3054,8 +3241,10 @@ const displayNextWorkoutDay = useMemo(() => {
                         type="button"
                         onClick={() => completeAlternativeWorkout(option)}
                         disabled={
-                          alternativeWorkoutAlreadyCompletedToday ||
-                          nonTrainingDayAlreadyRecordedToday ||
+                          (option.id === "cardio"
+                            ? cardioWorkoutAlreadyCompletedToday
+                            : alternativeWorkoutAlreadyCompletedToday ||
+                              nonTrainingDayAlreadyRecordedToday) ||
                           finishingWorkout
                         }
                         className="
@@ -3071,9 +3260,13 @@ const displayNextWorkoutDay = useMemo(() => {
                           transition
                         "
                       >
-                        {language === "pt"
-                          ? "Registrar como treino"
-                          : "Log as workout"}
+                        {option.id === "cardio"
+                          ? language === "pt"
+                            ? "Registrar cardio"
+                            : "Log cardio"
+                          : language === "pt"
+                            ? "Registrar como treino"
+                            : "Log as workout"}
                       </button>
                     </div>
                   );

@@ -46,6 +46,7 @@ function ProgressAnalytics({ user }) {
   const [exercises, setExercises] = useState([]);
   const [setLogs, setSetLogs] = useState([]);
   const [workoutLogs, setWorkoutLogs] = useState([]);
+  const [cardioLogs, setCardioLogs] = useState([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState("");
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState("summary");
 
@@ -169,6 +170,26 @@ function ProgressAnalytics({ user }) {
       setWorkoutLogs([]);
       setSelectedExerciseId("");
     }
+
+    const { data: cardioLogsData, error: cardioLogsError } = await supabase
+      .from("workout_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "completed")
+      .or("workout_type.eq.cardio,workout_day.eq.Cardio,workout_day.ilike.%Cardio")
+      .order("workout_date", {
+        ascending: false,
+      })
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(120);
+
+    if (cardioLogsError) {
+      reportError(cardioLogsError);
+    }
+
+    setCardioLogs(cardioLogsData || []);
 
     const last7Days = [...Array(7)].map((_, index) => {
       const date = new Date();
@@ -537,6 +558,70 @@ function ProgressAnalytics({ user }) {
     };
   }, [workoutLogs]);
 
+  const cardioStats = useMemo(() => {
+    const sessions = cardioLogs.map((log) => ({
+      ...log,
+      durationSeconds: getWorkoutDuration(log),
+      distanceKm: Number(log.distance_km) || 0,
+      caloriesBurned: Number(log.calories_burned) || 0,
+    }));
+    const totalSeconds = sessions.reduce(
+      (sum, log) => sum + log.durationSeconds,
+      0,
+    );
+    const totalDistanceKm = sessions.reduce(
+      (sum, log) => sum + log.distanceKm,
+      0,
+    );
+    const totalCalories = sessions.reduce(
+      (sum, log) => sum + log.caloriesBurned,
+      0,
+    );
+    const chartData = sessions
+      .slice(0, 14)
+      .reverse()
+      .map((log) => ({
+        date: formatWorkoutDate(getWorkoutDateKey(log.workout_date)).slice(
+          0,
+          5,
+        ),
+        distance: Number(log.distanceKm.toFixed(2)),
+        minutes: Number((log.durationSeconds / 60).toFixed(1)),
+      }));
+
+    return {
+      averageSeconds:
+        sessions.length > 0 ? Math.round(totalSeconds / sessions.length) : 0,
+      averagePaceSeconds:
+        totalDistanceKm > 0 ? Math.round(totalSeconds / totalDistanceKm) : 0,
+      chartData,
+      latestSessions: sessions.slice(0, 6),
+      sessions: sessions.length,
+      totalCalories,
+      totalDistanceKm,
+      totalSeconds,
+    };
+  }, [cardioLogs]);
+
+  function formatDistance(km) {
+    return `${Number(km || 0).toFixed(2)} km`;
+  }
+
+  function formatPace(secondsPerKm) {
+    if (!secondsPerKm) {
+      return "-";
+    }
+
+    return `${formatWorkoutDuration(secondsPerKm)}/km`;
+  }
+
+  function getCardioType(log) {
+    const notes = String(log?.notes || "");
+    const match = notes.match(/Cardio:\s*([^.]*)/i);
+
+    return match?.[1]?.trim() || (language === "pt" ? "Cardio" : "Cardio");
+  }
+
   const axisColor = isDark ? "#a1a1aa" : "#71717a";
 
   const tooltipBackground = isDark ? "#09090b" : "#ffffff";
@@ -549,6 +634,7 @@ function ProgressAnalytics({ user }) {
   const analyticsTabs = [
     { id: "summary", label: language === "pt" ? "Resumo" : "Summary" },
     { id: "strength", label: language === "pt" ? "Força" : "Strength" },
+    { id: "cardio", label: "Cardio" },
     { id: "time", label: language === "pt" ? "Tempo" : "Time" },
     { id: "records", label: language === "pt" ? "Recordes" : "Records" },
   ];
@@ -924,6 +1010,233 @@ function ProgressAnalytics({ user }) {
         <p className="text-sm">
           {translate("XP is logged from completed workouts and claimed challenge rewards.")}
         </p>
+      </div>
+        </>
+      )}
+
+      {activeAnalyticsTab === "cardio" && (
+        <>
+      <div
+        className="
+          mt-6
+          bg-zinc-50
+          border
+          border-zinc-200
+          rounded-2xl
+          sm:rounded-3xl
+          p-4
+          sm:p-5
+
+          dark:bg-black/30
+          dark:border-white/10
+        "
+      >
+        <div
+          className="
+            flex
+            flex-col
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+            gap-4
+            mb-5
+          "
+        >
+          <div>
+            <h3 className="font-black text-lg sm:text-xl">
+              {language === "pt" ? "Analise de cardio" : "Cardio analytics"}
+            </h3>
+
+            <p className="text-zinc-500 text-sm mt-1">
+              {language === "pt"
+                ? "Duracao, distancia e calorias dos cardios registrados separadamente."
+                : "Duration, distance and calories from cardio logs tracked separately."}
+            </p>
+          </div>
+
+          <div className="text-rose-500">
+            <Activity size={22} />
+          </div>
+        </div>
+
+        {cardioStats.sessions === 0 ? (
+          <div
+            className="
+              rounded-2xl
+              border
+              border-dashed
+              border-zinc-300
+              p-6
+              text-center
+              text-zinc-500
+              text-sm
+
+              dark:border-white/10
+            "
+          >
+            {language === "pt"
+              ? "Registre um cardio em Treinos para liberar esta analise."
+              : "Log cardio in Workouts to unlock this analysis."}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+              <AnalyticsCard
+                title={language === "pt" ? "Sessoes" : "Sessions"}
+                value={cardioStats.sessions}
+                icon={<CalendarDays size={21} />}
+              />
+
+              <AnalyticsCard
+                title={language === "pt" ? "Tempo total" : "Total time"}
+                value={formatWorkoutDuration(cardioStats.totalSeconds)}
+                icon={<Clock size={21} />}
+              />
+
+              <AnalyticsCard
+                title={language === "pt" ? "Distancia" : "Distance"}
+                value={formatDistance(cardioStats.totalDistanceKm)}
+                icon={<TrendingUp size={21} />}
+              />
+
+              <AnalyticsCard
+                title={language === "pt" ? "Calorias" : "Calories"}
+                value={`${cardioStats.totalCalories} kcal`}
+                icon={<Activity size={21} />}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <AnalyticsCard
+                title={language === "pt" ? "Media por sessao" : "Average session"}
+                value={formatWorkoutDuration(cardioStats.averageSeconds)}
+                icon={<Clock size={21} />}
+              />
+
+              <AnalyticsCard
+                title={language === "pt" ? "Ritmo medio" : "Average pace"}
+                value={formatPace(cardioStats.averagePaceSeconds)}
+                icon={<TrendingUp size={21} />}
+              />
+            </div>
+
+            <MeasuredChartFrame
+              className="
+                h-[250px]
+                rounded-2xl
+                bg-white
+                border
+                border-zinc-200
+                p-3
+                mb-4
+                min-w-0
+                min-h-[250px]
+
+                dark:bg-black/30
+                dark:border-white/10
+              "
+            >
+              {({ width, height }) => (
+                <LineChart
+                  data={cardioStats.chartData}
+                  width={width}
+                  height={height}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="rgba(161, 161, 170, 0.25)"
+                  />
+                  <XAxis
+                    dataKey="date"
+                    tick={{
+                      fill: axisColor,
+                      fontSize: 12,
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{
+                      fill: axisColor,
+                      fontSize: 12,
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={36}
+                  />
+                  <YAxis yAxisId="right" orientation="right" hide />
+                  <Tooltip
+                    contentStyle={{
+                      background: tooltipBackground,
+                      border: `1px solid ${tooltipBorder}`,
+                      borderRadius: "14px",
+                      color: tooltipText,
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="minutes"
+                    name={language === "pt" ? "Minutos" : "Minutes"}
+                    stroke="#f43f5e"
+                    strokeWidth={3}
+                    dot={{
+                      r: 4,
+                    }}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="distance"
+                    name={language === "pt" ? "Km" : "Km"}
+                    stroke="#22c55e"
+                    strokeWidth={3}
+                    dot={{
+                      r: 4,
+                    }}
+                  />
+                </LineChart>
+              )}
+            </MeasuredChartFrame>
+
+            <div className="space-y-3">
+              {cardioStats.latestSessions.map((log) => (
+                <div
+                  key={log.id}
+                  className="
+                    rounded-2xl
+                    bg-white
+                    border
+                    border-zinc-200
+                    p-4
+
+                    dark:bg-black/30
+                    dark:border-white/10
+                  "
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <h4 className="font-black">
+                        {getCardioType(log)}
+                      </h4>
+                      <p className="text-zinc-500 text-xs mt-1">
+                        {formatWorkoutDate(log.workout_date)}
+                      </p>
+                    </div>
+
+                    <p className="text-zinc-500 text-sm">
+                      {formatWorkoutDuration(log.durationSeconds)} |{" "}
+                      {formatDistance(log.distanceKm)} |{" "}
+                      {log.caloriesBurned} kcal
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
         </>
       )}
