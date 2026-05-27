@@ -163,6 +163,7 @@ export async function createCompletedWorkoutLogWithDuration(log) {
   if (
     result.error &&
     [
+      "status",
       "started_at",
       "completed_at",
       "duration_seconds",
@@ -176,6 +177,7 @@ export async function createCompletedWorkoutLogWithDuration(log) {
   ) {
     const legacyLog = { ...log };
 
+    delete legacyLog.status;
     delete legacyLog.completed_at;
     delete legacyLog.calories_burned;
     delete legacyLog.duration_seconds;

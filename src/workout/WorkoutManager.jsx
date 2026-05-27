@@ -251,6 +251,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
   const [planListView, setPlanListView] = useState("active");
   const [selectedWorkoutDay, setSelectedWorkoutDay] = useState("Todos");
+  const [chosenWorkoutDayForToday, setChosenWorkoutDayForToday] =
+    useState(null);
 
   const [newPlan, setNewPlan] = useState({
     title: "",
@@ -459,6 +461,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setExpandedSetLoggerId(null);
     setSetLogForms({});
+    setChosenWorkoutDayForToday(null);
     setActivePlan(selectedPlan);
     setDayFocuses(getPlanFocuses(selectedPlan));
 
@@ -604,6 +607,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setExpandedSetLoggerId(null);
     setSetLogForms({});
     setSelectedWorkoutDay(getCurrentWorkoutDay(createdExercises, []));
+    setChosenWorkoutDayForToday(null);
 
     setShowTemplates(false);
     setShowCreatePlan(false);
@@ -657,6 +661,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setExpandedSetLoggerId(null);
     setSetLogForms({});
     setSelectedWorkoutDay("Treino A");
+    setChosenWorkoutDayForToday(null);
     setShowCreatePlan(false);
     setShowPlanTools(true);
 
@@ -672,6 +677,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     setEditingExercise(null);
     setExpandedSetLoggerId(null);
     setSetLogForms({});
+    setChosenWorkoutDayForToday(null);
     setShowCreatePlan(false);
 
     await loadPlanDetails(plan.id);
@@ -1128,6 +1134,17 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
     );
   }, [exercises, workoutLogs]);
 
+  const availableTrainingWorkoutDays = useMemo(() => {
+    const daysFromExercises = exercises.map(
+      (exercise) => exercise.workout_day || "Treino A",
+    );
+
+    return workoutDayOptions.filter((day) => daysFromExercises.includes(day));
+  }, [exercises]);
+
+  const chosenWorkoutDayIsAvailable =
+    chosenWorkoutDayForToday &&
+    availableTrainingWorkoutDays.includes(chosenWorkoutDayForToday);
   const completedWorkoutDayToday = todayGymCompletedLog?.workout_day || null;
   const alternativeWorkoutDayToday = todayAlternativeCompletedLog?.workout_day
     ? getWorkoutDayBase(todayAlternativeCompletedLog.workout_day)
@@ -1137,6 +1154,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
       ? getWorkoutDayBase(completedWorkoutDayToday)
       : alternativeWorkoutDayToday
       ? alternativeWorkoutDayToday
+      : chosenWorkoutDayIsAvailable
+      ? chosenWorkoutDayForToday
       : currentWorkoutDay;
 
   const displayWorkoutDay =
@@ -1151,8 +1170,8 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
   }, [todayGymCompletedLog?.id, completedWorkoutDayToday]);
 
   const nextWorkoutDay = useMemo(() => {
-  return getNextWorkoutDayAfter(currentWorkoutDay, exercises);
-}, [currentWorkoutDay, exercises]);
+  return getNextWorkoutDayAfter(activeWorkoutDayForToday, exercises);
+}, [activeWorkoutDayForToday, exercises]);
 
   const displayedPlans =
     planListView === "archived" ? archivedPlans : plans;
@@ -1174,8 +1193,8 @@ const lastCompletedWorkoutLog = useMemo(() => {
 const lastCompletedWorkoutDay = lastCompletedWorkoutLog?.workout_day || null;
 
 const displayNextWorkoutDay = useMemo(() => {
-  return getNextWorkoutDayAfter(currentWorkoutDay, exercises);
-}, [currentWorkoutDay, exercises]);
+  return getNextWorkoutDayAfter(activeWorkoutDayForToday, exercises);
+}, [activeWorkoutDayForToday, exercises]);
 
   const todayWorkoutLog = useMemo(() => {
     return (
@@ -1570,6 +1589,25 @@ const displayNextWorkoutDay = useMemo(() => {
     });
   }
 
+  function chooseWorkoutDayForToday(day) {
+    if (workoutAlreadyRecordedToday) {
+      toast.error(translate("Today's workout already has a record."));
+      return;
+    }
+
+    if (!availableTrainingWorkoutDays.includes(day)) {
+      return;
+    }
+
+    if (day !== activeWorkoutDayForToday && workoutTimerActive) {
+      clearWorkoutTimer();
+    }
+
+    setChosenWorkoutDayForToday(day);
+    setSelectedWorkoutDay(day);
+    setExpandedSetLoggerId(null);
+  }
+
   async function toggleExercise(exercise) {
     if (!activePlan) return;
 
@@ -1683,16 +1721,12 @@ const displayNextWorkoutDay = useMemo(() => {
   }, [groupedExercises]);
 
   const availableWorkoutDays = useMemo(() => {
-    const daysFromExercises = exercises.map(
-      (exercise) => exercise.workout_day || "Treino A",
-    );
-
     return workoutFilterOptions.filter((day) => {
       if (day === "Todos") return true;
 
-      return daysFromExercises.includes(day);
+      return availableTrainingWorkoutDays.includes(day);
     });
-  }, [exercises]);
+  }, [availableTrainingWorkoutDays]);
 
   const visibleCompletedCount = useMemo(() => {
     return filteredExercises.filter((exercise) =>
@@ -2001,6 +2035,7 @@ const displayNextWorkoutDay = useMemo(() => {
     }
 
     await recordCompletedWorkout({
+      successLabel: getDayLabel(activeWorkoutDayForToday),
       workoutDayOverride: activeWorkoutDayForToday,
     });
   }
@@ -2107,10 +2142,11 @@ const displayNextWorkoutDay = useMemo(() => {
       return;
     }
 
+    const skippedWorkoutDay = activeWorkoutDayForToday;
     const confirmSkip = confirm(
       language === "pt"
-        ? `Pular ${getDayLabel(currentWorkoutDay)}? Isso avançará para o próximo treino.`
-        : `Skip ${getDayLabel(currentWorkoutDay)}? This will advance to the next workout.`,
+        ? `Pular ${getDayLabel(skippedWorkoutDay)}? Isso avançará para o próximo treino.`
+        : `Skip ${getDayLabel(skippedWorkoutDay)}? This will advance to the next workout.`,
     );
 
     if (!confirmSkip) return;
@@ -2120,7 +2156,7 @@ const displayNextWorkoutDay = useMemo(() => {
     const { data: insertedLog, error } = await createWorkoutLog({
       user_id: user.id,
       workout_plan_id: activePlan.id,
-      workout_day: currentWorkoutDay,
+      workout_day: skippedWorkoutDay,
       workout_date: today,
       status: "skipped",
     });
@@ -2144,7 +2180,7 @@ const displayNextWorkoutDay = useMemo(() => {
     }
 
     const nextDayAfterSkip = getNextWorkoutDayAfter(
-      currentWorkoutDay,
+      skippedWorkoutDay,
       exercises,
     );
 
@@ -2157,10 +2193,10 @@ const displayNextWorkoutDay = useMemo(() => {
           ? "Você passou de 2 dias sem treino nesta semana. Sua sequência foi zerada."
           : "You passed 2 non-training days this week. Your streak was reset."
         : language === "pt"
-          ? `${getDayLabel(currentWorkoutDay)} pulado. Próximo: ${getDayLabel(
+          ? `${getDayLabel(skippedWorkoutDay)} pulado. Próximo: ${getDayLabel(
               nextDayAfterSkip,
             )}.`
-          : `${getDayLabel(currentWorkoutDay)} skipped. Next: ${getDayLabel(
+          : `${getDayLabel(skippedWorkoutDay)} skipped. Next: ${getDayLabel(
               nextDayAfterSkip,
             )}.`,
     );
@@ -2177,6 +2213,7 @@ const displayNextWorkoutDay = useMemo(() => {
       return;
     }
 
+    const restWorkoutDay = activeWorkoutDayForToday;
     const restDayNumber = weeklyRestDaysUsed + 1;
     const confirmRest = confirm(
       language === "pt"
@@ -2195,7 +2232,7 @@ const displayNextWorkoutDay = useMemo(() => {
     const { data: insertedLog, error } = await createWorkoutLog({
       user_id: user.id,
       workout_plan_id: activePlan.id,
-      workout_day: currentWorkoutDay,
+      workout_day: restWorkoutDay,
       workout_date: today,
       status: "rest",
     });
@@ -2219,7 +2256,7 @@ const displayNextWorkoutDay = useMemo(() => {
     }
 
     const nextDayAfterRest = getNextWorkoutDayAfter(
-      currentWorkoutDay,
+      restWorkoutDay,
       exercises,
     );
 
@@ -3033,6 +3070,10 @@ const displayNextWorkoutDay = useMemo(() => {
         <>
           <CurrentWorkoutCard
             activePlan={activePlan}
+            activeWorkoutDayForToday={activeWorkoutDayForToday}
+            availableTrainingWorkoutDays={availableTrainingWorkoutDays}
+            chooseWorkoutDayForToday={chooseWorkoutDayForToday}
+            currentWorkoutDay={currentWorkoutDay}
             displayNextWorkoutDay={displayNextWorkoutDay}
             displayWorkoutCompletedCount={displayWorkoutCompletedCount}
             displayWorkoutDay={displayWorkoutDay}

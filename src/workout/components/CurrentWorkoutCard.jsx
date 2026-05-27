@@ -3,6 +3,10 @@ import { useLanguage } from "../../context/LanguageContext";
 
 function CurrentWorkoutCard({
   activePlan,
+  activeWorkoutDayForToday,
+  availableTrainingWorkoutDays = [],
+  chooseWorkoutDayForToday,
+  currentWorkoutDay,
   displayNextWorkoutDay,
   displayWorkoutCompletedCount,
   displayWorkoutDay,
@@ -84,6 +88,53 @@ function CurrentWorkoutCard({
             : `${displayWorkoutCompletedCount}/${displayWorkoutTotalExercises}`}
         </div>
       </div>
+
+      {!workoutAlreadyRecordedToday && availableTrainingWorkoutDays.length > 1 && (
+        <div className="mt-5">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <p className="text-white/70 text-xs font-bold uppercase">
+              {language === "pt" ? "Treino de hoje" : "Today's workout"}
+            </p>
+
+            <p className="text-white/60 text-xs">
+              {language === "pt" ? "Sugerido" : "Suggested"}:{" "}
+              {getDayLabel(currentWorkoutDay)}
+            </p>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {availableTrainingWorkoutDays.map((day) => {
+              const selected = day === activeWorkoutDayForToday;
+
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => chooseWorkoutDayForToday?.(day)}
+                  className={`
+                    shrink-0
+                    px-4
+                    py-2
+                    rounded-xl
+                    border
+                    text-sm
+                    font-black
+                    transition
+
+                    ${
+                      selected
+                        ? "bg-white text-purple-700 border-white"
+                        : "bg-white/10 text-white border-white/20 hover:bg-white/15"
+                    }
+                  `}
+                >
+                  {getDayLabel(day)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="mt-5">
         <div className="flex justify-between text-sm mb-2">

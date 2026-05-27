@@ -13,6 +13,9 @@ node_modules
 # Build
 dist
 dist-ssr
+.vite
+coverage
+android/app/build
 
 # Environment variables
 .env

@@ -129,7 +129,7 @@ function getPasswordStrength(password, language) {
   };
 }
 
-function Auth({ siteMode = false }) {
+function Auth({ initialView = "login", siteMode = false }) {
   const { language, t, translate } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -142,7 +142,9 @@ function Auth({ siteMode = false }) {
     updatePassword,
   } = useAuth();
 
-  const [authView, setAuthView] = useState(() => (siteMode ? "signup" : "login"));
+  const [authView, setAuthView] = useState(() =>
+    siteMode ? "signup" : initialView,
+  );
   const [signupStep, setSignupStep] = useState(0);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -208,11 +210,17 @@ function Auth({ siteMode = false }) {
 
   const passwordStrength = getPasswordStrength(password, language);
   const normalizedUsername = username.trim().toLowerCase();
+  const redirectLocation = location.state?.from;
+  const redirectAfterLogin = redirectLocation
+    ? `${redirectLocation.pathname}${redirectLocation.search || ""}${
+        redirectLocation.hash || ""
+      }`
+    : "/dashboard";
   const isLogin = authView === "login";
   const isSignup = authView === "signup";
   const isRecoverPassword = authView === "recover";
   const isResetPassword = authView === "reset";
-  const showSocialLogin = !siteMode && (isLogin || isSignup);
+  const showSocialLogin = isLogin || isSignup;
 
   function showError(message) {
     setFormError(message);
@@ -567,7 +575,7 @@ function Auth({ siteMode = false }) {
             ? "Login realizado com sucesso!"
             : "Logged in successfully!",
         );
-        navigate("/dashboard");
+        navigate(redirectAfterLogin, { replace: true });
       } catch (error) {
         const message =
           language === "pt"

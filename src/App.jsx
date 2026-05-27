@@ -66,6 +66,71 @@ function RootRoute() {
   return <Navigate to={user ? "/dashboard" : "/auth"} replace />;
 }
 
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<RootRoute />} />
+
+      <Route
+        path="/auth"
+        element={<Auth key="login" initialView="login" />}
+      />
+
+      <Route
+        path="/signup"
+        element={<Auth key="signup" initialView="signup" />}
+      />
+
+      <Route
+        path="/download"
+        element={
+          <Suspense fallback={<PageLoader />}>
+            <Download />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedLazyPage>
+            <Dashboard />
+          </ProtectedLazyPage>
+        }
+      />
+
+      <Route
+        path="/profile/:username"
+        element={
+          <ProtectedLazyPage>
+            <Profile />
+          </ProtectedLazyPage>
+        }
+      />
+
+      <Route
+        path="/inbox"
+        element={
+          <ProtectedLazyPage>
+            <Inbox />
+          </ProtectedLazyPage>
+        }
+      />
+
+      <Route
+        path="/chat/:id"
+        element={
+          <ProtectedLazyPage>
+            <Chat />
+          </ProtectedLazyPage>
+        }
+      />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
 function App() {
   const isNative = Capacitor.isNativePlatform();
 
@@ -80,67 +145,7 @@ function App() {
   return (
     <>
       <OAuthRedirectHandler />
-
-      {isNative ? (
-        <Routes>
-          <Route path="/" element={<RootRoute />} />
-
-          <Route path="/auth" element={<Auth />} />
-
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedLazyPage>
-                <Dashboard />
-              </ProtectedLazyPage>
-            }
-          />
-
-          <Route
-            path="/profile/:username"
-            element={
-              <ProtectedLazyPage>
-                <Profile />
-              </ProtectedLazyPage>
-            }
-          />
-
-          <Route
-            path="/inbox"
-            element={
-              <ProtectedLazyPage>
-                <Inbox />
-              </ProtectedLazyPage>
-            }
-          />
-
-          <Route
-            path="/chat/:id"
-            element={
-              <ProtectedLazyPage>
-                <Chat />
-              </ProtectedLazyPage>
-            }
-          />
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      ) : (
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/signup" element={<Auth siteMode />} />
-          <Route
-            path="/download"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <Download />
-              </Suspense>
-            }
-          />
-          <Route path="/auth" element={<Navigate to="/signup" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      )}
+      <AppRoutes />
     </>
   );
 }

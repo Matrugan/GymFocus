@@ -171,6 +171,32 @@ function Home() {
           </Link>
 
           <Link
+            to="/auth"
+            className="
+              hidden
+              sm:inline-flex
+              px-5
+              py-3
+              rounded-2xl
+              border
+              border-zinc-200
+              bg-white
+              text-zinc-950
+              font-bold
+              hover:border-purple-500
+              hover:text-purple-500
+              transition
+              shadow-sm
+
+              dark:bg-white/5
+              dark:text-white
+              dark:border-white/10
+            "
+          >
+            {t("home.login")}
+          </Link>
+
+          <Link
             to="/signup"
             className="
               px-5
@@ -971,6 +997,27 @@ function Home() {
   "
             >
               {t("auth.createAccount")}
+            </Link>
+
+            <Link
+              to="/auth"
+              className="
+          min-w-[160px]
+          px-8
+          py-4
+          rounded-2xl
+          bg-black/20
+          border
+          border-white/20
+          text-white
+          font-bold
+          text-lg
+          hover:bg-black/30
+          hover:scale-105
+          transition
+        "
+            >
+              {t("auth.login")}
             </Link>
 
             <Link

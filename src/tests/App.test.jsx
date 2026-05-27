@@ -47,7 +47,7 @@ describe("App routes", () => {
     expect(await screen.findByText("Home Page")).toBeInTheDocument();
   });
 
-  it("redirects /auth to the site signup page", async () => {
+  it("renders Auth page on /auth", async () => {
     render(
       <MemoryRouter initialEntries={["/auth"]}>
         <App />
@@ -77,13 +77,43 @@ describe("App routes", () => {
     expect(await screen.findByText("Download Page")).toBeInTheDocument();
   });
 
-  it("redirects internal app routes to Home on the website", async () => {
+  it("renders Dashboard page on /dashboard", async () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <App />
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("Home Page")).toBeInTheDocument();
+    expect(await screen.findByText("Dashboard Page")).toBeInTheDocument();
+  });
+
+  it("renders Profile page on /profile/:username", async () => {
+    render(
+      <MemoryRouter initialEntries={["/profile/mateu"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Profile Page")).toBeInTheDocument();
+  });
+
+  it("renders Inbox page on /inbox", async () => {
+    render(
+      <MemoryRouter initialEntries={["/inbox"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Inbox Page")).toBeInTheDocument();
+  });
+
+  it("renders Chat page on /chat/:id", async () => {
+    render(
+      <MemoryRouter initialEntries={["/chat/123"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Chat Page")).toBeInTheDocument();
   });
 });

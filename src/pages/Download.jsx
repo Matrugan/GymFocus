@@ -85,6 +85,13 @@ function Download() {
             >
               {language === "pt" ? "Criar conta" : "Create account"}
             </Link>
+
+            <Link
+              to="/auth"
+              className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-zinc-200 bg-white px-8 py-4 text-lg font-black text-zinc-900 shadow-sm transition hover:border-purple-500 hover:text-purple-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+            >
+              {language === "pt" ? "Entrar" : "Login"}
+            </Link>
           </div>
         </div>
 
