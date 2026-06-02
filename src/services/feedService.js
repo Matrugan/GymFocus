@@ -49,12 +49,20 @@ export function fetchLikes(postIds = []) {
 }
 
 export function createLike(postId, userId) {
-  return supabase.from("likes").insert([
-    {
-      post_id: postId,
-      user_id: userId,
-    },
-  ]);
+  return supabase
+    .from("likes")
+    .upsert(
+      [
+        {
+          post_id: postId,
+          user_id: userId,
+        },
+      ],
+      {
+        ignoreDuplicates: true,
+        onConflict: "post_id,user_id",
+      },
+    );
 }
 
 export function deleteLike(likeId) {

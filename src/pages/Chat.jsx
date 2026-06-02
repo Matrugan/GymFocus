@@ -221,7 +221,7 @@ function Chat() {
         actorId: user.id,
         type: "message",
         message: "sent you a message.",
-        conversationId: Number(id),
+        conversationId: id,
       });
     }
 

@@ -18,12 +18,20 @@ export function fetchFollow(userId, profileId) {
 }
 
 export function followProfile(userId, profileId) {
-  return supabase.from("followers").insert([
-    {
-      follower_id: userId,
-      following_id: profileId,
-    },
-  ]);
+  return supabase
+    .from("followers")
+    .upsert(
+      [
+        {
+          follower_id: userId,
+          following_id: profileId,
+        },
+      ],
+      {
+        ignoreDuplicates: true,
+        onConflict: "follower_id,following_id",
+      },
+    );
 }
 
 export function unfollowProfile(userId, profileId) {

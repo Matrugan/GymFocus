@@ -1,28 +1,28 @@
 import { supabase } from "../lib/supabase";
+import { reportError } from "./errorHandler";
 
 export async function unlockAchievement(
   userId,
   badge
 ) {
+  if (!userId || !badge) return;
 
-  // verifica se já possui
-  const { data: existing } = await supabase
+  const { error } = await supabase
     .from("achievements")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("badge", badge)
-    .maybeSingle();
-
-  // se já existir, para
-  if (existing) return;
-
-  // cria achievement
-  await supabase
-    .from("achievements")
-    .insert([
+    .upsert(
+      [
+        {
+          user_id: userId,
+          badge,
+        },
+      ],
       {
-        user_id: userId,
-        badge,
+        ignoreDuplicates: true,
+        onConflict: "user_id,badge",
       },
-    ]);
+    );
+
+  if (error) {
+    reportError("Error unlocking achievement:", error);
+  }
 }

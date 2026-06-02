@@ -12,16 +12,28 @@ export function fetchUserChallenges(userId) {
 }
 
 export function fetchUserWorkoutLogCount(userId) {
-  return supabase.from("workout_logs").select("id").eq("user_id", userId);
+  return supabase
+    .from("workout_logs")
+    .select("id")
+    .eq("user_id", userId)
+    .or("status.eq.completed,status.is.null");
 }
 
 export function createUserChallenge(userId, challengeId) {
-  return supabase.from("user_challenges").insert([
-    {
-      user_id: userId,
-      challenge_id: challengeId,
-    },
-  ]);
+  return supabase
+    .from("user_challenges")
+    .upsert(
+      [
+        {
+          user_id: userId,
+          challenge_id: challengeId,
+        },
+      ],
+      {
+        ignoreDuplicates: true,
+        onConflict: "user_id,challenge_id",
+      },
+    );
 }
 
 export function markUserChallengeClaimed(userChallengeId) {
