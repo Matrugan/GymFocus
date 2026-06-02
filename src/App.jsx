@@ -9,11 +9,45 @@ import AppSplash from "./components/layout/AppSplash";
 import { useAuth } from "./context/AuthContext";
 import { workoutTimerNotification } from "./utils/workoutTimerNotification";
 
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Inbox = lazy(() => import("./pages/Inbox"));
-const Chat = lazy(() => import("./pages/Chat"));
-const Download = lazy(() => import("./pages/Download"));
+const CHUNK_RELOAD_STORAGE_KEY = "gymfocus-chunk-reload-at";
+
+function isChunkLoadError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+
+  return (
+    message.includes("failed to fetch dynamically imported module") ||
+    message.includes("importing a module script failed") ||
+    message.includes("expected a javascript-or-wasm module script") ||
+    message.includes("chunkloaderror")
+  );
+}
+
+function lazyWithChunkRetry(importer) {
+  return lazy(() =>
+    importer().catch((error) => {
+      if (!Capacitor.isNativePlatform() && isChunkLoadError(error)) {
+        const lastReloadAt = Number(
+          sessionStorage.getItem(CHUNK_RELOAD_STORAGE_KEY) || 0,
+        );
+        const reloadIsRecent = Date.now() - lastReloadAt < 60_000;
+
+        if (!reloadIsRecent) {
+          sessionStorage.setItem(CHUNK_RELOAD_STORAGE_KEY, String(Date.now()));
+          window.location.reload();
+          return new Promise(() => {});
+        }
+      }
+
+      throw error;
+    }),
+  );
+}
+
+const Dashboard = lazyWithChunkRetry(() => import("./pages/Dashboard"));
+const Profile = lazyWithChunkRetry(() => import("./pages/Profile"));
+const Inbox = lazyWithChunkRetry(() => import("./pages/Inbox"));
+const Chat = lazyWithChunkRetry(() => import("./pages/Chat"));
+const Download = lazyWithChunkRetry(() => import("./pages/Download"));
 
 function PageLoader() {
   return <AppSplash compact />;

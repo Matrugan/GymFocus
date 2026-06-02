@@ -247,7 +247,7 @@ function LevelProgressCard({ xp = 0, compact = false }) {
         <div className="mb-2 flex items-center justify-between text-xs font-bold text-zinc-500">
           <span className="flex items-center gap-1">
             <Sparkles size={14} />
-            {language === "pt" ? "Progresso de categoria" : "Rank progress"}
+            {language === "pt" ? "Progresso de nível" : "Level progress"}
           </span>
           <span>{Math.floor(progress)}%</span>
         </div>

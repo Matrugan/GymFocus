@@ -1,44 +1,61 @@
-export function getLevel(xp) {
+const BASE_LEVEL_THRESHOLDS = {
+  1: 200,
+  2: 500,
+  3: 900,
+  4: 1400,
+  5: 2000,
+};
 
-  if (xp < 200) {
+const XP_PER_LEVEL_AFTER_BASE = 500;
+
+function getSafeXP(xp) {
+  const safeXP = Number(xp);
+
+  return Number.isFinite(safeXP) && safeXP > 0 ? safeXP : 0;
+}
+
+export function getLevel(xp) {
+  const safeXP = getSafeXP(xp);
+
+  if (safeXP < BASE_LEVEL_THRESHOLDS[1]) {
     return 1;
   }
 
-  if (xp < 500) {
+  if (safeXP < BASE_LEVEL_THRESHOLDS[2]) {
     return 2;
   }
 
-  if (xp < 900) {
+  if (safeXP < BASE_LEVEL_THRESHOLDS[3]) {
     return 3;
   }
 
-  if (xp < 1400) {
+  if (safeXP < BASE_LEVEL_THRESHOLDS[4]) {
     return 4;
   }
 
-  if (xp < 2000) {
+  if (safeXP < BASE_LEVEL_THRESHOLDS[5]) {
     return 5;
   }
 
-  return Math.floor(xp / 500);
+  return 6 + Math.floor(
+    (safeXP - BASE_LEVEL_THRESHOLDS[5]) / XP_PER_LEVEL_AFTER_BASE,
+  );
 }
 
 export function getXPForNextLevel(level) {
+  const safeLevel = Math.max(1, Number(level) || 1);
 
-  const levels = {
-    1: 200,
-    2: 500,
-    3: 900,
-    4: 1400,
-    5: 2000,
-  };
-
-  return levels[level] || level * 500;
+  return (
+    BASE_LEVEL_THRESHOLDS[safeLevel] ||
+    BASE_LEVEL_THRESHOLDS[5] +
+      (safeLevel - 5) * XP_PER_LEVEL_AFTER_BASE
+  );
 }
 
 export function getLevelProgress(xp) {
+  const safeXP = getSafeXP(xp);
 
-  const level = getLevel(xp);
+  const level = getLevel(safeXP);
 
   const currentLevelXP =
     level === 1
@@ -49,7 +66,7 @@ export function getLevelProgress(xp) {
     getXPForNextLevel(level);
 
   const progress =
-    ((xp - currentLevelXP) /
+    ((safeXP - currentLevelXP) /
       (nextLevelXP - currentLevelXP)) * 100;
 
   return Math.min(progress, 100);
