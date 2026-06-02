@@ -245,14 +245,85 @@ export function createWorkoutSetLogs(records) {
   return supabase.from("workout_set_logs").insert(records).select();
 }
 
-export function upsertWorkoutSetLogs(records) {
-  return supabase
+function isRecoverableSetLogSchemaError(error) {
+  const message = [
+    error?.message,
+    error?.details,
+    error?.hint,
+    error?.code,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    message.includes("no unique or exclusion constraint") ||
+    message.includes("schema cache") ||
+    message.includes("could not find") ||
+    message.includes("column") ||
+    message.includes("does not exist")
+  );
+}
+
+function getLegacyWorkoutSetLogRecords(records) {
+  return records.map(
+    ({
+      user_id,
+      workout_plan_id,
+      exercise_id,
+      workout_date,
+      set_number,
+      reps,
+      load,
+    }) => ({
+      user_id,
+      workout_plan_id,
+      exercise_id,
+      workout_date,
+      set_number,
+      reps,
+      load,
+    }),
+  );
+}
+
+export async function upsertWorkoutSetLogs(records) {
+  const upsertResult = await supabase
     .from("workout_set_logs")
     .upsert(records, {
       onConflict:
         "user_id,workout_plan_id,exercise_id,workout_date,set_number",
     })
     .select();
+
+  if (!upsertResult.error || !isRecoverableSetLogSchemaError(upsertResult.error)) {
+    return upsertResult;
+  }
+
+  const firstRecord = records[0];
+
+  if (!firstRecord) {
+    return upsertResult;
+  }
+
+  const deleteResult = await deleteWorkoutSetLogsForExerciseDate({
+    exerciseId: firstRecord.exercise_id,
+    userId: firstRecord.user_id,
+    workoutDate: firstRecord.workout_date,
+    workoutPlanId: firstRecord.workout_plan_id,
+  });
+
+  if (deleteResult.error) {
+    return { data: null, error: deleteResult.error };
+  }
+
+  const insertResult = await createWorkoutSetLogs(records);
+
+  if (!insertResult.error || !isRecoverableSetLogSchemaError(insertResult.error)) {
+    return insertResult;
+  }
+
+  return createWorkoutSetLogs(getLegacyWorkoutSetLogRecords(records));
 }
 
 export function subscribeToUserWorkoutLogs(userId, onChange) {
