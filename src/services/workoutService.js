@@ -38,6 +38,110 @@ export function fetchWorkoutLogs(userId, workoutPlanId) {
     .order("created_at", { ascending: false });
 }
 
+function isRecoverableWorkoutLogSchemaError(error) {
+  const message = [
+    error?.message,
+    error?.details,
+    error?.hint,
+    error?.code,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    message.includes("schema cache") ||
+    message.includes("could not find") ||
+    message.includes("column") ||
+    message.includes("does not exist")
+  );
+}
+
+function isCompletedWorkoutLog(log) {
+  return !log?.status || log.status === "completed";
+}
+
+function isCardioWorkoutLog(log) {
+  const workoutType = String(log?.workout_type || "").toLowerCase();
+  const workoutDay = String(log?.workout_day || "");
+
+  return (
+    workoutType === "cardio" ||
+    /^Cardio$/i.test(workoutDay) ||
+    /\s-\sCardio$/i.test(workoutDay) ||
+    /Cardio/i.test(workoutDay)
+  );
+}
+
+export async function fetchCompletedWorkoutLogs(userId, workoutPlanId, limit = 120) {
+  const result = await supabase
+    .from("workout_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("workout_plan_id", workoutPlanId)
+    .or("status.eq.completed,status.is.null")
+    .order("workout_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (!result.error || !isRecoverableWorkoutLogSchemaError(result.error)) {
+    return result;
+  }
+
+  const fallbackResult = await supabase
+    .from("workout_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("workout_plan_id", workoutPlanId)
+    .order("workout_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (fallbackResult.error) {
+    return result;
+  }
+
+  return {
+    data: (fallbackResult.data || []).filter(isCompletedWorkoutLog),
+    error: null,
+  };
+}
+
+export async function fetchCompletedCardioWorkoutLogs(userId, limit = 120) {
+  const result = await supabase
+    .from("workout_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .or("status.eq.completed,status.is.null")
+    .or("workout_type.eq.cardio,workout_day.eq.Cardio,workout_day.ilike.%Cardio%")
+    .order("workout_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (!result.error || !isRecoverableWorkoutLogSchemaError(result.error)) {
+    return result;
+  }
+
+  const fallbackResult = await supabase
+    .from("workout_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("workout_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (fallbackResult.error) {
+    return result;
+  }
+
+  return {
+    data: (fallbackResult.data || [])
+      .filter(isCompletedWorkoutLog)
+      .filter(isCardioWorkoutLog),
+    error: null,
+  };
+}
+
 export function fetchUserWorkoutLogs(userId) {
   return supabase
     .from("workout_logs")

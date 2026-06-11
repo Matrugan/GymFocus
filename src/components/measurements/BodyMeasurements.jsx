@@ -176,7 +176,7 @@ function BodyMeasurements({ user }) {
     const { data, error } = await upsertBodyMeasurement(payload);
 
     if (error) {
-      reportError(error, "Error saving body measurement.");
+      reportError(error);
       toast.error(
         language === "pt"
           ? "Não foi possível salvar as medidas."

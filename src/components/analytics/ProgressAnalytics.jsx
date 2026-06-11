@@ -27,6 +27,11 @@ import { motion } from "framer-motion";
 import { useTheme } from "../../context/ThemeContext";
 import { reportError } from "../../utils/errorHandler";
 import {
+  fetchCompletedCardioWorkoutLogs,
+  fetchCompletedWorkoutLogs,
+  fetchWorkoutSetLogs,
+} from "../../services/workoutService";
+import {
   formatWorkoutDate,
   getWorkoutDateKey,
 } from "../../workout/workoutSequence";
@@ -119,16 +124,8 @@ function ProgressAnalytics({ user }) {
 
       setExercises(loadedExercises);
 
-      const { data: workoutLogsData, error: workoutLogsError } = await supabase
-        .from("workout_logs")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("workout_plan_id", activePlan.id)
-        .eq("status", "completed")
-        .order("workout_date", {
-          ascending: false,
-        })
-        .limit(120);
+      const { data: workoutLogsData, error: workoutLogsError } =
+        await fetchCompletedWorkoutLogs(user.id, activePlan.id);
 
       if (workoutLogsError) {
         reportError(workoutLogsError);
@@ -136,33 +133,26 @@ function ProgressAnalytics({ user }) {
 
       setWorkoutLogs(workoutLogsData || []);
 
-      const { data: setLogsData, error: setLogsError } = await supabase
-        .from("workout_set_logs")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("workout_plan_id", activePlan.id)
-        .order("workout_date", {
-          ascending: false,
-        })
-        .order("exercise_id", {
-          ascending: true,
-        })
-        .order("set_number", {
-          ascending: true,
-        })
-        .limit(800);
+      const { data: setLogsData, error: setLogsError } =
+        await fetchWorkoutSetLogs(user.id, activePlan.id, 800);
 
       if (setLogsError) {
         reportError(setLogsError);
       }
 
-      setSetLogs(setLogsData || []);
+      const loadedSetLogs = setLogsData || [];
+
+      setSetLogs(loadedSetLogs);
       setSelectedExerciseId((currentId) => {
         if (currentId && loadedExercises.some((item) => item.id === currentId)) {
           return currentId;
         }
 
-        return loadedExercises[0]?.id || "";
+        const firstExerciseWithLogs = loadedExercises.find((exercise) =>
+          loadedSetLogs.some((log) => log.exercise_id === exercise.id),
+        );
+
+        return firstExerciseWithLogs?.id || loadedExercises[0]?.id || "";
       });
     } else {
       setExercises([]);
@@ -171,19 +161,8 @@ function ProgressAnalytics({ user }) {
       setSelectedExerciseId("");
     }
 
-    const { data: cardioLogsData, error: cardioLogsError } = await supabase
-      .from("workout_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("status", "completed")
-      .or("workout_type.eq.cardio,workout_day.eq.Cardio,workout_day.ilike.%Cardio")
-      .order("workout_date", {
-        ascending: false,
-      })
-      .order("created_at", {
-        ascending: false,
-      })
-      .limit(120);
+    const { data: cardioLogsData, error: cardioLogsError } =
+      await fetchCompletedCardioWorkoutLogs(user.id);
 
     if (cardioLogsError) {
       reportError(cardioLogsError);

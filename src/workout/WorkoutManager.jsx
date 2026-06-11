@@ -1798,6 +1798,16 @@ const displayNextWorkoutDay = useMemo(() => {
 
     setFinishingWorkout(true);
 
+    if (!isAlternative) {
+      const pendingSetLogsSaved =
+        await savePendingSetLogsForWorkoutDay(workoutDayOverride);
+
+      if (!pendingSetLogsSaved) {
+        setFinishingWorkout(false);
+        return;
+      }
+    }
+
     const finishedAt = new Date();
     const durationSeconds =
       durationSecondsOverride ??
@@ -2496,6 +2506,131 @@ const displayNextWorkoutDay = useMemo(() => {
     setProgress((prev) => [...prev, data]);
   }
 
+  function getSetLogRecordsFromForm(exercise, form) {
+    if (!form) {
+      return [];
+    }
+
+    return form.sets
+      .map((setRow, index) => ({
+        user_id: user.id,
+        workout_plan_id: activePlan.id,
+        exercise_id: exercise.id,
+        workout_date: today,
+        set_number: index + 1,
+        reps: parseSetLogNumber(setRow.reps),
+        load: parseSetLogNumber(setRow.load),
+        difficulty: form.difficulty,
+        notes: form.notes?.trim() || null,
+      }))
+      .filter((setRow) => setRow.reps !== null || setRow.load !== null);
+  }
+
+  function hasInvalidSetLogNumbers(setRows) {
+    return setRows.some((setRow) => {
+      const hasInvalidReps =
+        setRow.reps !== null &&
+        (!Number.isFinite(setRow.reps) ||
+          !Number.isInteger(setRow.reps) ||
+          setRow.reps < 0);
+      const hasInvalidLoad =
+        setRow.load !== null &&
+        (!Number.isFinite(setRow.load) || setRow.load < 0);
+
+      return hasInvalidReps || hasInvalidLoad;
+    });
+  }
+
+  async function persistExerciseSetLogs(exercise, validSets, form) {
+    const { data, error } = await upsertWorkoutSetLogs(validSets);
+
+    if (error) {
+      return { error, savedLogs: [] };
+    }
+
+    const savedSetNumbers = validSets.map((setRow) => setRow.set_number);
+    const { error: deleteError } = await deleteWorkoutSetLogsOutsideSetNumbers({
+      exerciseId: exercise.id,
+      setNumbers: savedSetNumbers,
+      userId: user.id,
+      workoutDate: today,
+      workoutPlanId: activePlan.id,
+    });
+
+    if (deleteError) {
+      return { error: deleteError, savedLogs: [] };
+    }
+
+    const returnedLogs = data?.length
+      ? data
+      : validSets.map((setRow) => ({
+          id: `${setRow.exercise_id}-${setRow.workout_date}-${setRow.set_number}`,
+          ...setRow,
+        }));
+    const savedLogs = returnedLogs.sort((a, b) => a.set_number - b.set_number);
+
+    setSetLogs((prev) => {
+      const withoutCurrentExercise = prev.filter(
+        (log) =>
+          !(
+            log.exercise_id === exercise.id &&
+            getWorkoutDateKey(log.workout_date) === today &&
+            log.workout_plan_id === activePlan.id
+          ),
+      );
+
+      return [...withoutCurrentExercise, ...savedLogs];
+    });
+
+    setSetLogForms((prev) => ({
+      ...prev,
+      [exercise.id]: {
+        ...form,
+        sets: savedLogs.map((log) => ({
+          set_number: log.set_number,
+          load: log.load ?? "",
+          reps: log.reps ?? "",
+        })),
+      },
+    }));
+
+    return { error: null, savedLogs };
+  }
+
+  async function savePendingSetLogsForWorkoutDay(workoutDay) {
+    if (!activePlan) {
+      return true;
+    }
+
+    for (const exercise of currentWorkoutExercises) {
+      if ((exercise.workout_day || "Treino A") !== workoutDay) {
+        continue;
+      }
+
+      const form = setLogForms[exercise.id];
+      const validSets = getSetLogRecordsFromForm(exercise, form);
+
+      if (validSets.length === 0) {
+        continue;
+      }
+
+      if (hasInvalidSetLogNumbers(validSets)) {
+        toast.error(translate("Use valid positive numbers for load and reps."));
+        return false;
+      }
+
+      const { error } = await persistExerciseSetLogs(exercise, validSets, form);
+
+      if (error) {
+        reportError(error);
+        toast.error(translate("Error saving set logs."));
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   async function saveExerciseSetLogs(exercise) {
     if (!activePlan) return;
 
@@ -2528,96 +2663,27 @@ const displayNextWorkoutDay = useMemo(() => {
       return;
     }
 
-    const validSets = form.sets
-      .map((setRow, index) => ({
-        user_id: user.id,
-        workout_plan_id: activePlan.id,
-        exercise_id: exercise.id,
-        workout_date: today,
-        set_number: index + 1,
-        reps: parseSetLogNumber(setRow.reps),
-        load: parseSetLogNumber(setRow.load),
-        difficulty: form.difficulty,
-        notes: form.notes?.trim() || null,
-      }))
-      .filter((setRow) => setRow.reps !== null || setRow.load !== null);
+    const validSets = getSetLogRecordsFromForm(exercise, form);
 
     if (validSets.length === 0) {
       toast.error(translate("Enter at least one load or reps value."));
       return;
     }
 
-    const hasInvalidNumbers = validSets.some((setRow) => {
-      const hasInvalidReps =
-        setRow.reps !== null &&
-        (!Number.isFinite(setRow.reps) ||
-          !Number.isInteger(setRow.reps) ||
-          setRow.reps < 0);
-      const hasInvalidLoad =
-        setRow.load !== null &&
-        (!Number.isFinite(setRow.load) || setRow.load < 0);
-
-      return hasInvalidReps || hasInvalidLoad;
-    });
-
-    if (hasInvalidNumbers) {
+    if (hasInvalidSetLogNumbers(validSets)) {
       toast.error(translate("Use valid positive numbers for load and reps."));
       return;
     }
 
     setSavingSetLogs(true);
 
-    const { data, error } = await upsertWorkoutSetLogs(validSets);
+    const { error } = await persistExerciseSetLogs(exercise, validSets, form);
 
     if (error) {
       reportError(error, translate("Error saving set logs."));
       setSavingSetLogs(false);
       return;
     }
-
-    const savedSetNumbers = validSets.map((setRow) => setRow.set_number);
-    const { error: deleteError } = await deleteWorkoutSetLogsOutsideSetNumbers({
-      exerciseId: exercise.id,
-      setNumbers: savedSetNumbers,
-      userId: user.id,
-      workoutDate: today,
-      workoutPlanId: activePlan.id,
-    });
-
-    if (deleteError) {
-      reportError(deleteError, translate("Error updating set logs."));
-      setSavingSetLogs(false);
-      return;
-    }
-
-    const savedLogs = (data || []).sort(
-      (a, b) => a.set_number - b.set_number,
-    );
-
-    setSetLogs((prev) => {
-      const withoutCurrentExercise = prev.filter(
-        (log) =>
-          !(
-            log.exercise_id === exercise.id &&
-            getWorkoutDateKey(log.workout_date) === today &&
-            log.workout_plan_id === activePlan.id
-          ),
-      );
-
-      return [...withoutCurrentExercise, ...savedLogs];
-    });
-
-    setSetLogForms((prev) => ({
-      ...prev,
-      [exercise.id]: {
-        ...form,
-        sets: savedLogs.map((log) => ({
-          set_number: log.set_number,
-          load: log.load ?? "",
-          reps: log.reps ?? "",
-        })),
-      },
-    }));
 
     await markExerciseCompletedAfterSetLog(exercise);
 
