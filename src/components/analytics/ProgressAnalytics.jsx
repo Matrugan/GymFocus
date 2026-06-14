@@ -29,7 +29,7 @@ import { reportError } from "../../utils/errorHandler";
 import {
   fetchCompletedCardioWorkoutLogs,
   fetchCompletedWorkoutLogs,
-  fetchWorkoutSetLogs,
+  fetchUserWorkoutSetLogs,
 } from "../../services/workoutService";
 import {
   formatWorkoutDate,
@@ -91,7 +91,6 @@ function ProgressAnalytics({ user }) {
       .from("workout_plans")
       .select("*")
       .eq("user_id", user.id)
-      .eq("is_active", true)
       .order("created_at", {
         ascending: false,
       });
@@ -100,15 +99,15 @@ function ProgressAnalytics({ user }) {
       reportError(plansError);
     }
 
-    const activePlans = plansData || [];
-    const activePlanIds = activePlans.map((plan) => plan.id).filter(Boolean);
+    const workoutPlans = plansData || [];
+    const workoutPlanIds = workoutPlans.map((plan) => plan.id).filter(Boolean);
 
-    if (activePlanIds.length > 0) {
+    if (workoutPlanIds.length > 0) {
       const { data: exercisesData, error: exercisesError } = await supabase
         .from("workout_exercises")
         .select("*")
         .eq("user_id", user.id)
-        .in("workout_plan_id", activePlanIds)
+        .in("workout_plan_id", workoutPlanIds)
         .order("workout_day", {
           ascending: true,
         })
@@ -125,27 +124,23 @@ function ProgressAnalytics({ user }) {
       setExercises(loadedExercises);
 
       const workoutLogsResults = await Promise.all(
-        activePlanIds.map((planId) => fetchCompletedWorkoutLogs(user.id, planId)),
+        workoutPlanIds.map((planId) => fetchCompletedWorkoutLogs(user.id, planId)),
       );
-      const setLogsResults = await Promise.all(
-        activePlanIds.map((planId) => fetchWorkoutSetLogs(user.id, planId, 800)),
-      );
+      const setLogsResult = await fetchUserWorkoutSetLogs(user.id);
 
       workoutLogsResults.forEach((result) => {
         if (result.error) {
           reportError(result.error);
         }
       });
-      setLogsResults.forEach((result) => {
-        if (result.error) {
-          reportError(result.error);
-        }
-      });
+      if (setLogsResult.error) {
+        reportError(setLogsResult.error);
+      }
 
       const loadedWorkoutLogs = workoutLogsResults.flatMap(
         (result) => result.data || [],
       );
-      const loadedSetLogs = setLogsResults.flatMap((result) => result.data || []);
+      const loadedSetLogs = setLogsResult.data || [];
 
       setWorkoutLogs(loadedWorkoutLogs);
       setSetLogs(loadedSetLogs);

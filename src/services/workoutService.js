@@ -172,6 +172,17 @@ export function fetchWorkoutSetLogs(userId, workoutPlanId, limit = 600) {
     .limit(limit);
 }
 
+export function fetchUserWorkoutSetLogs(userId, limit = 1500) {
+  return supabase
+    .from("workout_set_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("workout_date", { ascending: false })
+    .order("exercise_id", { ascending: true })
+    .order("set_number", { ascending: true })
+    .limit(limit);
+}
+
 export function createWorkoutPlanRecord(plan) {
   return supabase.from("workout_plans").insert([plan]).select().single();
 }

@@ -205,6 +205,10 @@ function parseDecimalInput(value) {
   return Number.isFinite(parsedValue) ? parsedValue : Number.NaN;
 }
 
+function hasSameId(firstId, secondId) {
+  return String(firstId || "") === String(secondId || "");
+}
+
 function WorkoutManager({ user, profile, onProfileUpdated }) {
   const { language, t, translate } = useLanguage();
   const profileRef = useRef(profile);
@@ -1076,9 +1080,11 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
     setExercises(updatedExercises);
     setProgress((prev) =>
-      prev.filter((item) => item.exercise_id !== exerciseId),
+      prev.filter((item) => !hasSameId(item.exercise_id, exerciseId)),
     );
-    setSetLogs((prev) => prev.filter((item) => item.exercise_id !== exerciseId));
+    setSetLogs((prev) =>
+      prev.filter((item) => !hasSameId(item.exercise_id, exerciseId)),
+    );
     setSetLogForms((prev) => {
       const nextForms = { ...prev };
       delete nextForms[exerciseId];
@@ -1101,7 +1107,7 @@ function WorkoutManager({ user, profile, onProfileUpdated }) {
 
   function isExerciseCompleted(exerciseId) {
     return progress.some(
-      (item) => item.exercise_id === exerciseId && item.completed,
+      (item) => hasSameId(item.exercise_id, exerciseId) && item.completed,
     );
   }
 
@@ -1634,7 +1640,7 @@ const displayNextWorkoutDay = useMemo(() => {
     startWorkoutTimer();
 
     const existingProgress = progress.find(
-      (item) => item.exercise_id === exercise.id,
+      (item) => hasSameId(item.exercise_id, exercise.id),
     );
 
     if (existingProgress) {
@@ -2289,7 +2295,7 @@ const displayNextWorkoutDay = useMemo(() => {
 
   function getExerciseSetLogs(exerciseId) {
     return setLogs
-      .filter((log) => log.exercise_id === exerciseId)
+      .filter((log) => hasSameId(log.exercise_id, exerciseId))
       .sort((a, b) => {
         const dateComparison = getWorkoutDateKey(b.workout_date).localeCompare(
           getWorkoutDateKey(a.workout_date),
@@ -2461,12 +2467,12 @@ const displayNextWorkoutDay = useMemo(() => {
 
   async function markExerciseCompletedAfterSetLog(exercise) {
     const existingProgress = progress.find(
-      (item) => item.exercise_id === exercise.id,
+      (item) => hasSameId(item.exercise_id, exercise.id),
     );
 
     if (existingProgress) {
       if (existingProgress.completed) {
-        return;
+        return true;
       }
 
       const { data, error } = await updateWorkoutProgress(
@@ -2479,14 +2485,14 @@ const displayNextWorkoutDay = useMemo(() => {
 
       if (error) {
         reportError(error);
-        return;
+        return false;
       }
 
       setProgress((prev) =>
         prev.map((item) => (item.id === existingProgress.id ? data : item)),
       );
 
-      return;
+      return true;
     }
 
     const { data, error } = await createWorkoutProgress({
@@ -2500,10 +2506,11 @@ const displayNextWorkoutDay = useMemo(() => {
 
     if (error) {
       reportError(error);
-      return;
+      return false;
     }
 
     setProgress((prev) => [...prev, data]);
+    return true;
   }
 
   function getSetLogRecordsFromForm(exercise, form) {
@@ -2573,9 +2580,9 @@ const displayNextWorkoutDay = useMemo(() => {
       const withoutCurrentExercise = prev.filter(
         (log) =>
           !(
-            log.exercise_id === exercise.id &&
+            hasSameId(log.exercise_id, exercise.id) &&
             getWorkoutDateKey(log.workout_date) === today &&
-            log.workout_plan_id === activePlan.id
+            hasSameId(log.workout_plan_id, activePlan.id)
           ),
       );
 
@@ -2685,7 +2692,13 @@ const displayNextWorkoutDay = useMemo(() => {
       return;
     }
 
-    await markExerciseCompletedAfterSetLog(exercise);
+    const exerciseMarked = await markExerciseCompletedAfterSetLog(exercise);
+
+    if (!exerciseMarked) {
+      toast.error(translate("Performance saved, but exercise progress was not updated."));
+      setSavingSetLogs(false);
+      return;
+    }
 
     toast.success(translate("Exercise performance saved!"));
 
