@@ -52,7 +52,7 @@ function ProgressAnalytics({ user }) {
   const [setLogs, setSetLogs] = useState([]);
   const [workoutLogs, setWorkoutLogs] = useState([]);
   const [cardioLogs, setCardioLogs] = useState([]);
-  const [selectedExerciseId, setSelectedExerciseId] = useState("");
+  const [selectedExerciseKey, setSelectedExerciseKey] = useState("");
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState("summary");
 
   const [loading, setLoading] = useState(true);
@@ -94,21 +94,21 @@ function ProgressAnalytics({ user }) {
       .eq("is_active", true)
       .order("created_at", {
         ascending: false,
-      })
-      .limit(1);
+      });
 
     if (plansError) {
       reportError(plansError);
     }
 
-    const activePlan = plansData?.[0] || null;
+    const activePlans = plansData || [];
+    const activePlanIds = activePlans.map((plan) => plan.id).filter(Boolean);
 
-    if (activePlan) {
+    if (activePlanIds.length > 0) {
       const { data: exercisesData, error: exercisesError } = await supabase
         .from("workout_exercises")
         .select("*")
         .eq("user_id", user.id)
-        .eq("workout_plan_id", activePlan.id)
+        .in("workout_plan_id", activePlanIds)
         .order("workout_day", {
           ascending: true,
         })
@@ -124,41 +124,50 @@ function ProgressAnalytics({ user }) {
 
       setExercises(loadedExercises);
 
-      const { data: workoutLogsData, error: workoutLogsError } =
-        await fetchCompletedWorkoutLogs(user.id, activePlan.id);
+      const workoutLogsResults = await Promise.all(
+        activePlanIds.map((planId) => fetchCompletedWorkoutLogs(user.id, planId)),
+      );
+      const setLogsResults = await Promise.all(
+        activePlanIds.map((planId) => fetchWorkoutSetLogs(user.id, planId, 800)),
+      );
 
-      if (workoutLogsError) {
-        reportError(workoutLogsError);
-      }
+      workoutLogsResults.forEach((result) => {
+        if (result.error) {
+          reportError(result.error);
+        }
+      });
+      setLogsResults.forEach((result) => {
+        if (result.error) {
+          reportError(result.error);
+        }
+      });
 
-      setWorkoutLogs(workoutLogsData || []);
+      const loadedWorkoutLogs = workoutLogsResults.flatMap(
+        (result) => result.data || [],
+      );
+      const loadedSetLogs = setLogsResults.flatMap((result) => result.data || []);
 
-      const { data: setLogsData, error: setLogsError } =
-        await fetchWorkoutSetLogs(user.id, activePlan.id, 800);
-
-      if (setLogsError) {
-        reportError(setLogsError);
-      }
-
-      const loadedSetLogs = setLogsData || [];
-
+      setWorkoutLogs(loadedWorkoutLogs);
       setSetLogs(loadedSetLogs);
-      setSelectedExerciseId((currentId) => {
-        if (currentId && loadedExercises.some((item) => item.id === currentId)) {
-          return currentId;
+      setSelectedExerciseKey((currentKey) => {
+        if (
+          currentKey &&
+          loadedExercises.some((item) => getExerciseKey(item) === currentKey)
+        ) {
+          return currentKey;
         }
 
         const firstExerciseWithLogs = loadedExercises.find((exercise) =>
-          loadedSetLogs.some((log) => log.exercise_id === exercise.id),
+          loadedSetLogs.some((log) => hasSameId(log.exercise_id, exercise.id)),
         );
 
-        return firstExerciseWithLogs?.id || loadedExercises[0]?.id || "";
+        return getExerciseKey(firstExerciseWithLogs || loadedExercises[0]);
       });
     } else {
       setExercises([]);
       setSetLogs([]);
       setWorkoutLogs([]);
-      setSelectedExerciseId("");
+      setSelectedExerciseKey("");
     }
 
     const { data: cardioLogsData, error: cardioLogsError } =
@@ -244,9 +253,36 @@ function ProgressAnalytics({ user }) {
     return 0;
   }
 
-  function getExerciseSetLogs(exerciseId) {
+  function hasSameId(firstId, secondId) {
+    return String(firstId || "") === String(secondId || "");
+  }
+
+  function normalizeExerciseName(name) {
+    return String(name || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+  }
+
+  function getExerciseKey(exercise) {
+    const normalizedName = normalizeExerciseName(exercise?.name);
+
+    return normalizedName ? `name:${normalizedName}` : `id:${exercise?.id || ""}`;
+  }
+
+  function getExerciseSetLogs(exerciseKey) {
+    const matchingExerciseIds = exercises
+      .filter((exercise) => getExerciseKey(exercise) === exerciseKey)
+      .map((exercise) => exercise.id);
+
     return setLogs
-      .filter((log) => log.exercise_id === exerciseId)
+      .filter((log) =>
+        matchingExerciseIds.some((exerciseId) =>
+          hasSameId(log.exercise_id, exerciseId),
+        ),
+      )
       .sort((a, b) => {
         const dateComparison = getWorkoutDateKey(b.workout_date).localeCompare(
           getWorkoutDateKey(a.workout_date),
@@ -260,8 +296,8 @@ function ProgressAnalytics({ user }) {
       });
   }
 
-  function getExerciseHistorySessions(exerciseId) {
-    const logsByDate = getExerciseSetLogs(exerciseId).reduce((groups, log) => {
+  function getExerciseHistorySessions(exerciseKey) {
+    const logsByDate = getExerciseSetLogs(exerciseKey).reduce((groups, log) => {
       const dateKey = getWorkoutDateKey(log.workout_date);
 
       if (!groups[dateKey]) {
@@ -304,8 +340,8 @@ function ProgressAnalytics({ user }) {
       .sort((a, b) => b.date.localeCompare(a.date));
   }
 
-  function getExerciseRecords(exercise) {
-    const sessions = getExerciseHistorySessions(exercise.id);
+  function getExerciseRecords(exerciseOption) {
+    const sessions = getExerciseHistorySessions(exerciseOption.key);
 
     if (sessions.length === 0) {
       return null;
@@ -334,7 +370,7 @@ function ProgressAnalytics({ user }) {
     }, sessions[0]);
 
     return {
-      exercise,
+      exercise: exerciseOption.exercise,
       bestLoad: Number(bestLoadLog?.load) || 0,
       bestLoadDate: bestLoadLog?.sessionDate || "",
       bestLoadReps: Number(bestLoadLog?.reps) || 0,
@@ -453,17 +489,61 @@ function ProgressAnalytics({ user }) {
     };
   }
 
-  const selectedExercise = useMemo(() => {
-    return exercises.find((exercise) => exercise.id === selectedExerciseId);
-  }, [exercises, selectedExerciseId]);
+  const exerciseOptions = useMemo(() => {
+    const groupedOptions = new Map();
+
+    exercises.forEach((exercise) => {
+      const key = getExerciseKey(exercise);
+
+      if (!groupedOptions.has(key)) {
+        groupedOptions.set(key, {
+          exercise,
+          exerciseIds: [],
+          hasLogs: false,
+          key,
+          name: exercise.name,
+        });
+      }
+
+      const option = groupedOptions.get(key);
+      option.exerciseIds.push(exercise.id);
+      option.hasLogs =
+        option.hasLogs ||
+        setLogs.some((log) => hasSameId(log.exercise_id, exercise.id));
+    });
+
+    const options = [...groupedOptions.values()];
+    const loggedOptions = options.filter((option) => option.hasLogs);
+
+    return loggedOptions.length > 0 ? loggedOptions : options;
+  }, [exercises, setLogs]);
+
+  useEffect(() => {
+    if (exerciseOptions.length === 0) {
+      if (selectedExerciseKey) {
+        setSelectedExerciseKey("");
+      }
+      return;
+    }
+
+    if (!exerciseOptions.some((option) => option.key === selectedExerciseKey)) {
+      setSelectedExerciseKey(exerciseOptions[0].key);
+    }
+  }, [exerciseOptions, selectedExerciseKey]);
+
+  const selectedExerciseOption = useMemo(() => {
+    return exerciseOptions.find((option) => option.key === selectedExerciseKey);
+  }, [exerciseOptions, selectedExerciseKey]);
+
+  const selectedExercise = selectedExerciseOption?.exercise || null;
 
   const selectedExerciseHistory = useMemo(() => {
-    if (!selectedExerciseId) {
+    if (!selectedExerciseKey) {
       return [];
     }
 
-    return getExerciseHistorySessions(selectedExerciseId);
-  }, [selectedExerciseId, setLogs]);
+    return getExerciseHistorySessions(selectedExerciseKey);
+  }, [selectedExerciseKey, exercises, setLogs]);
 
   const selectedExerciseChartData = useMemo(() => {
     return selectedExerciseHistory
@@ -481,11 +561,11 @@ function ProgressAnalytics({ user }) {
   }, [selectedExercise, selectedExerciseHistory]);
 
   const workoutRecords = useMemo(() => {
-    return exercises
-      .map((exercise) => getExerciseRecords(exercise))
+    return exerciseOptions
+      .map((exerciseOption) => getExerciseRecords(exerciseOption))
       .filter(Boolean)
       .sort((a, b) => b.bestVolume - a.bestVolume);
-  }, [exercises, setLogs]);
+  }, [exerciseOptions, exercises, setLogs]);
 
   const workoutDurationStats = useMemo(() => {
     const completedWithDuration = workoutLogs
@@ -1421,17 +1501,17 @@ function ProgressAnalytics({ user }) {
           </div>
 
           <select
-            value={selectedExerciseId}
-            onChange={(event) => setSelectedExerciseId(event.target.value)}
+            value={selectedExerciseKey}
+            onChange={(event) => setSelectedExerciseKey(event.target.value)}
             className="WorkoutInput sm:max-w-xs"
           >
-            {exercises.length === 0 && (
+            {exerciseOptions.length === 0 && (
               <option value="">{translate("No exercises logged yet")}</option>
             )}
 
-            {exercises.map((exercise) => (
-              <option key={exercise.id} value={exercise.id}>
-                {translate(exercise.name)}
+            {exerciseOptions.map((exerciseOption) => (
+              <option key={exerciseOption.key} value={exerciseOption.key}>
+                {translate(exerciseOption.name)}
               </option>
             ))}
           </select>
